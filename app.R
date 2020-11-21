@@ -15,12 +15,13 @@
   require(readxl)
   require(plotly)
   require(ggplot2)
+  require(xlsx)
 
 #Setting Seed
   set.seed(06182020)
   
 #Working Directory
-  setwd("D:/Huang Lab/simplicity app/Simplicity")
+  # setwd("D:/Huang Lab/simplicity app/Simplicity")
   
 #Loading data for ui
   #Dataset Summaries
@@ -33,6 +34,13 @@
     ccl_compound_availability <- readRDS("./www/Compound_Availability_by_Cell_Line.rds")
     compound_ccl_availability_successful <- readRDS("./www/CCL_Availability_Successful_by_Compound.rds")
     ccl_compound_availability_successful <- readRDS("./www/Compound_Availability_Successful_by_Cell_Line.rds")
+  #Dataset tested concentration information
+    Dataset_Tested_Concentrations <- readRDS("./www/Dataset_Compound_Concentrations.rds")
+    for(i in c(2:69, 74)){
+      Dataset_Tested_Concentrations[,i] <- as.numeric(Dataset_Tested_Concentrations[,i])
+    }
+  #Csustained data
+    Csustained <- as.data.frame(read_xlsx("./www/Csustained.xlsx", na = "NA"))
   #Cell line and compound information
     Cell_Line_Harm <- as.data.frame(read_xlsx("./www/Harmonized_CCL_Data_11_3_2020_manual_updates.xlsx", na = "NA"))
       Cell_Line_Harm$Dataset[grepl("CTRPv2", Cell_Line_Harm$Dataset)] <- "CTRPv2"
@@ -115,11 +123,42 @@
     return((b_c_d_e$c + (b_c_d_e$d - b_c_d_e$c)/(1 + exp(b_c_d_e$b*(log(x)-log(b_c_d_e$e))))))
   })
   
+#Writing function for 4-parameter log-logistic curve
+  #b = slope
+  #c = lower asymptote
+  #d = upper asymptote
+  #e = EC50 (note, this is NOT log(EC50))
+  #b_c_d_e should be input as a character vector with each element consisting of the string
+  #"b_c_d_e" with the numeric values separated by an underscore in that order
+  #x should be log(dose)
+  ll.4.AUC <- function(x, b_c_d_e){
+    b_c_d_e <- as.data.frame(do.call(rbind, lapply(strsplit(b_c_d_e, "_"), as.numeric)))
+    colnames(b_c_d_e) <- c("b", "c", "d", "e")
+    return((b_c_d_e$c + (b_c_d_e$d - b_c_d_e$c)/(1 + exp(b_c_d_e$b*(x-log(b_c_d_e$e))))))
+  }
+  
+#Writing function to calculate AUC values
+  #lower and upper should be given as raw concentrations (NOT log(conc))
+  AUC <- Vectorize(function(b_c_d_e, lower, upper){
+    lower <- log(as.numeric(lower))
+    upper <- log(as.numeric(upper))
+    Results <- try(integrate(ll.4.AUC, lower, upper, b_c_d_e = b_c_d_e), silent = TRUE)
+    if(! class(Results) == "try-error"){
+      return(Results$value/(upper-lower))
+    } else {
+      Results <- try(integrate(ll.4.AUC, lower, upper, b_c_d_e = b_c_d_e, rel.tol = 1e-15), silent = TRUE)
+      if(! class(Results) == "try-error"){
+        return(Results$value/(upper-lower))
+      } else {
+        return(NA)
+      }
+    }
+  })
+  
 #Writing function to unique and remove NA, "NA", and "" values
   clean_vector <- function(x){
     return(unique(x[! x %in% c("", NA, "NA")]))
   }
-
 
 #############################################################  
 ######################################################## UI #          
@@ -222,8 +261,32 @@
           #Creating searchbars to select compound and cell line to plot
             wellPanel(
                fluidRow(
-                column(width = 4, selectizeInput("plot_compound", paste0("Select a Compound (n = ", length(compound_ccl_availability), ")"), choices = names(compound_ccl_availability), selected = names(compound_ccl_availability)[1], multiple = FALSE, options = NULL)),
-                column(width = 4, selectizeInput("plot_cell_line", paste0("Select a Cell Line (n = ", length(unique(unlist(compound_ccl_availability[[1]]))), ")"), choices = sort(unique(unlist(compound_ccl_availability[[1]]))), selected = NULL, multiple = FALSE, options = NULL))
+                column(width = 4, selectizeInput("plot_compound", label = "Select a compound", choices = NULL, multiple = FALSE, options = list(
+                        placeholder = 'Select compound',
+                        # you can search the data based on these fields
+                        searchField = c('Compound_Synonyms'),
+                        # the label that will be shown once value is selected
+                        labelField= 'Harmonized_Compound_Name',
+                        # (each item is a row in data), which requires 'value' column (created by cbind at server side)
+                         render = I("{
+                                option: function(item, escape) {
+                                  return '<div>' + escape(item.Harmonized_Compound_Name) +'</div>';
+                                }
+                              }")
+                    ))),
+                column(width = 4, selectizeInput("plot_cell_line", label = paste0("Select a cell line"), choices = NULL, multiple = FALSE, options = list(
+                        placeholder = 'Select cell line',
+                        # you can search the data based on these fields
+                        searchField = c('Synonyms'),
+                        # the label that will be shown once value is selected
+                        labelField= 'Harmonized_Cell_Line_ID',
+                        # (each item is a row in data), which requires 'value' column (created by cbind at server side)
+                         render = I("{
+                                option: function(item, escape) {
+                                  return '<div>' + escape(item.Harmonized_Cell_Line_ID) +'</div>';
+                                }
+                              }")
+                    )))
               ),
             #Adding button to create plot
               fluidRow(
@@ -244,29 +307,46 @@
                    
 ######################################################## UI #           
           tabPanel(value = "AUC Values", title = "AUC Values",
-              wellPanel(
-               fluidRow(
-                column(width = 4, selectizeInput("cell_line_explorer", paste0("Select a Cell Line (n = ", length(ccl_compound_availability), ")"), choices = names(ccl_compound_availability), selected = names(ccl_compound_availability)[1], multiple = FALSE, options = NULL)),
-              )),
-              h1("PAGE UNDER CONSTRUCTION")
+              list(
+                wellPanel(
+                  p(HTML("<b>By following the instructions below, this tab can be used to calculate normalized area under the curve (AUC) values (see methods tab) for custom concentration ranges using the fitted dose-response curves in Simplicity for each dataset.</b>"), style = "font-size:16px;"),
+                  p(HTML("<b>Step 1:</b> Select a dataset to use for AUC calculations.")),
+                  p(HTML("<b>Step 2 (optional):</b> Generate a template instruction file which can be downloaded and modified to specify the compounds and concentration ranges to be used for AUC calculations.")),
+                  p(HTML("<b>Step 3:</b> Upload an instruction file specifying the compounds and concentration ranges to be used for AUC calculations.")),
+                  p(HTML("<b>Step 4:</b> Select the cell lines for which AUC are to be calculated for the compounds/concentration ranges specified in the instruction file.")),
+                  p(HTML("<b>Step 5:</b> Press \"Calculate AUC Values\" button to generate and download calculated AUC values."))
+                ),
+                # h4("Step 1: Select dataset"),
+                pickerInput(inputId = "AUC_Dataset", label = "Step 1: Which dataset would you like to use to calculate AUC values?", choices = Dataset_Summaries$Dataset, selected = NULL, multiple = TRUE, width = "50%", options = list(`none-Selected-Text` = "Select dataset", `max-options` = 1)),
+                uiOutput(outputId = "AUC_Interface")
+              )
           ),
 
 ######################################################## UI #           
           tabPanel(value = "Viability Values", title = "Viability Values",
-              wellPanel(
-               fluidRow(
-                column(width = 4, selectizeInput("cell_line_explorer", paste0("Select a Cell Line (n = ", length(ccl_compound_availability), ")"), choices = names(ccl_compound_availability), selected = names(ccl_compound_availability)[1], multiple = FALSE, options = NULL)),
-              )),
-              h1("PAGE UNDER CONSTRUCTION")
+              list(
+                wellPanel(
+                  p(HTML("<b>By following the instructions below, this tab can be used to calculate cell line viability values (see methods tab) at custom compound concentrations using the fitted dose-response curves in Simplicity for each dataset.</b>"), style = "font-size:16px;"),
+                  p(HTML("<b>Step 1:</b> Select a dataset to use for viability calculations.")),
+                  p(HTML("<b>Step 2 (optional):</b> Generate a template instruction file which can be downloaded and modified to specify the compounds and concentrations to be used for viability calculations.")),
+                  p(HTML("<b>Step 3:</b> Upload an instruction file specifying the compounds and concentration ranges to be used for Viability calculations.")),
+                  p(HTML("<b>Step 4:</b> Select the cell lines for which viability values are to be calculated for the compounds/concentrations specified in the instruction file.")),
+                  p(HTML("<b>Step 5:</b> Press \"Calculate Viability Values\" button to generate and download calculated viability values."))
+                ),
+                # h4("Step 1: Select dataset"),
+                pickerInput(inputId = "Viability_Dataset", label = "Step 1: Which dataset would you like to use to calculate viability values?", choices = Dataset_Summaries$Dataset, selected = NULL, multiple = TRUE, width = "50%", options = list(`none-Selected-Text` = "Select dataset", `max-options` = 1)),
+                uiOutput(outputId = "Viability_Interface")
+              )
           )
         ),
 
 #############################################################          
 ######################################################## UI #           
       tabPanel(value = "Download Data", title = "Download Data",
-                 
-          h1("PAGE UNDER CONSTRUCTION")
-        
+          list(
+            h1("PAGE UNDER CONSTRUCTION")
+            
+          )      
         )
         
         
@@ -280,9 +360,6 @@
     #Observing help menu objects
       observe_helpers()
     
-    #Creating .5 sec timer for periodic updates
-      half_sec_timer <- reactiveTimer(500)
-
     #Setting code to only run for each tab once that tab is selected
       observeEvent(input$tabs, {
         
@@ -367,7 +444,7 @@
 #############################################################          
 #################################################### server #          
         }
-        
+
         if(input$tabs == "Explore Compounds"){
           #Code for "Explore Compounds" Tab
           
@@ -630,7 +707,7 @@
 
                             if(! is.null(input$Compound_Explorer_Cancer_Type)){
                               flag <- 1
-                              Filtered_ccls <- Compound_Explorer_Available_Cell_Lines_for_Compound()[Compound_Explorer_Available_Cell_Lines_for_Compound() %in% Temp_CL_Harm_Data$Harmonized_Cell_Line_ID[Temp_CL_Harm_Data$Simple_Cancer_Type %in% input$Compound_Explorer_Cancer_Type]]
+                              Filtered_ccls <- Avail_ccls[Avail_ccls %in% Temp_CL_Harm_Data$Harmonized_Cell_Line_ID[Temp_CL_Harm_Data$Simple_Cancer_Type %in% input$Compound_Explorer_Cancer_Type]]
                             }
 
                             if(! is.null(input$Compound_Explorer_Disease_Name)){
@@ -1042,7 +1119,7 @@
 #############################################################          
 #################################################### server #          
         }
-        
+
         if(input$tabs == "Explore Cell Lines"){
           #Code for "Explore Cell Lines" Tab
           
@@ -1372,14 +1449,35 @@
                             helper(type = "inline",
                               title = "Compound filtering",
                               icon = "question-circle", colour = NULL,
-                              content = c("These options can be used to filter the compound options displayed in the \"Select compounds to plot data for\" menu."),
+                              content = c("These options can be used to filter the compound options displayed in the \"Select compounds to plot data for\" menu. Note that selecting any options from a filter menu will omit all compounds which lack annotated information for that menu's filtering criteria."),
                               size = "m",
                               buttonLabel = "Okay", easyClose = TRUE, fade = FALSE
                             ),
                         wellPanel(list(
-                          pickerInput(inputId = "Cell_Line_Explorer_Molecular_Target", label = "Filter compounds by molecular target", choices = Cell_Line_Explorer_Available_Molecular_Targets(), selected = NULL, multiple = TRUE, options = list(`actions-Box` = TRUE,`live-Search-Style` = "contains" , `live-Search` = TRUE, `live-Search-Normalize` = TRUE, `selected-Text-Format` = "count", `none-Selected-Text` = "Optional")),
-                          pickerInput(inputId = "Cell_Line_Explorer_MOA", label = "Filter compounds by free-text MOA", choices = Cell_Line_Explorer_Available_MOAs(), selected = NULL, multiple = TRUE, options = list(`actions-Box` = TRUE,`live-Search-Style` = "contains" , `live-Search` = TRUE, `live-Search-Normalize` = TRUE, `selected-Text-Format` = "count", `none-Selected-Text` = "Optional")),
-                          pickerInput(inputId = "Cell_Line_Explorer_Clinical_Phase", label = "Filter compounds by clinical phase", choices = sort(unique(Cell_Line_Explorer_Simple_Compound_Harm_for_Cell_Line()$Compound_Clinical_Phase)), selected = NULL, multiple = TRUE, options = list(`actions-Box` = TRUE, `selected-Text-Format` = "count", `none-Selected-Text` = "Optional"))
+                          pickerInput(inputId = "Cell_Line_Explorer_Molecular_Target", label = "Filter compounds by molecular target", choices = Cell_Line_Explorer_Available_Molecular_Targets(), selected = NULL, multiple = TRUE, options = list(`actions-Box` = TRUE,`live-Search-Style` = "contains" , `live-Search` = TRUE, `live-Search-Normalize` = TRUE, `selected-Text-Format` = "count", `none-Selected-Text` = "Optional")) %>%
+                          helper(type = "inline",
+                            title = "Molecular Target Filtering",
+                            icon = "question-circle", colour = NULL,
+                            content = c("Limits compounds displayed in the \"Select compounds to plot data for\" menu to compounds which target at least one of the selected molecular targets. Note that, if any selections have been made in the \"Filter compounds by free-text MOA\" menu, displayed compounds will also include compounds which have at least one of the selected MOAs."),
+                            size = "m",
+                            buttonLabel = "Okay", easyClose = TRUE, fade = FALSE
+                          ),
+                          pickerInput(inputId = "Cell_Line_Explorer_MOA", label = "Filter compounds by free-text MOA", choices = Cell_Line_Explorer_Available_MOAs(), selected = NULL, multiple = TRUE, options = list(`actions-Box` = TRUE,`live-Search-Style` = "contains" , `live-Search` = TRUE, `live-Search-Normalize` = TRUE, `selected-Text-Format` = "count", `none-Selected-Text` = "Optional")) %>%
+                          helper(type = "inline",
+                            title = "Mechanism of Action (MOA) Filtering",
+                            icon = "question-circle", colour = NULL,
+                            content = c("Limits compounds displayed in the \"Select compounds to plot data for\" menu to compounds with at least one of the selected MOAs. Note that, if any selections have been made in the \"Filter compounds by molecular target\" menu, displayed compounds will also include compounds which target at least one of the selected molecular targets."),
+                            size = "m",
+                            buttonLabel = "Okay", easyClose = TRUE, fade = FALSE
+                          ),
+                          pickerInput(inputId = "Cell_Line_Explorer_Clinical_Phase", label = "Filter compounds by clinical phase", choices = sort(unique(Cell_Line_Explorer_Simple_Compound_Harm_for_Cell_Line()$Compound_Clinical_Phase)), selected = NULL, multiple = TRUE, options = list(`actions-Box` = TRUE, `selected-Text-Format` = "count", `none-Selected-Text` = "Optional")) %>%
+                          helper(type = "inline",
+                            title = "Clinical Phase Filtering",
+                            icon = "question-circle", colour = NULL,
+                            content = c("Limits compounds displayed in the \"Select compounds to plot data for\" menu to compounds whose annotated highest reached clinical phase is one of the selected phases."),
+                            size = "m",
+                            buttonLabel = "Okay", easyClose = TRUE, fade = FALSE
+                          )
                         ))
                       ))
                     } else {
@@ -1718,14 +1816,20 @@
 #############################################################          
 #################################################### server #          
         }
-        
+
         if(input$tabs == "Plot Dose-Response Curves"){
         #Code for "Plot Dose-Response Curves" tab
           
-          #Updating label and choices for cell lines
-            observe({
-              updateSelectizeInput(session, "plot_cell_line", label = paste0("Select a Cell Line (n = ", length(unique(unlist(compound_ccl_availability[[input$plot_compound]]))), ")"), choices = sort(unique(unlist(compound_ccl_availability[[input$plot_compound]]))))
+          #Initializing compound choice menu
+            updateSelectizeInput(session, "plot_compound", label = paste0("Select a compound (n = ", nrow(Compound_Option_df), ")"), choices = cbind(Compound_Option_df, value = Compound_Option_df$Harmonized_Compound_Name), server = TRUE)
+
+          #Updating cell line choices based on selected compound
+            observeEvent(input$plot_compound, ignoreInit = TRUE, eventExpr = {
+              available_cell_lines <- sort(unique(unlist(compound_ccl_availability_successful[[input$plot_compound]])))
+              temp_cell_line_option_df <- Cell_Line_Option_df[Cell_Line_Option_df$Harmonized_Cell_Line_ID %in% available_cell_lines,]
+              updateSelectizeInput(session, "plot_cell_line", label = paste0("Select a Cell Line (n = ", nrow(temp_cell_line_option_df), ")"), choices = cbind(temp_cell_line_option_df, value = temp_cell_line_option_df$Harmonized_Cell_Line_ID), server = TRUE)
             })
+            
           #Plotting selected compound and cell line
             observeEvent(input$Create_Compound_CCL_Plot, {
               #Loading data
@@ -1893,26 +1997,1321 @@
 #############################################################          
 #################################################### server #          
         }
-        
+
         if(input$tabs == "AUC Values"){
+          
           #Code for "AUC Values" Tab
           
+            #Generating AUC Interface
+                    isolate({output$AUC_Interface <- renderUI({
+                      req(input$AUC_Dataset)
+                      if(! input$AUC_Dataset == ""){
+                        wellPanel(
+                          fluidRow(
+                            #First Column
+                              column(width = 6,
+                                wellPanel(
+                                  h4("Step 2 (optional): Generate template instruction file"),
+                                  #Generating compound selection menu
+                                    pickerInput("AUC_Compounds", label = "Select compounds to calculate AUC values for", choices = NULL, selected = NULL, multiple = TRUE, options = list(
+                                      `actions-Box` = TRUE,
+                                      `live-Search-Style` = "contains" ,
+                                      `live-Search` = TRUE,
+                                      `live-Search-Normalize` = TRUE,
+                                      `selected-Text-Format` = "count"
+                                    )),
+                                  #Generating checkbox to toggle compound filter option display
+                                    checkboxInput("AUC_Show_Compound_Filters", label = "Show compound filters?", value = FALSE),
+                                  #Generating UI for compound filters
+                                    uiOutput("AUC_Compound_Filters"),
+                                  #Generating checkbox to toggle whether or not Csustained values should be used when available
+                                    checkboxInput("AUC_Use_Csustained", label = "Generate using Csustained when available?", value = TRUE) %>%
+                                    helper(type = "inline",
+                                      title = "Using Csustained Concentrations",
+                                      icon = "question-circle", colour = NULL,
+                                      content = c("Selecting this option will cause the template instruction file to use Csustained concentrations for the Upper_Conc_Limit_uM column as long as the Csustained concentration is greater than the most common minimum concentration tested for that compound in the selected dataset. Csustained concentrations are the estimated maximum drug plasma concentrations in patients occurring at least 6 hours after drug administration, and are currently available for some, but not all, clinically advanced drugs. Details about these concentrations and how they were determined can be found by downloading the \"Csustained.xlsx\" table from the \"Download Data\" tab.", "", "If this option is not selected, the Upper_Conc_Limit_uM column will be populated with the most commonly used maximum concentration tested for each compound in the selected dataset."),
+                                      size = "m",
+                                      buttonLabel = "Okay", easyClose = TRUE, fade = FALSE
+                                    ),
+                                  #Generating button to create and download template file
+                                    downloadButton(outputId = "AUC_Create_Template", label = "Download Instruction Template") %>%
+                                    helper(type = "inline",
+                                      title = "Create Template",
+                                      icon = "question-circle", colour = NULL,
+                                      content = c("Downloads a template Instruction file for the specified dataset and compounds for use in step 3. If at least one compound has been selected, the columns in the file will be as described below. Note that only the first three columns are necessary for the Instruction file, with the rest of the columns being provided for reference.", "",
+                                                  HTML("<b>Compound:</b>"), "Name of the compound for which normalized AUC values are to be calculated.", "",
+                                                  HTML("<b>Lower_Conc_Limit_uM:</b>"), "The lower concentration boundary for the integration area to be used when calculating AUC values (in microMolar).", "",
+                                                  HTML("<b>Upper_Conc_Limit_uM:</b>"), "The upper concentration boundary for the integration area to be used when calculating AUC values (in microMolar).", "",
+                                                  HTML("<b>Min_Tested_Conc_uM:</b>"), "The minimum tested concentration (in microMolar) of this compound in the selected dataset in any cell line.", "",
+                                                  HTML("<b>Max_Tested_Conc_uM:</b>"), "The maximum tested concentration (in microMolar) of this compound in the selected dataset in any cell line.", "",
+                                                  HTML("<b>Most_Commonly_Used_Min_Tested_Conc_uM:</b>"), "The most commonly used minimum tested concentration (in microMolar) of this compound in the selected dataset.", "",
+                                                  HTML("<b>Most_Commonly_Used_Max_Tested_Conc_uM:</b>"), "The most commonly used maximum tested concentration (in microMolar) of this compound in the selected dataset.", "",
+                                                  HTML("<b>Csustained_uM:</b>"), "The maximum plasma concentation of this compound achieved at least 6 hours after drug administration in a patient at a clinically usable dose. These values were obtained from: Ling, A. & Huang, R. S. Computationally predicting clinical drug combination efficacy with cancer cell line screens and independent drug action. Nat. Commun. 11, 1–13 (2020). Details about these concentrations and how they were determined can be found by downloading the \"Csustained.xlsx\" table from the \"Download Data\" tab."),
+                                      size = "m",
+                                      buttonLabel = "Okay", easyClose = TRUE, fade = FALSE
+                                    )
+                                )
+                              ),
+                            #Second Column
+                              column(width = 6,
+                                wellPanel(
+                                  h4("Step 3: Upload instruction file"),
+                                  fileInput("AUC_Instruction", label = "Upload Instruction file", accept = ".xlsx"),
+                                  uiOutput("AUC_Error"),
+                                  #Generating UI for cell line selection
+                                    uiOutput("AUC_Cell_Line_Menu")
+                                )
+                              )
+                          )
+                        )
+                      } else {
+                        list(p(""))
+                      }
+                    })})
+                
+                  #Processing values that depend on AUC_Dataset
+                    
+                    #Determining which compounds are available for selected dataset
+                      AUC_Available_Compounds <- reactive({
+                        req(input$AUC_Dataset)
+                        if(! input$AUC_Dataset == ""){
+                          names(compound_ccl_availability_successful)[sapply(compound_ccl_availability_successful, function(x){return(length(x[[input$AUC_Dataset]]) > 0)})]
+                        } else {
+                          NULL
+                        }
+                      })
+                      
+                      AUC_Simple_Compound_Harm_for_Dataset <- reactive({
+                        req(input$AUC_Dataset)
+                        if(! input$AUC_Dataset == ""){
+                          Simple_Compound_Harm[Simple_Compound_Harm$Harmonized_Compound_Name %in% AUC_Available_Compounds(),]
+                        } else {
+                          NULL
+                        }
+                      })
+                      
+                    #Getting molecular targets available for compounds available for selected cell line
+                      AUC_Available_Molecular_Targets <- reactive({
+                        req(AUC_Simple_Compound_Harm_for_Dataset())
+                        temp_Compound_Molecular_Targets <- strsplit(AUC_Simple_Compound_Harm_for_Dataset()$Compound_Molecular_Targets, ":\\|:")
+                        return(sort(unique(unlist(temp_Compound_Molecular_Targets))))
+                      })
+                    
+                    #Getting mechanisms of action available for compounds available for selected cell line
+                      AUC_Available_MOAs <- reactive({
+                        req(AUC_Simple_Compound_Harm_for_Dataset())
+                        temp_Compound_MOAs <- strsplit(AUC_Simple_Compound_Harm_for_Dataset()$Compound_MOA, ":\\|:")
+                        return(sort(unique(unlist(temp_Compound_MOAs))))
+                      })
+                      
+                  #Defining compound filter interface
+                    isolate({output$AUC_Compound_Filters <- renderUI({
+                      req(input$AUC_Show_Compound_Filters)
+                      req(AUC_Available_Molecular_Targets())
+                      req(AUC_Available_MOAs())
+                      req(AUC_Simple_Compound_Harm_for_Dataset())
+                      
+                      if(input$AUC_Show_Compound_Filters == TRUE){
+                        return(list(
+                          h4("Filter compounds by:") %>%
+                              helper(type = "inline",
+                                title = "Compound filtering",
+                                icon = "question-circle", colour = NULL,
+                                content = c("These options can be used to filter the compound options displayed in the \"Select compounds to calculate AUC values for\" menu. Note that selecting any options from a filter menu will omit all compounds which lack annotated information for that menu's filtering criteria."),
+                                size = "m",
+                                buttonLabel = "Okay", easyClose = TRUE, fade = FALSE
+                              ),
+                          wellPanel(list(
+                            pickerInput(inputId = "AUC_Molecular_Target", label = "Filter compounds by molecular target", choices = AUC_Available_Molecular_Targets(), selected = NULL, multiple = TRUE, options = list(`actions-Box` = TRUE,`live-Search-Style` = "contains" , `live-Search` = TRUE, `live-Search-Normalize` = TRUE, `selected-Text-Format` = "count", `none-Selected-Text` = "Optional")) %>%
+                            helper(type = "inline",
+                              title = "Molecular Target Filtering",
+                              icon = "question-circle", colour = NULL,
+                              content = c("Limits compounds displayed in the \"Select compounds to calculate AUC values for\" menu to compounds which target at least one of the selected molecular targets. Note that, if any selections have been made in the \"Filter compounds by free-text MOA\" menu, displayed compounds will also include compounds which have at least one of the selected MOAs."),
+                              size = "m",
+                              buttonLabel = "Okay", easyClose = TRUE, fade = FALSE
+                            ),
+                            pickerInput(inputId = "AUC_MOA", label = "Filter compounds by free-text MOA", choices = AUC_Available_MOAs(), selected = NULL, multiple = TRUE, options = list(`actions-Box` = TRUE,`live-Search-Style` = "contains" , `live-Search` = TRUE, `live-Search-Normalize` = TRUE, `selected-Text-Format` = "count", `none-Selected-Text` = "Optional")) %>%
+                            helper(type = "inline",
+                              title = "Mechanism of Action (MOA) Filtering",
+                              icon = "question-circle", colour = NULL,
+                              content = c("Limits compounds displayed in the \"Select compounds to calculate AUC values for\" menu to compounds with at least one of the selected MOAs. Note that, if any selections have been made in the \"Filter compounds by molecular target\" menu, displayed compounds will also include compounds which target at least one of the selected molecular targets."),
+                              size = "m",
+                              buttonLabel = "Okay", easyClose = TRUE, fade = FALSE
+                            ),
+                            pickerInput(inputId = "AUC_Clinical_Phase", label = "Filter compounds by clinical phase", choices = sort(unique(AUC_Simple_Compound_Harm_for_Dataset()$Compound_Clinical_Phase)), selected = NULL, multiple = TRUE, options = list(`actions-Box` = TRUE, `selected-Text-Format` = "count", `none-Selected-Text` = "Optional")) %>%
+                            helper(type = "inline",
+                              title = "Clinical Phase Filtering",
+                              icon = "question-circle", colour = NULL,
+                              content = c("Limits compounds displayed in the \"Select compounds to calculate AUC values for\" menu to compounds whose annotated highest reached clinical phase is one of the selected phases."),
+                              size = "m",
+                              buttonLabel = "Okay", easyClose = TRUE, fade = FALSE
+                            )
+                          ))
+                        ))
+                      } else {
+                        return(list(p("")))
+                      }
+                    })})
+                    
+                  #Defining currently available compounds based on compound filters (meets any filter)
+                    AUC_Currently_Available_Compounds <- reactive({
+                      req(AUC_Simple_Compound_Harm_for_Dataset())
+      
+                      Avail_compounds <- AUC_Simple_Compound_Harm_for_Dataset()$Harmonized_Compound_Name
+                      Filtered_compounds <- character(0)
+                      flag <- 0
+                      
+                      
+                      if(! is.null(input$AUC_Molecular_Target)){
+                        flag <- 1
+                        Filtered_compounds <- Avail_compounds[Avail_compounds %in% names(Compound_Molecular_Targets)[sapply(Compound_Molecular_Targets, function(x,y){any(y %in% x)}, y = input$AUC_Molecular_Target)]]
+                      }
+                      
+                      if(! is.null(input$AUC_MOA)){
+                        if(flag == 0){
+                          Filtered_compounds <- Avail_compounds[Avail_compounds %in% names(Compound_MOAs)[sapply(Compound_MOAs, function(x,y){any(y %in% x)}, y = input$AUC_MOA)]]
+                        } else if(flag == 1){
+                          Filtered_compounds <- c(Filtered_compounds, Avail_compounds[Avail_compounds %in% names(Compound_MOAs)[sapply(Compound_MOAs, function(x,y){any(y %in% x)}, y = input$AUC_MOA)]])
+                        }
+                        flag <- 1
+                      }
+                      
+                      if(! is.null(input$AUC_Clinical_Phase)){
+                        if(flag == 0){
+                          Filtered_compounds <- Avail_compounds[Avail_compounds %in% Simple_Compound_Harm$Harmonized_Compound_Name[Simple_Compound_Harm$Compound_Clinical_Phase %in% input$AUC_Clinical_Phase]]
+                        } else if(flag == 1){
+                          Filtered_compounds <- Filtered_compounds[Filtered_compounds %in% Simple_Compound_Harm$Harmonized_Compound_Name[Simple_Compound_Harm$Compound_Clinical_Phase %in% input$AUC_Clinical_Phase]]
+                        }
+                        flag <- 1
+                      }
+                      
+                      if(flag == 0){
+                        return(Avail_compounds)
+                      } else if(flag == 1){
+                        return(Filtered_compounds)
+                      }
+                    })
+                
+                  #Updating compound input menu
+                    observeEvent(AUC_Currently_Available_Compounds(), {
+                      isolate({
+                        updatePickerInput(session, "AUC_Compounds", label = paste0("Select compounds to calculate AUC values for (n = ", length(AUC_Currently_Available_Compounds()), ")"), choices = AUC_Currently_Available_Compounds(), selected = AUC_Currently_Available_Compounds())
+                      })
+                    })
+                    
+                  #Generating Instruction template File
+                    AUC_Template <- reactive({
+                      req(input$AUC_Dataset)
+                      req(input$AUC_Compounds)
+                      
+                      if(length(input$AUC_Compounds) > 0){
+                        temp_data <- Dataset_Tested_Concentrations[Dataset_Tested_Concentrations$Compound %in% input$AUC_Compounds, c("Compound", paste0("min_mode_ccl_", input$AUC_Dataset, "_conc"), paste0("max_mode_ccl_", input$AUC_Dataset, "_conc"), paste0("min_", input$AUC_Dataset, "_conc"), paste0("max_", input$AUC_Dataset, "_conc"), paste0("min_mode_ccl_", input$AUC_Dataset, "_conc"), paste0("max_mode_ccl_", input$AUC_Dataset, "_conc"))]
+                        colnames(temp_data) <- c("Compound", "Lower_Conc_Limit_uM", "Upper_Conc_Limit_uM", "Min_Tested_Conc_uM", "Max_Tested_Conc_uM", "Most_Commonly_Used_Min_Tested_Conc_uM", "Most_Commonly_Used_Max_Tested_Conc_uM")
+                        temp_data$Csustained_uM <- NA
+                        temp_data$Csustained_uM <- Csustained$`Csustained (uM)`[match(temp_data$Compound, Csustained$Compound)]
+      
+                        if(input$AUC_Use_Csustained == TRUE){
+                          temp_data$Upper_Conc_Limit_uM[! is.na(temp_data$Csustained_uM) & ! (temp_data$Csustained_uM <=  temp_data$Lower_Conc_Limit_uM)] <- temp_data$Csustained_uM[! is.na(temp_data$Csustained_uM) & ! (temp_data$Csustained_uM <=  temp_data$Lower_Conc_Limit_uM)]
+                        }
+      
+                        return(temp_data)
+                      } else {
+                        temp_colnames <- c("Compound", "Lower_Conc_Limit_uM", "Upper_Conc_Limit_uM")
+                        temp_data <- as.data.frame(matrix(NA, nrow = 1, ncol = length(temp_colnames)))
+                        colnames(temp_data) <- temp_colnames
+                        return(temp_data)
+                      }
+                    })
+      
+                  #Allowing user to download Instruction template file
+                      output$AUC_Create_Template <- downloadHandler(
+                        filename = paste0(input$AUC_Dataset, "_AUC_Instruction_File_Template.xlsx"),
+                        content = function(file){
+                          write.xlsx2(AUC_Template(), file, row.names = FALSE)
+                        }
+                      )
+                    
+                  #Reading AUC instruction file
+                    AUC_Instruction <- eventReactive(input$AUC_Instruction, valueExpr = {
+                      req(input$AUC_Dataset)
+                      req(input$AUC_Instruction)
+                      
+                      #Determining which compounds are available for selected dataset (repeating because it gets saved in wrong environment in previous observeEvent block)
+                        temp_available_compounds <- names(compound_ccl_availability_successful)[sapply(compound_ccl_availability_successful, function(x){return(length(x[[input$AUC_Dataset]]) > 0)})]
+                      #Loading file and making sure it is correctly formatted
+                        #Checking file extension
+                          file <- input$AUC_Instruction
+                          req(file)
+                          ext <- tools::file_ext(file$datapath)
+                        #Printing error message if file extension is incorrect
+                          if(! ext == "xlsx"){
+                              output$AUC_Error <- renderUI({
+                                p(HTML("<b>Error: The uploaded file must be in xlsx format.</b>"), style = "color:red")
+                              })
+                              AUC_Instruction <- return("")
+                          } else {
+                            #Loading data
+                              data <- try(as.data.frame(read_xlsx(file$datapath)))
+                            #Printing error message if file could not be loaded
+                              if(class(data) == "try-error"){
+                                output$AUC_Error <- renderUI({
+                                  p(HTML("<b>Error: The selected file could not be loaded. Is it really an xlsx file?</b>"), style = "color:red")
+                                })
+                                AUC_Instruction <- return("")
+                              } else {
+                                #Checking that required columns are present and data has >0 rows
+                                  required_columns <- c("Compound", "Lower_Conc_Limit_uM", "Upper_Conc_Limit_uM")
+                                  if(! all(required_columns %in% colnames(data))){
+                                    output$AUC_Error <- renderUI({
+                                      p(HTML("<b>Error: At least one required column is missing in uploaded file (Compound, Lower_Conc_Limit_uM, Upper_Conc_Limit_uM). You can download an Instruction file template in Step 2 to see the required file format.</b>"), style = "color:red")
+                                    })
+                                    AUC_Instruction <- return("")
+                                  } else if(! nrow(data) > 0){
+                                    output$AUC_Error <- renderUI({
+                                      p(HTML("<b>Error: Uploaded file has zero rows of data.</b>"), style = "color:red")
+                                    })
+                                    AUC_Instruction <- return("")
+                                  } else {
+                                    #Organizing data to have only required columns and making sure concentration columns are numeric
+                                      data <- data[,required_columns]
+                                      data$Lower_Conc_Limit_uM <- as.numeric(data$Lower_Conc_Limit_uM)
+                                      data$Upper_Conc_Limit_uM <- as.numeric(data$Upper_Conc_Limit_uM)
+                                    #Making vector of any drugs that are in the Instruction file but not in the selected dataset
+                                      mismatched_drugs <- sort(unique(data$Compound[! data$Compound %in% temp_available_compounds]))
+                                    #Doing error handling for Instruction file upload
+                                      #Checking that all listed compounds are present in the selected dataset
+                                      if(length(mismatched_drugs) != 0){
+                                        output$AUC_Error <- renderUI({list(
+                                          p(HTML("<b>Error: Uploaded instruction file contains the following compounds that do not exist in selected dataset. Was it generated using this dataset?</b>"), style = "color:red"),
+                                          p(paste(mismatched_drugs, collapse = "; "), style = "color:red")
+                                        )})
+                                        AUC_Instruction <- return("")
+                                      #Checking that the Lower_Conc_Limit_uM column has no missing values
+                                      } else if(any(is.na(data$Lower_Conc_Limit_uM))){
+                                        output$AUC_Error <- renderUI({
+                                          p(HTML("<b>Error: Missing or non-numeric values exist in Lower_Conc_Limit_uM column.</b>"), style = "color:red")
+                                        })
+                                        AUC_Instruction <- return("")
+                                      #Checking that the Upper_Conc_Limit_uM column has no missing values
+                                      } else if(any(is.na(data$Upper_Conc_Limit_uM))){
+                                        output$AUC_Error <- renderUI({
+                                          p(HTML("<b>Error: Missing or non-numeric values exist in Upper_Conc_Limit_uM column.</b>"), style = "color:red")
+                                        })
+                                        AUC_Instruction <- return("")
+                                      #Checking that lower concentration limits are > 0
+                                      } else if(! all(data$Lower_Conc_Limit_uM > 0)){
+                                        output$AUC_Error <- renderUI({
+                                          p(HTML("<b>Error: Lower_Conc_Limit_uM column contains values that are less than or equal to 0.</b>"), style = "color:red")
+                                        })
+                                        AUC_Instruction <- return("")
+                                      #Checking that the upper conc limit is > the lower conc limit
+                                      } else if(! all(data$Upper_Conc_Limit_uM > data$Lower_Conc_Limit_uM)){
+                                        output$AUC_Error <- renderUI({
+                                          p(HTML("<b>Error: Upper_Conc_Limit_uM column contains values that are less than or equal to the corresponding values in the Lower_Conc_Limit_uM column.</b>"), style = "color:red")
+                                        })
+                                        AUC_Instruction <- return("")
+                                      #Defining AUC_Instruction() if uploaded Instruction file has passed all checks
+                                      } else {
+                                        output$AUC_Error <- renderUI({})
+                                        AUC_Instruction <- return(data)
+                                      }
+                                  }
+                              }
+                          }
+                    })
+                    
+                  #Initializing Cell Line Selection Menu if Instruction file upload complete and validated
+                    #Rendering cell line selection menu UI
+                      isolate({output$AUC_Cell_Line_Menu <- renderUI({
+                        req(input$AUC_Dataset)
+                        
+                        if(is.data.frame(AUC_Instruction())){
+                          return_list <- list(
+                            h4("Step 4: Cell line selection"),
+                            #Cell line selection menu
+                              pickerInput("AUC_Cell_Lines", label = "Select cell lines to calculate normalized AUC values for", choices = NULL, selected = NULL, multiple = TRUE, options = list(
+                                `actions-Box` = TRUE,
+                                `live-Search-Style` = "contains" ,
+                                `live-Search` = TRUE,
+                                `live-Search-Normalize` = TRUE,
+                                `selected-Text-Format` = "count"
+                              )),
+                            #Checkbox to show or hide cell line filters
+                              checkboxInput("AUC_Show_Cell_Line_Filters", label = "Show cell line filters?", value = FALSE),
+                            #Cell line filters
+                              uiOutput("AUC_Cell_Line_Filters"),
+                            #Checkbox to toggle whether or not output should be formatted for IDACombo shiny app
+                              # checkboxInput("AUC_Format_For_IDACombo", label = "Format output for use with IDACombo shiny app?", value = FALSE) %>%
+                              #         helper(type = "inline",
+                              #           title = "Formatting for IDACombo shiny app",
+                              #           icon = "question-circle", colour = NULL,
+                              #           content = HTML("Selecting this option will format the output file so that it can be directly used as a custom input dataset for the IDACombo shiny app, an app developed by our group to use monotherapy drug screening data to predict drug combination efficacy. Note that we have not yet validated the use of AUC values with the IDACombo app, and suggest using viability values at clinical concentrations instead. The IDACombo app can be found at <a href=\"https://huanglab.shinyapps.io/idacombo-shiny-app/\">https://huanglab.shinyapps.io/idacombo-shiny-app/</a>"),
+                              #           size = "m",
+                              #           buttonLabel = "Okay", easyClose = TRUE, fade = FALSE
+                              #         ),
+                            #Button to do AUC calculation
+                              h4("Step 5: Calculate AUCs"),
+                              actionButton(inputId = "AUC_Calc", label = "Calculate AUC Values"),
+                            #Button to generate and download AUC values
+                              uiOutput("AUC_Download_UI")
+                          )
+                        } else {
+                          return_list <- list(p(""))
+                        }
+                        
+                        return(return_list)
+                      })})
+                      
+                    #Determining which compounds have been selected
+                      AUC_Instruction_Compounds <- reactive({
+                        req(AUC_Instruction())
+                        sort(unique(AUC_Instruction()$Compound))
+                      })
+                      
+                    #Determining which cell lines are available for the specified compounds in the selected dataset
+                      AUC_Available_Cell_Lines <- reactive({
+                        req(input$AUC_Dataset)
+                        req(AUC_Instruction_Compounds())
+                          sort(unique(unlist(lapply(compound_ccl_availability_successful[names(compound_ccl_availability_successful) %in% AUC_Instruction_Compounds()], function(x){return(x[input$AUC_Dataset])}))))
+                      })
+                    
+                    #Subsetting cell line info to cell lines available for specified compounds and dataset
+                      AUC_Simple_Cell_Line_Harm <- reactive({
+                        req(AUC_Available_Cell_Lines())
+                        Simple_Cell_Line_Harm[Simple_Cell_Line_Harm$Harmonized_Cell_Line_ID %in% AUC_Available_Cell_Lines(),]
+                      })
+                      
+                    #Getting age limits
+                      AUC_Age_Limits <- reactive({
+                        req(AUC_Simple_Cell_Line_Harm())
+                        
+                        temp_min <- suppressWarnings(min(AUC_Simple_Cell_Line_Harm()$Numeric_Age_in_Years, na.rm = TRUE))
+                        if(temp_min == Inf){
+                          temp_min <- 0
+                        }
+                        temp_max <- suppressWarnings(max(AUC_Simple_Cell_Line_Harm()$Numeric_Age_in_Years, na.rm = TRUE))
+                        if(temp_max == -Inf){
+                          temp_max <- 0
+                        }
+                        return(c(temp_min, temp_max))
+                      })
+                      
+                    #Getting disease information
+                      AUC_Cell_Line_Diseases <- reactive({
+                        req(AUC_Simple_Cell_Line_Harm())
+                        
+                        temp_Cell_Line_Diseases <- strsplit(AUC_Simple_Cell_Line_Harm()$Diseases, ":\\|:")
+                        names(temp_Cell_Line_Diseases) <- AUC_Simple_Cell_Line_Harm()$Harmonized_Cell_Line_ID
+                        return(temp_Cell_Line_Diseases)
+                      })
+                      
+                    #Defining cell line filter interface
+                      isolate({output$AUC_Cell_Line_Filters <- renderUI({
+                        req(! length(input$AUC_Show_Cell_Line_Filters) == 0)
+                        req(AUC_Simple_Cell_Line_Harm())
+                        req(AUC_Cell_Line_Diseases())
+                        
+                        if(input$AUC_Show_Cell_Line_Filters == TRUE){
+                          return_list <- list(
+                            h4("Filter cell lines by:") %>%
+                            helper(type = "inline",
+                              title = "Cell line filtering",
+                              icon = "question-circle", colour = NULL,
+                              content = c("These options can be used to filter the cell line options displayed in the \"Select cell lines to plot data for\" menu. Note that, once any options have been selected for a given filtering criteria, any cell lines that are missing information for that criteria will be excluded."),
+                              size = "m",
+                              buttonLabel = "Okay", easyClose = TRUE, fade = FALSE
+                            ),
+                            wellPanel(list(
+                              pickerInput(inputId = "AUC_Cancer_Type", label = "General cancer type", choices = sort(unique(AUC_Simple_Cell_Line_Harm()$Simple_Cancer_Type)), multiple = TRUE, options = list(`actions-Box` = TRUE, `live-Search-Style` = "contains" , `live-Search` = TRUE, `live-Search-Normalize` = TRUE, `selected-Text-Format` = "count", `none-Selected-Text` = "Optional")) %>%
+                              helper(type = "inline",
+                                title = "General cancer type filtering",
+                                icon = "question-circle", colour = NULL,
+                                content = c("Selecting any cancer type options will limit displayed cell line options to only include cell lines from the selected cancer types. If any options have been selected from the \"Free-text disease name\" menu, cell lines will also be displayed that meet at least one of the disease name criteria selected in that menu."),
+                                size = "m",
+                                buttonLabel = "Okay", easyClose = TRUE, fade = FALSE
+                              ),
+                              pickerInput(inputId = "AUC_Disease_Name", label = "Free-text disease name", choices = sort(unique(unlist(AUC_Cell_Line_Diseases()))), multiple = TRUE, options = list(`actions-Box` = TRUE, `live-Search-Style` = "contains" , `live-Search` = TRUE, `live-Search-Normalize` = TRUE, `selected-Text-Format` = "count", `none-Selected-Text` = "Optional")) %>%
+                              helper(type = "inline",
+                                title = "Free-text disease name filtering",
+                                icon = "question-circle", colour = NULL,
+                                content = c("Selecting any disease name options will limit displayed cell line options to only include cell lines from the selected diseases. If any options have been selected from the \"General cancer type\" menu, cell lines will also be displayed that meet at least one of the cancer type criteria selected in that menu."),
+                                size = "m",
+                                buttonLabel = "Okay", easyClose = TRUE, fade = FALSE
+                              ),
+                              pickerInput(inputId = "AUC_Gender", label = "Gender", choices = sort(unique(AUC_Simple_Cell_Line_Harm()$Gender)), multiple = TRUE, options = list(`selected-Text-Format` = "count", `none-Selected-Text` = "Optional")) %>%
+                              helper(type = "inline",
+                                title = "Gender filtering",
+                                icon = "question-circle", colour = NULL,
+                                content = c("Selecting any gender options will limit the displayed cell line options to only include cell lines of the selected gender(s)."),
+                                size = "m",
+                                buttonLabel = "Okay", easyClose = TRUE, fade = FALSE
+                              ),
+      
+                              sliderInput(inputId = "AUC_Age", label = "Patient age (years)", min = AUC_Age_Limits()[1], max = AUC_Age_Limits()[2], value = AUC_Age_Limits(), ticks = FALSE) %>%
+                              helper(type = "inline",
+                                title = "Patient age filtering",
+                                icon = "question-circle", colour = NULL,
+                                content = c("Sets minimum and maximum age allowed for displayed cell line options. Note that setting the slider to anything other than its maximum range will exclude cell lines for which a numeric age could not be determined for the patient who the cell line was derived from at the time of sample collection. This both includes cases where the age is unspecified and cases where the specified age is ambiguous (i.e. such as \"Adult\"). You may download the cell line harmonization file in the \"Download Data\" tab for free-text descriptions of each cell line's patient age."),
+                                size = "m",
+                                buttonLabel = "Okay", easyClose = TRUE, fade = FALSE
+                              ),
+      
+                              h4("Ancestry") %>%
+                              helper(type = "inline",
+                                title = "Patient age filtering",
+                                icon = "question-circle", colour = NULL,
+                                content = c("Each slider sets the minimum and maximum % ancestry for each ancestry group. Once any of the ancestry sliders has been changed from its maximum range, cell lines will be filtered to only include lines which meet the limits set on all of the ancestry sliders. Note that % ancestry adds to 100% across all ancestry groups for each individual cell line (i.e. a cell line cannot have 60% African ancestry and 60% Native American ancestry, because that would add to >100%). Ancestry information was obtained from the cellosaurus resource at https://www.expasy.org/."),
+                                size = "m",
+                                buttonLabel = "Okay", easyClose = TRUE, fade = FALSE
+                              ),
+                              wellPanel(list(
+                                sliderInput(inputId = "AUC_African", label = "% african ancestry", min = 0, max = 100, value = c(0,100), ticks = FALSE),
+                                sliderInput(inputId = "AUC_Native_American", label = "% native american ancestry", min = 0, max = 100, value = c(0,100), ticks = FALSE),
+                                sliderInput(inputId = "AUC_East_Asian_North", label = "% east asian (north) ancestry", min = 0, max = 100, value = c(0,100), ticks = FALSE),
+                                sliderInput(inputId = "AUC_East_Asian_South", label = "% east asian (south) ancestry", min = 0, max = 100, value = c(0,100), ticks = FALSE),
+                                sliderInput(inputId = "AUC_South_Asian", label = "% south asian ancestry", min = 0, max = 100, value = c(0,100), ticks = FALSE),
+                                sliderInput(inputId = "AUC_European_North", label = "% european (north) ancestry", min = 0, max = 100, value = c(0,100), ticks = FALSE),
+                                sliderInput(inputId = "AUC_European_South", label = "% european (south) ancestry", min = 0, max = 100, value = c(0,100), ticks = FALSE)
+                              ))
+                            ))
+                          )
+                          return(return_list)
+                        } else {
+                          return(list(" "))
+                        }
+                      })})
+                      
+                    #Updating cell line filter interface
+                      #Defining currently available cell lines based on cell line filters
+                        AUC_Currently_Available_Cell_Lines <- reactive({
+                          req(AUC_Available_Cell_Lines())
+                          req(AUC_Simple_Cell_Line_Harm())
+                          req(AUC_Cell_Line_Diseases())
+      
+      
+                          Avail_ccls <- AUC_Available_Cell_Lines()
+                          Filtered_ccls <- character(0)
+                          flag <- 0
+      
+                          if(! is.null(input$AUC_Cancer_Type)){
+                            flag <- 1
+                            Filtered_ccls <- Avail_ccls[Avail_ccls %in% AUC_Simple_Cell_Line_Harm()$Harmonized_Cell_Line_ID[AUC_Simple_Cell_Line_Harm()$Simple_Cancer_Type %in% input$AUC_Cancer_Type]]
+                          }
+      
+                          if(! is.null(input$AUC_Disease_Name)){
+                            flag <- 1
+                            Filtered_ccls <- sort(unique(c(Filtered_ccls, Avail_ccls[Avail_ccls %in% names(AUC_Cell_Line_Diseases())[sapply(AUC_Cell_Line_Diseases(), function(x,y){return(any(y %in% x))}, y = input$AUC_Disease_Name)]])))
+                          }
+      
+                          if(! is.null(input$AUC_Gender)){
+                            if(flag == 0){
+                              Filtered_ccls <- sort(unique(Avail_ccls[Avail_ccls %in% AUC_Simple_Cell_Line_Harm()$Harmonized_Cell_Line_ID[AUC_Simple_Cell_Line_Harm()$Gender %in% input$AUC_Gender]]))
+                            } else if(flag == 1){
+                              Filtered_ccls <- sort(unique(Filtered_ccls[Filtered_ccls %in% Avail_ccls[Avail_ccls %in% AUC_Simple_Cell_Line_Harm()$Harmonized_Cell_Line_ID[AUC_Simple_Cell_Line_Harm()$Gender %in% input$AUC_Gender]]]))
+                            }
+                            flag <- 1
+                          }
+      
+                          if(! all(input$AUC_Age == AUC_Age_Limits())){
+                            if(flag == 0){
+                              Filtered_ccls <- sort(unique(Avail_ccls[Avail_ccls %in% AUC_Simple_Cell_Line_Harm()$Harmonized_Cell_Line_ID[AUC_Simple_Cell_Line_Harm()$Numeric_Age_in_Years >= input$AUC_Age[1] &
+                                                                                                                   AUC_Simple_Cell_Line_Harm()$Numeric_Age_in_Years <= input$AUC_Age[2]]]))
+                            } else if(flag == 1){
+                              Filtered_ccls <- sort(unique(Filtered_ccls[Filtered_ccls %in% Avail_ccls[Avail_ccls %in% AUC_Simple_Cell_Line_Harm()$Harmonized_Cell_Line_ID[AUC_Simple_Cell_Line_Harm()$Numeric_Age_in_Years >= input$AUC_Age[1] &
+                                                                                                                                                                AUC_Simple_Cell_Line_Harm()$Numeric_Age_in_Years <= input$AUC_Age[2]]]]))
+                            }
+                            flag <- 1
+                          }
+      
+                          if(! all(input$AUC_African == c(0,100)) |
+                             ! all(input$AUC_Native_American == c(0,100)) |
+                             ! all(input$AUC_East_Asian_North == c(0,100)) |
+                             ! all(input$AUC_East_Asian_South == c(0,100)) |
+                             ! all(input$AUC_South_Asian == c(0,100)) |
+                             ! all(input$AUC_European_North == c(0,100)) |
+                             ! all(input$AUC_European_South == c(0,100))){
+                            if(flag == 0){
+                              Filtered_ccls <- sort(unique(Avail_ccls[Avail_ccls %in% AUC_Simple_Cell_Line_Harm()$Harmonized_Cell_Line_ID[AUC_Simple_Cell_Line_Harm()$African_Ancestry >= input$AUC_African[1]/100 &
+                                                                                                                   AUC_Simple_Cell_Line_Harm()$African_Ancestry <= input$AUC_African[2]/100 &
+                                                                                                                   AUC_Simple_Cell_Line_Harm()$Native_American_Ancestry >= input$AUC_Native_American[1]/100 &
+                                                                                                                   AUC_Simple_Cell_Line_Harm()$Native_American_Ancestry <= input$AUC_Native_American[2]/100 &
+                                                                                                                   AUC_Simple_Cell_Line_Harm()$`East_Asian_(North)_Ancestry` >= input$AUC_East_Asian_North[1]/100 &
+                                                                                                                   AUC_Simple_Cell_Line_Harm()$`East_Asian_(North)_Ancestry` <= input$AUC_East_Asian_North[2]/100 &
+                                                                                                                   AUC_Simple_Cell_Line_Harm()$`East_Asian_(South)_Ancestry` >= input$AUC_East_Asian_South[1]/100 &
+                                                                                                                   AUC_Simple_Cell_Line_Harm()$`East_Asian_(South)_Ancestry` <= input$AUC_East_Asian_South[2]/100 &
+                                                                                                                   AUC_Simple_Cell_Line_Harm()$South_Asian_Ancestry >= input$AUC_South_Asian[1]/100 &
+                                                                                                                   AUC_Simple_Cell_Line_Harm()$South_Asian_Ancestry <= input$AUC_South_Asian[2]/100 &
+                                                                                                                   AUC_Simple_Cell_Line_Harm()$`European_(North)_Ancestry` >= input$AUC_European_North[1]/100 &
+                                                                                                                   AUC_Simple_Cell_Line_Harm()$`European_(North)_Ancestry` <= input$AUC_European_North[2]/100 &
+                                                                                                                   AUC_Simple_Cell_Line_Harm()$`European_(South)_Ancestry` >= input$AUC_European_South[1]/100 &
+                                                                                                                   AUC_Simple_Cell_Line_Harm()$`European_(South)_Ancestry` <= input$AUC_European_South[2]/100]]))
+                            } else if(flag == 1){
+                              Filtered_ccls <- sort(unique(Filtered_ccls[Filtered_ccls %in% Avail_ccls[Avail_ccls %in% AUC_Simple_Cell_Line_Harm()$Harmonized_Cell_Line_ID[AUC_Simple_Cell_Line_Harm()$African_Ancestry >= input$AUC_African[1]/100 &
+                                                                                                                   AUC_Simple_Cell_Line_Harm()$African_Ancestry <= input$AUC_African[2]/100 &
+                                                                                                                   AUC_Simple_Cell_Line_Harm()$Native_American_Ancestry >= input$AUC_Native_American[1]/100 &
+                                                                                                                   AUC_Simple_Cell_Line_Harm()$Native_American_Ancestry <= input$AUC_Native_American[2]/100 &
+                                                                                                                   AUC_Simple_Cell_Line_Harm()$`East_Asian_(North)_Ancestry` >= input$AUC_East_Asian_North[1]/100 &
+                                                                                                                   AUC_Simple_Cell_Line_Harm()$`East_Asian_(North)_Ancestry` <= input$AUC_East_Asian_North[2]/100 &
+                                                                                                                   AUC_Simple_Cell_Line_Harm()$`East_Asian_(South)_Ancestry` >= input$AUC_East_Asian_South[1]/100 &
+                                                                                                                   AUC_Simple_Cell_Line_Harm()$`East_Asian_(South)_Ancestry` <= input$AUC_East_Asian_South[2]/100 &
+                                                                                                                   AUC_Simple_Cell_Line_Harm()$South_Asian_Ancestry >= input$AUC_South_Asian[1]/100 &
+                                                                                                                   AUC_Simple_Cell_Line_Harm()$South_Asian_Ancestry <= input$AUC_South_Asian[2]/100 &
+                                                                                                                   AUC_Simple_Cell_Line_Harm()$`European_(North)_Ancestry` >= input$AUC_European_North[1]/100 &
+                                                                                                                   AUC_Simple_Cell_Line_Harm()$`European_(North)_Ancestry` <= input$AUC_European_North[2]/100 &
+                                                                                                                   AUC_Simple_Cell_Line_Harm()$`European_(South)_Ancestry` >= input$AUC_European_South[1]/100 &
+                                                                                                                   AUC_Simple_Cell_Line_Harm()$`European_(South)_Ancestry` <= input$AUC_European_South[2]/100]]]))
+                            }
+                            flag <- 1
+                          }
+      
+                          if(flag == 0){
+                            return(Avail_ccls)
+                          } else if(flag == 1){
+                            return(Filtered_ccls)
+                          }
+                        })
+      
+                      #Updating selection menus based on AUC_Currently_Available_Cell_Lines()
+                        observeEvent(AUC_Currently_Available_Cell_Lines(), {
+                          #Updating cell line selection menu
+                          isolate({
+                            updatePickerInput(session, "AUC_Cell_Lines", label = paste0("Select cell lines to plot data for (n = ", length(AUC_Currently_Available_Cell_Lines()), ")"), choices = AUC_Currently_Available_Cell_Lines(), selected = AUC_Currently_Available_Cell_Lines())
+                          })
+                        })
+      
+                  #Generating AUC Values
+                    observeEvent(input$AUC_Calc, ignoreInit = TRUE, eventExpr =  {
+                        req(input$AUC_Calc)
+                        warning("Running Code")
+                        warning(input$AUC_Calc)
+                      isolate({
+                        #Preloading data for coding ease
+                          temp_Instruction <- AUC_Instruction()
+                          temp_Cell_Lines <- input$AUC_Cell_Lines
+                          temp_dataset <- input$AUC_Dataset
+                        #Loading fitted curves and calculating AUC values
+                          Calculated_AUCs <- vector(mode = "list", length = 0)
+                          withProgress(message = "Calculating AUC values...", value = 0, expr = {
+                            for(i in 1:nrow(temp_Instruction)){
+                              #Loading results for this cell line
+                                filename <- Compound_Filenames$drug_file_names[Compound_Filenames$drugs %in% temp_Instruction$Compound[i]]
+                                isolate(temp_results <- readRDS(paste0("./www/Results/", filename, ".rds"))[[temp_dataset]])
+                              #Subsetting to selected cell lines
+                                temp_results <- temp_results[temp_results$Cell_Line %in% temp_Cell_Lines & ! is.na(temp_results$b_c_d_e),]
+                              if(nrow(temp_results) > 0){
+                                #Calculating AUC Values
+                                  temp_AUCs <- AUC(temp_results$b_c_d_e, lower = temp_Instruction$Lower_Conc_Limit_uM[i], upper = temp_Instruction$Upper_Conc_Limit_uM[i])
+                                #Constructing return values
+                                  temp_Return <- data.frame("Compound" = temp_results$Compound,
+                                                            "Cell_Line" = temp_results$Cell_Line,
+                                                            "normalized_AUC" = temp_AUCs,
+                                                            "Lower_Conc_Limit_uM" = temp_Instruction$Lower_Conc_Limit_uM[i],
+                                                            "Upper_Conc_Limit_uM" = temp_Instruction$Upper_Conc_Limit_uM[i],
+                                                            "Min_Tested_Conc_uM" = temp_results$min_dose_uM,
+                                                            "Max_Tested_Conc_uM" = temp_results$max_dose_uM,
+                                                            stringsAsFactors = FALSE
+                                                            )
+                                  temp_Return$Upper_Conc_Limit_Beyond_Max_Tested_Conc <- temp_Return$Max_Tested_Conc_uM < temp_Return$Upper_Conc_Limit_uM
+                                #Storing result
+                                  Calculated_AUCs[[i]] <- temp_Return
+                              } else {
+                                #Constructing empty result data frame
+                                  temp_Return <- data.frame("Compound" = temp_results$Compound,
+                                                              "Cell_Line" = character(0),
+                                                              "normalized_AUC" = numeric(0),
+                                                              "Lower_Conc_Limit_uM" = numeric(0),
+                                                              "Upper_Conc_Limit_uM" = numeric(0),
+                                                              "Min_Tested_Conc_uM" = numeric(0),
+                                                              "Max_Tested_Conc_uM" = numeric(0),
+                                                              "Upper_Conc_Limit_Beyond_Max_Tested_Conc" = logical(0)
+                                                            )
+                                #Storing empty data frame
+                                  Calculated_AUCs[[i]] <- temp_Return
+                              }
+                              incProgress(1/nrow(temp_Instruction))
+                            }
+                          })
+                        #Organizing calculated AUC values
+                          Returnable_AUCs <- reactive({do.call(rbind, Calculated_AUCs)})
+        
+                        #Allowing user to download results
+                          #Creating Download Button
+                            output$AUC_Download_UI <- renderUI({
+                              downloadButton(outputId = "AUC_Download_AUC_Values", label = "Download Calculated AUC Values") %>%
+                                      helper(type = "inline",
+                                        title = "Get AUC Values",
+                                        icon = "question-circle", colour = NULL,
+                                        content = c("Empty for now."),
+                                        size = "m",
+                                        buttonLabel = "Okay", easyClose = TRUE, fade = FALSE
+                                      )
+                            })
+                          #Allowing user to download Returnable_AUCs
+                            output$AUC_Download_AUC_Values <- downloadHandler(
+                                  filename = paste0(input$AUC_Dataset, "_Calculated_AUCs.xlsx"),
+                                  content = function(file){
+                                    write.xlsx2(Returnable_AUCs(), file, row.names = FALSE)
+                                  }
+                                )
+                      }) #END: isolate
+                    })
+
           
 #############################################################          
 #################################################### server #          
         }
-        
+
         if(input$tabs == "Viability Values"){
-          #Code for "Viability Values" Tab
           
+          #Viability Value Tab
           
+            #Generating Viability Interface
+                    isolate({output$Viability_Interface <- renderUI({
+                      req(input$Viability_Dataset)
+                      if(! input$Viability_Dataset == ""){
+                        wellPanel(
+                          fluidRow(
+                            #First Column
+                              column(width = 6,
+                                wellPanel(
+                                  h4("Step 2 (optional): Generate template instruction file"),
+                                  #Generating compound selection menu
+                                    pickerInput("Viability_Compounds", label = "Select compounds to calculate viability values for", choices = NULL, selected = NULL, multiple = TRUE, options = list(
+                                      `actions-Box` = TRUE,
+                                      `live-Search-Style` = "contains" ,
+                                      `live-Search` = TRUE,
+                                      `live-Search-Normalize` = TRUE,
+                                      `selected-Text-Format` = "count"
+                                    )),
+                                  #Generating checkbox to toggle compound filter option display
+                                    checkboxInput("Viability_Show_Compound_Filters", label = "Show compound filters?", value = FALSE),
+                                  #Generating UI for compound filters
+                                    uiOutput("Viability_Compound_Filters"),
+                                  #Generating checkbox to toggle whether or not Csustained values should be used when available
+                                    checkboxInput("Viability_Use_Csustained", label = "Generate using Csustained when available?", value = TRUE) %>%
+                                    helper(type = "inline",
+                                      title = "Using Csustained Concentrations",
+                                      icon = "question-circle", colour = NULL,
+                                      content = c("Selecting this option will cause the template instruction file to use Csustained concentrations for the Concentration_uM column whenever Csustained is available. Csustained concentrations are the estimated maximum drug plasma concentrations in patients occurring at least 6 hours after drug administration, and are currently available for some, but not all, clinically advanced drugs. Details about these concentrations and how they were determined can be found by downloading the \"Csustained.xlsx\" table from the \"Download Data\" tab.", "", "If this option is not selected, the Concentration_uM column will be populated with the most commonly used maximum concentration tested for each compound in the selected dataset."),
+                                      size = "m",
+                                      buttonLabel = "Okay", easyClose = TRUE, fade = FALSE
+                                    ),
+                                  #Generating button to create and download template file
+                                    downloadButton(outputId = "Viability_Create_Template", label = "Download Instruction Template") %>%
+                                    helper(type = "inline",
+                                      title = "Create Template",
+                                      icon = "question-circle", colour = NULL,
+                                      content = c("Downloads a template Instruction file for the specified dataset and compounds for use in step 3. If at least one compound has been selected, the columns in the file will be as described below. Note that only the first two columns are necessary for the Instruction file, with the rest of the columns being provided for reference.", "",
+                                                  HTML("<b>Compound:</b>"), "Name of the compound for which viability values are to be calculated.", "",
+                                                  HTML("<b>Concentration_uM:</b>"), "The concentration to be used when calculating Viability values (in microMolar).", "",
+                                                  HTML("<b>Min_Tested_Conc_uM:</b>"), "The minimum tested concentration (in microMolar) of this compound in the selected dataset in any cell line.", "",
+                                                  HTML("<b>Max_Tested_Conc_uM:</b>"), "The maximum tested concentration (in microMolar) of this compound in the selected dataset in any cell line.", "",
+                                                  HTML("<b>Most_Commonly_Used_Min_Tested_Conc_uM:</b>"), "The most commonly used minimum tested concentration (in microMolar) of this compound in the selected dataset.", "",
+                                                  HTML("<b>Most_Commonly_Used_Max_Tested_Conc_uM:</b>"), "The most commonly used maximum tested concentration (in microMolar) of this compound in the selected dataset.", "",
+                                                  HTML("<b>Csustained_uM:</b>"), "The maximum plasma concentation of this compound achieved at least 6 hours after drug administration in a patient at a clinically usable dose. These values were obtained from: Ling, A. & Huang, R. S. Computationally predicting clinical drug combination efficacy with cancer cell line screens and independent drug action. Nat. Commun. 11, 1–13 (2020). Details about these concentrations and how they were determined can be found by downloading the \"Csustained.xlsx\" table from the \"Download Data\" tab."),
+                                      size = "m",
+                                      buttonLabel = "Okay", easyClose = TRUE, fade = FALSE
+                                    )
+                                )
+                              ),
+                            #Second Column
+                              column(width = 6,
+                                wellPanel(
+                                  h4("Step 3: Upload instruction file"),
+                                  fileInput("Viability_Instruction", label = "Upload Instruction file", accept = ".xlsx"),
+                                  uiOutput("Viability_Error"),
+                                  #Generating UI for cell line selection
+                                    uiOutput("Viability_Cell_Line_Menu")
+                                )
+                              )
+                          )
+                        )
+                      } else {
+                        list(p(""))
+                      }
+                    })})
+                
+                  #Processing values that depend on Viability_Dataset
+                    
+                    #Determining which compounds are available for selected dataset
+                      Viability_Available_Compounds <- reactive({
+                        req(input$Viability_Dataset)
+                        if(! input$Viability_Dataset == ""){
+                          names(compound_ccl_availability_successful)[sapply(compound_ccl_availability_successful, function(x){return(length(x[[input$Viability_Dataset]]) > 0)})]
+                        } else {
+                          NULL
+                        }
+                      })
+                      
+                      Viability_Simple_Compound_Harm_for_Dataset <- reactive({
+                        req(input$Viability_Dataset)
+                        if(! input$Viability_Dataset == ""){
+                          Simple_Compound_Harm[Simple_Compound_Harm$Harmonized_Compound_Name %in% Viability_Available_Compounds(),]
+                        } else {
+                          NULL
+                        }
+                      })
+                      
+                    #Getting molecular targets available for compounds available for selected cell line
+                      Viability_Available_Molecular_Targets <- reactive({
+                        req(Viability_Simple_Compound_Harm_for_Dataset())
+                        temp_Compound_Molecular_Targets <- strsplit(Viability_Simple_Compound_Harm_for_Dataset()$Compound_Molecular_Targets, ":\\|:")
+                        return(sort(unique(unlist(temp_Compound_Molecular_Targets))))
+                      })
+                    
+                    #Getting mechanisms of action available for compounds available for selected cell line
+                      Viability_Available_MOAs <- reactive({
+                        req(Viability_Simple_Compound_Harm_for_Dataset())
+                        temp_Compound_MOAs <- strsplit(Viability_Simple_Compound_Harm_for_Dataset()$Compound_MOA, ":\\|:")
+                        return(sort(unique(unlist(temp_Compound_MOAs))))
+                      })
+                      
+                  #Defining compound filter interface
+                    isolate({output$Viability_Compound_Filters <- renderUI({
+                      req(input$Viability_Show_Compound_Filters)
+                      req(Viability_Available_Molecular_Targets())
+                      req(Viability_Available_MOAs())
+                      req(Viability_Simple_Compound_Harm_for_Dataset())
+                      
+                      if(input$Viability_Show_Compound_Filters == TRUE){
+                        return(list(
+                          h4("Filter compounds by:") %>%
+                              helper(type = "inline",
+                                title = "Compound filtering",
+                                icon = "question-circle", colour = NULL,
+                                content = c("These options can be used to filter the compound options displayed in the \"Select compounds to calculate Viability values for\" menu. Note that selecting any options from a filter menu will omit all compounds which lack annotated information for that menu's filtering criteria."),
+                                size = "m",
+                                buttonLabel = "Okay", easyClose = TRUE, fade = FALSE
+                              ),
+                          wellPanel(list(
+                            pickerInput(inputId = "Viability_Molecular_Target", label = "Filter compounds by molecular target", choices = Viability_Available_Molecular_Targets(), selected = NULL, multiple = TRUE, options = list(`actions-Box` = TRUE,`live-Search-Style` = "contains" , `live-Search` = TRUE, `live-Search-Normalize` = TRUE, `selected-Text-Format` = "count", `none-Selected-Text` = "Optional")) %>%
+                            helper(type = "inline",
+                              title = "Molecular Target Filtering",
+                              icon = "question-circle", colour = NULL,
+                              content = c("Limits compounds displayed in the \"Select compounds to calculate Viability values for\" menu to compounds which target at least one of the selected molecular targets. Note that, if any selections have been made in the \"Filter compounds by free-text MOA\" menu, displayed compounds will also include compounds which have at least one of the selected MOAs."),
+                              size = "m",
+                              buttonLabel = "Okay", easyClose = TRUE, fade = FALSE
+                            ),
+                            pickerInput(inputId = "Viability_MOA", label = "Filter compounds by free-text MOA", choices = Viability_Available_MOAs(), selected = NULL, multiple = TRUE, options = list(`actions-Box` = TRUE,`live-Search-Style` = "contains" , `live-Search` = TRUE, `live-Search-Normalize` = TRUE, `selected-Text-Format` = "count", `none-Selected-Text` = "Optional")) %>%
+                            helper(type = "inline",
+                              title = "Mechanism of Action (MOA) Filtering",
+                              icon = "question-circle", colour = NULL,
+                              content = c("Limits compounds displayed in the \"Select compounds to calculate Viability values for\" menu to compounds with at least one of the selected MOAs. Note that, if any selections have been made in the \"Filter compounds by molecular target\" menu, displayed compounds will also include compounds which target at least one of the selected molecular targets."),
+                              size = "m",
+                              buttonLabel = "Okay", easyClose = TRUE, fade = FALSE
+                            ),
+                            pickerInput(inputId = "Viability_Clinical_Phase", label = "Filter compounds by clinical phase", choices = sort(unique(Viability_Simple_Compound_Harm_for_Dataset()$Compound_Clinical_Phase)), selected = NULL, multiple = TRUE, options = list(`actions-Box` = TRUE, `selected-Text-Format` = "count", `none-Selected-Text` = "Optional")) %>%
+                            helper(type = "inline",
+                              title = "Clinical Phase Filtering",
+                              icon = "question-circle", colour = NULL,
+                              content = c("Limits compounds displayed in the \"Select compounds to calculate Viability values for\" menu to compounds whose annotated highest reached clinical phase is one of the selected phases."),
+                              size = "m",
+                              buttonLabel = "Okay", easyClose = TRUE, fade = FALSE
+                            )
+                          ))
+                        ))
+                      } else {
+                        return(list(p("")))
+                      }
+                    })})
+                    
+                  #Defining currently available compounds based on compound filters (meets any filter)
+                    Viability_Currently_Available_Compounds <- reactive({
+                      req(Viability_Simple_Compound_Harm_for_Dataset())
+      
+                      Avail_compounds <- Viability_Simple_Compound_Harm_for_Dataset()$Harmonized_Compound_Name
+                      Filtered_compounds <- character(0)
+                      flag <- 0
+                      
+                      
+                      if(! is.null(input$Viability_Molecular_Target)){
+                        flag <- 1
+                        Filtered_compounds <- Avail_compounds[Avail_compounds %in% names(Compound_Molecular_Targets)[sapply(Compound_Molecular_Targets, function(x,y){any(y %in% x)}, y = input$Viability_Molecular_Target)]]
+                      }
+                      
+                      if(! is.null(input$Viability_MOA)){
+                        if(flag == 0){
+                          Filtered_compounds <- Avail_compounds[Avail_compounds %in% names(Compound_MOAs)[sapply(Compound_MOAs, function(x,y){any(y %in% x)}, y = input$Viability_MOA)]]
+                        } else if(flag == 1){
+                          Filtered_compounds <- c(Filtered_compounds, Avail_compounds[Avail_compounds %in% names(Compound_MOAs)[sapply(Compound_MOAs, function(x,y){any(y %in% x)}, y = input$Viability_MOA)]])
+                        }
+                        flag <- 1
+                      }
+                      
+                      if(! is.null(input$Viability_Clinical_Phase)){
+                        if(flag == 0){
+                          Filtered_compounds <- Avail_compounds[Avail_compounds %in% Simple_Compound_Harm$Harmonized_Compound_Name[Simple_Compound_Harm$Compound_Clinical_Phase %in% input$Viability_Clinical_Phase]]
+                        } else if(flag == 1){
+                          Filtered_compounds <- Filtered_compounds[Filtered_compounds %in% Simple_Compound_Harm$Harmonized_Compound_Name[Simple_Compound_Harm$Compound_Clinical_Phase %in% input$Viability_Clinical_Phase]]
+                        }
+                        flag <- 1
+                      }
+                      
+                      if(flag == 0){
+                        return(Avail_compounds)
+                      } else if(flag == 1){
+                        return(Filtered_compounds)
+                      }
+                    })
+                
+                  #Updating compound input menu
+                    observeEvent(Viability_Currently_Available_Compounds(), {
+                      isolate({
+                        updatePickerInput(session, "Viability_Compounds", label = paste0("Select compounds to calculate Viability values for (n = ", length(Viability_Currently_Available_Compounds()), ")"), choices = Viability_Currently_Available_Compounds(), selected = Viability_Currently_Available_Compounds())
+                      })
+                    })
+                    
+                  #Generating Instruction template File
+                    Viability_Template <- reactive({
+                      req(input$Viability_Dataset)
+                      req(input$Viability_Compounds)
+                      
+                      if(length(input$Viability_Compounds) > 0){
+                        temp_data <- Dataset_Tested_Concentrations[Dataset_Tested_Concentrations$Compound %in% input$Viability_Compounds, c("Compound", paste0("max_mode_ccl_", input$Viability_Dataset, "_conc"), paste0("min_", input$Viability_Dataset, "_conc"), paste0("max_", input$Viability_Dataset, "_conc"), paste0("min_mode_ccl_", input$Viability_Dataset, "_conc"), paste0("max_mode_ccl_", input$Viability_Dataset, "_conc"))]
+                        colnames(temp_data) <- c("Compound", "Concentration_uM", "Min_Tested_Conc_uM", "Max_Tested_Conc_uM", "Most_Commonly_Used_Min_Tested_Conc_uM", "Most_Commonly_Used_Max_Tested_Conc_uM")
+                        temp_data$Csustained_uM <- NA
+                        temp_data$Csustained_uM <- Csustained$`Csustained (uM)`[match(temp_data$Compound, Csustained$Compound)]
+      
+                        if(input$Viability_Use_Csustained == TRUE){
+                          temp_data$Concentration_uM[! is.na(temp_data$Csustained_uM)] <- temp_data$Csustained_uM[! is.na(temp_data$Csustained_uM)]
+                        }
+      
+                        return(temp_data)
+                      } else {
+                        temp_colnames <- c("Compound", "Concentration_uM")
+                        temp_data <- as.data.frame(matrix(NA, nrow = 1, ncol = length(temp_colnames)))
+                        colnames(temp_data) <- temp_colnames
+                        return(temp_data)
+                      }
+                    })
+      
+                  #Allowing user to download Instruction template file
+                      output$Viability_Create_Template <- downloadHandler(
+                        filename = paste0(input$Viability_Dataset, "_Viability_Instruction_File_Template.xlsx"),
+                        content = function(file){
+                          write.xlsx2(Viability_Template(), file, row.names = FALSE)
+                        }
+                      )
+                    
+                  #Reading Viability instruction file
+                    Viability_Instruction <- eventReactive(input$Viability_Instruction, valueExpr = {
+                      req(input$Viability_Dataset)
+                      req(input$Viability_Instruction)
+                      
+                      #Determining which compounds are available for selected dataset (repeating because it gets saved in wrong environment in previous observeEvent block)
+                        temp_available_compounds <- names(compound_ccl_availability_successful)[sapply(compound_ccl_availability_successful, function(x){return(length(x[[input$Viability_Dataset]]) > 0)})]
+                      #Loading file and making sure it is correctly formatted
+                        #Checking file extension
+                          file <- input$Viability_Instruction
+                          req(file)
+                          ext <- tools::file_ext(file$datapath)
+                        #Printing error message if file extension is incorrect
+                          if(! ext == "xlsx"){
+                              output$Viability_Error <- renderUI({
+                                p(HTML("<b>Error: The uploaded file must be in xlsx format.</b>"), style = "color:red")
+                              })
+                              Viability_Instruction <- return("")
+                          } else {
+                            #Loading data
+                              data <- try(as.data.frame(read_xlsx(file$datapath)))
+                            #Printing error message if file could not be loaded
+                              if(class(data) == "try-error"){
+                                output$Viability_Error <- renderUI({
+                                  p(HTML("<b>Error: The selected file could not be loaded. Is it really an xlsx file?</b>"), style = "color:red")
+                                })
+                                Viability_Instruction <- return("")
+                              } else {
+                                #Checking that required columns are present and data has >0 rows
+                                  required_columns <- c("Compound", "Concentration_uM")
+                                  if(! all(required_columns %in% colnames(data))){
+                                    output$Viability_Error <- renderUI({
+                                      p(HTML("<b>Error: At least one required column is missing in uploaded file (Compound or Concentration_uM). You can download an Instruction file template in Step 2 to see the required file format.</b>"), style = "color:red")
+                                    })
+                                    Viability_Instruction <- return("")
+                                  } else if(! nrow(data) > 0){
+                                    output$Viability_Error <- renderUI({
+                                      p(HTML("<b>Error: Uploaded file has zero rows of data.</b>"), style = "color:red")
+                                    })
+                                    Viability_Instruction <- return("")
+                                  } else {
+                                    #Organizing data to have only required columns and making sure concentration columns are numeric
+                                      data <- data[,required_columns]
+                                      data$Concentration_uM <- as.numeric(data$Concentration_uM)
+                                    #Making vector of any drugs that are in the Instruction file but not in the selected dataset
+                                      mismatched_drugs <- sort(unique(data$Compound[! data$Compound %in% temp_available_compounds]))
+                                    #Doing error handling for Instruction file upload
+                                      #Checking that all listed compounds are present in the selected dataset
+                                      if(length(mismatched_drugs) != 0){
+                                        output$Viability_Error <- renderUI({list(
+                                          p(HTML("<b>Error: Uploaded instruction file contains the following compounds that do not exist in selected dataset. Was it generated using this dataset?</b>"), style = "color:red"),
+                                          p(paste(mismatched_drugs, collapse = "; "), style = "color:red")
+                                        )})
+                                        Viability_Instruction <- return("")
+                                      #Checking that the Concentration_uM column has no missing values
+                                      } else if(any(is.na(data$Concentration_uM))){
+                                        output$Viability_Error <- renderUI({
+                                          p(HTML("<b>Error: Missing or non-numeric values exist in Concentration_uM column.</b>"), style = "color:red")
+                                        })
+                                        Viability_Instruction <- return("")
+                                      #Checking that the specified concentrations are all >= 0
+                                      } else if(! all(data$Concentration_uM >= 0)){
+                                        output$Viability_Error <- renderUI({
+                                          p(HTML("<b>Error: Concentration_uM column contains values that are less than 0.</b>"), style = "color:red")
+                                        })
+                                        Viability_Instruction <- return("")
+                                      #Returning properly formatted data
+                                      } else {
+                                        output$Viability_Error <- renderUI({})
+                                        Viability_Instruction <- return(data)
+                                      }
+                                  }
+                              }
+                          }
+                    })
+                    
+                  #Initializing Cell Line Selection Menu if Instruction file upload complete and validated
+                    #Rendering cell line selection menu UI
+                      isolate({output$Viability_Cell_Line_Menu <- renderUI({
+                        req(input$Viability_Dataset)
+                        
+                        if(is.data.frame(Viability_Instruction())){
+                          return_list <- list(
+                            h4("Step 4: Cell line selection"),
+                            #Cell line selection menu
+                              pickerInput("Viability_Cell_Lines", label = "Select cell lines to calculate viability values for", choices = NULL, selected = NULL, multiple = TRUE, options = list(
+                                `actions-Box` = TRUE,
+                                `live-Search-Style` = "contains" ,
+                                `live-Search` = TRUE,
+                                `live-Search-Normalize` = TRUE,
+                                `selected-Text-Format` = "count"
+                              )),
+                            #Checkbox to show or hide cell line filters
+                              checkboxInput("Viability_Show_Cell_Line_Filters", label = "Show cell line filters?", value = FALSE),
+                            #Cell line filters
+                              uiOutput("Viability_Cell_Line_Filters"),
+                            #Checkbox to toggle whether or not output should be formatted for IDACombo shiny app
+                              # checkboxInput("Viability_Format_For_IDACombo", label = "Format output for use with IDACombo shiny app?", value = FALSE) %>%
+                              #         helper(type = "inline",
+                              #           title = "Formatting for IDACombo shiny app",
+                              #           icon = "question-circle", colour = NULL,
+                              #           content = HTML("Selecting this option will format the output file so that it can be directly used as a custom input dataset for the IDACombo shiny app, an app developed by our group to use monotherapy drug screening data to predict drug combination efficacy. The IDACombo app can be found at <a href=\"https://huanglab.shinyapps.io/idacombo-shiny-app/\">https://huanglab.shinyapps.io/idacombo-shiny-app/</a>"),
+                              #           size = "m",
+                              #           buttonLabel = "Okay", easyClose = TRUE, fade = FALSE
+                              #         ),
+                            #Button to do Viability calculation
+                              h4("Step 5: Calculate Viabilities"),
+                              actionButton(inputId = "Viability_Calc", label = "Calculate Viability Values"),
+                            #Button to generate and download Viability values
+                              uiOutput("Viability_Download_UI")
+                          )
+                        } else {
+                          return_list <- list(p(""))
+                        }
+                        
+                        return(return_list)
+                      })})
+                      
+                    #Determining which compounds have been selected
+                      Viability_Instruction_Compounds <- reactive({
+                        req(Viability_Instruction())
+                        sort(unique(Viability_Instruction()$Compound))
+                      })
+                      
+                    #Determining which cell lines are available for the specified compounds in the selected dataset
+                      Viability_Available_Cell_Lines <- reactive({
+                        req(input$Viability_Dataset)
+                        req(Viability_Instruction_Compounds())
+                          sort(unique(unlist(lapply(compound_ccl_availability_successful[names(compound_ccl_availability_successful) %in% Viability_Instruction_Compounds()], function(x){return(x[input$Viability_Dataset])}))))
+                      })
+                    
+                    #Subsetting cell line info to cell lines available for specified compounds and dataset
+                      Viability_Simple_Cell_Line_Harm <- reactive({
+                        req(Viability_Available_Cell_Lines())
+                        Simple_Cell_Line_Harm[Simple_Cell_Line_Harm$Harmonized_Cell_Line_ID %in% Viability_Available_Cell_Lines(),]
+                      })
+                      
+                    #Getting age limits
+                      Viability_Age_Limits <- reactive({
+                        req(Viability_Simple_Cell_Line_Harm())
+                        
+                        temp_min <- suppressWarnings(min(Viability_Simple_Cell_Line_Harm()$Numeric_Age_in_Years, na.rm = TRUE))
+                        if(temp_min == Inf){
+                          temp_min <- 0
+                        }
+                        temp_max <- suppressWarnings(max(Viability_Simple_Cell_Line_Harm()$Numeric_Age_in_Years, na.rm = TRUE))
+                        if(temp_max == -Inf){
+                          temp_max <- 0
+                        }
+                        return(c(temp_min, temp_max))
+                      })
+                      
+                    #Getting disease information
+                      Viability_Cell_Line_Diseases <- reactive({
+                        req(Viability_Simple_Cell_Line_Harm())
+                        
+                        temp_Cell_Line_Diseases <- strsplit(Viability_Simple_Cell_Line_Harm()$Diseases, ":\\|:")
+                        names(temp_Cell_Line_Diseases) <- Viability_Simple_Cell_Line_Harm()$Harmonized_Cell_Line_ID
+                        return(temp_Cell_Line_Diseases)
+                      })
+                      
+                    #Defining cell line filter interface
+                      isolate({output$Viability_Cell_Line_Filters <- renderUI({
+                        req(! length(input$Viability_Show_Cell_Line_Filters) == 0)
+                        req(Viability_Simple_Cell_Line_Harm())
+                        req(Viability_Cell_Line_Diseases())
+                        
+                        if(input$Viability_Show_Cell_Line_Filters == TRUE){
+                          return_list <- list(
+                            h4("Filter cell lines by:") %>%
+                            helper(type = "inline",
+                              title = "Cell line filtering",
+                              icon = "question-circle", colour = NULL,
+                              content = c("These options can be used to filter the cell line options displayed in the \"Select cell lines to plot data for\" menu. Note that, once any options have been selected for a given filtering criteria, any cell lines that are missing information for that criteria will be excluded."),
+                              size = "m",
+                              buttonLabel = "Okay", easyClose = TRUE, fade = FALSE
+                            ),
+                            wellPanel(list(
+                              pickerInput(inputId = "Viability_Cancer_Type", label = "General cancer type", choices = sort(unique(Viability_Simple_Cell_Line_Harm()$Simple_Cancer_Type)), multiple = TRUE, options = list(`actions-Box` = TRUE, `live-Search-Style` = "contains" , `live-Search` = TRUE, `live-Search-Normalize` = TRUE, `selected-Text-Format` = "count", `none-Selected-Text` = "Optional")) %>%
+                              helper(type = "inline",
+                                title = "General cancer type filtering",
+                                icon = "question-circle", colour = NULL,
+                                content = c("Selecting any cancer type options will limit displayed cell line options to only include cell lines from the selected cancer types. If any options have been selected from the \"Free-text disease name\" menu, cell lines will also be displayed that meet at least one of the disease name criteria selected in that menu."),
+                                size = "m",
+                                buttonLabel = "Okay", easyClose = TRUE, fade = FALSE
+                              ),
+                              pickerInput(inputId = "Viability_Disease_Name", label = "Free-text disease name", choices = sort(unique(unlist(Viability_Cell_Line_Diseases()))), multiple = TRUE, options = list(`actions-Box` = TRUE, `live-Search-Style` = "contains" , `live-Search` = TRUE, `live-Search-Normalize` = TRUE, `selected-Text-Format` = "count", `none-Selected-Text` = "Optional")) %>%
+                              helper(type = "inline",
+                                title = "Free-text disease name filtering",
+                                icon = "question-circle", colour = NULL,
+                                content = c("Selecting any disease name options will limit displayed cell line options to only include cell lines from the selected diseases. If any options have been selected from the \"General cancer type\" menu, cell lines will also be displayed that meet at least one of the cancer type criteria selected in that menu."),
+                                size = "m",
+                                buttonLabel = "Okay", easyClose = TRUE, fade = FALSE
+                              ),
+                              pickerInput(inputId = "Viability_Gender", label = "Gender", choices = sort(unique(Viability_Simple_Cell_Line_Harm()$Gender)), multiple = TRUE, options = list(`selected-Text-Format` = "count", `none-Selected-Text` = "Optional")) %>%
+                              helper(type = "inline",
+                                title = "Gender filtering",
+                                icon = "question-circle", colour = NULL,
+                                content = c("Selecting any gender options will limit the displayed cell line options to only include cell lines of the selected gender(s)."),
+                                size = "m",
+                                buttonLabel = "Okay", easyClose = TRUE, fade = FALSE
+                              ),
+      
+                              sliderInput(inputId = "Viability_Age", label = "Patient age (years)", min = Viability_Age_Limits()[1], max = Viability_Age_Limits()[2], value = Viability_Age_Limits(), ticks = FALSE) %>%
+                              helper(type = "inline",
+                                title = "Patient age filtering",
+                                icon = "question-circle", colour = NULL,
+                                content = c("Sets minimum and maximum age allowed for displayed cell line options. Note that setting the slider to anything other than its maximum range will exclude cell lines for which a numeric age could not be determined for the patient who the cell line was derived from at the time of sample collection. This both includes cases where the age is unspecified and cases where the specified age is ambiguous (i.e. such as \"Adult\"). You may download the cell line harmonization file in the \"Download Data\" tab for free-text descriptions of each cell line's patient age."),
+                                size = "m",
+                                buttonLabel = "Okay", easyClose = TRUE, fade = FALSE
+                              ),
+      
+                              h4("Ancestry") %>%
+                              helper(type = "inline",
+                                title = "Patient age filtering",
+                                icon = "question-circle", colour = NULL,
+                                content = c("Each slider sets the minimum and maximum % ancestry for each ancestry group. Once any of the ancestry sliders has been changed from its maximum range, cell lines will be filtered to only include lines which meet the limits set on all of the ancestry sliders. Note that % ancestry adds to 100% across all ancestry groups for each individual cell line (i.e. a cell line cannot have 60% African ancestry and 60% Native American ancestry, because that would add to >100%). Ancestry information was obtained from the cellosaurus resource at https://www.expasy.org/."),
+                                size = "m",
+                                buttonLabel = "Okay", easyClose = TRUE, fade = FALSE
+                              ),
+                              wellPanel(list(
+                                sliderInput(inputId = "Viability_African", label = "% african ancestry", min = 0, max = 100, value = c(0,100), ticks = FALSE),
+                                sliderInput(inputId = "Viability_Native_American", label = "% native american ancestry", min = 0, max = 100, value = c(0,100), ticks = FALSE),
+                                sliderInput(inputId = "Viability_East_Asian_North", label = "% east asian (north) ancestry", min = 0, max = 100, value = c(0,100), ticks = FALSE),
+                                sliderInput(inputId = "Viability_East_Asian_South", label = "% east asian (south) ancestry", min = 0, max = 100, value = c(0,100), ticks = FALSE),
+                                sliderInput(inputId = "Viability_South_Asian", label = "% south asian ancestry", min = 0, max = 100, value = c(0,100), ticks = FALSE),
+                                sliderInput(inputId = "Viability_European_North", label = "% european (north) ancestry", min = 0, max = 100, value = c(0,100), ticks = FALSE),
+                                sliderInput(inputId = "Viability_European_South", label = "% european (south) ancestry", min = 0, max = 100, value = c(0,100), ticks = FALSE)
+                              ))
+                            ))
+                          )
+                          return(return_list)
+                        } else {
+                          return(list(" "))
+                        }
+                      })})
+                      
+                    #Updating cell line filter interface
+                      #Defining currently available cell lines based on cell line filters
+                        Viability_Currently_Available_Cell_Lines <- reactive({
+                          req(Viability_Available_Cell_Lines())
+                          req(Viability_Simple_Cell_Line_Harm())
+                          req(Viability_Cell_Line_Diseases())
+      
+      
+                          Avail_ccls <- Viability_Available_Cell_Lines()
+                          Filtered_ccls <- character(0)
+                          flag <- 0
+      
+                          if(! is.null(input$Viability_Cancer_Type)){
+                            flag <- 1
+                            Filtered_ccls <- Avail_ccls[Avail_ccls %in% Viability_Simple_Cell_Line_Harm()$Harmonized_Cell_Line_ID[Viability_Simple_Cell_Line_Harm()$Simple_Cancer_Type %in% input$Viability_Cancer_Type]]
+                          }
+      
+                          if(! is.null(input$Viability_Disease_Name)){
+                            flag <- 1
+                            Filtered_ccls <- sort(unique(c(Filtered_ccls, Avail_ccls[Avail_ccls %in% names(Viability_Cell_Line_Diseases())[sapply(Viability_Cell_Line_Diseases(), function(x,y){return(any(y %in% x))}, y = input$Viability_Disease_Name)]])))
+                          }
+      
+                          if(! is.null(input$Viability_Gender)){
+                            if(flag == 0){
+                              Filtered_ccls <- sort(unique(Avail_ccls[Avail_ccls %in% Viability_Simple_Cell_Line_Harm()$Harmonized_Cell_Line_ID[Viability_Simple_Cell_Line_Harm()$Gender %in% input$Viability_Gender]]))
+                            } else if(flag == 1){
+                              Filtered_ccls <- sort(unique(Filtered_ccls[Filtered_ccls %in% Avail_ccls[Avail_ccls %in% Viability_Simple_Cell_Line_Harm()$Harmonized_Cell_Line_ID[Viability_Simple_Cell_Line_Harm()$Gender %in% input$Viability_Gender]]]))
+                            }
+                            flag <- 1
+                          }
+      
+                          if(! all(input$Viability_Age == Viability_Age_Limits())){
+                            if(flag == 0){
+                              Filtered_ccls <- sort(unique(Avail_ccls[Avail_ccls %in% Viability_Simple_Cell_Line_Harm()$Harmonized_Cell_Line_ID[Viability_Simple_Cell_Line_Harm()$Numeric_Age_in_Years >= input$Viability_Age[1] &
+                                                                                                                   Viability_Simple_Cell_Line_Harm()$Numeric_Age_in_Years <= input$Viability_Age[2]]]))
+                            } else if(flag == 1){
+                              Filtered_ccls <- sort(unique(Filtered_ccls[Filtered_ccls %in% Avail_ccls[Avail_ccls %in% Viability_Simple_Cell_Line_Harm()$Harmonized_Cell_Line_ID[Viability_Simple_Cell_Line_Harm()$Numeric_Age_in_Years >= input$Viability_Age[1] &
+                                                                                                                                                                Viability_Simple_Cell_Line_Harm()$Numeric_Age_in_Years <= input$Viability_Age[2]]]]))
+                            }
+                            flag <- 1
+                          }
+      
+                          if(! all(input$Viability_African == c(0,100)) |
+                             ! all(input$Viability_Native_American == c(0,100)) |
+                             ! all(input$Viability_East_Asian_North == c(0,100)) |
+                             ! all(input$Viability_East_Asian_South == c(0,100)) |
+                             ! all(input$Viability_South_Asian == c(0,100)) |
+                             ! all(input$Viability_European_North == c(0,100)) |
+                             ! all(input$Viability_European_South == c(0,100))){
+                            if(flag == 0){
+                              Filtered_ccls <- sort(unique(Avail_ccls[Avail_ccls %in% Viability_Simple_Cell_Line_Harm()$Harmonized_Cell_Line_ID[Viability_Simple_Cell_Line_Harm()$African_Ancestry >= input$Viability_African[1]/100 &
+                                                                                                                   Viability_Simple_Cell_Line_Harm()$African_Ancestry <= input$Viability_African[2]/100 &
+                                                                                                                   Viability_Simple_Cell_Line_Harm()$Native_American_Ancestry >= input$Viability_Native_American[1]/100 &
+                                                                                                                   Viability_Simple_Cell_Line_Harm()$Native_American_Ancestry <= input$Viability_Native_American[2]/100 &
+                                                                                                                   Viability_Simple_Cell_Line_Harm()$`East_Asian_(North)_Ancestry` >= input$Viability_East_Asian_North[1]/100 &
+                                                                                                                   Viability_Simple_Cell_Line_Harm()$`East_Asian_(North)_Ancestry` <= input$Viability_East_Asian_North[2]/100 &
+                                                                                                                   Viability_Simple_Cell_Line_Harm()$`East_Asian_(South)_Ancestry` >= input$Viability_East_Asian_South[1]/100 &
+                                                                                                                   Viability_Simple_Cell_Line_Harm()$`East_Asian_(South)_Ancestry` <= input$Viability_East_Asian_South[2]/100 &
+                                                                                                                   Viability_Simple_Cell_Line_Harm()$South_Asian_Ancestry >= input$Viability_South_Asian[1]/100 &
+                                                                                                                   Viability_Simple_Cell_Line_Harm()$South_Asian_Ancestry <= input$Viability_South_Asian[2]/100 &
+                                                                                                                   Viability_Simple_Cell_Line_Harm()$`European_(North)_Ancestry` >= input$Viability_European_North[1]/100 &
+                                                                                                                   Viability_Simple_Cell_Line_Harm()$`European_(North)_Ancestry` <= input$Viability_European_North[2]/100 &
+                                                                                                                   Viability_Simple_Cell_Line_Harm()$`European_(South)_Ancestry` >= input$Viability_European_South[1]/100 &
+                                                                                                                   Viability_Simple_Cell_Line_Harm()$`European_(South)_Ancestry` <= input$Viability_European_South[2]/100]]))
+                            } else if(flag == 1){
+                              Filtered_ccls <- sort(unique(Filtered_ccls[Filtered_ccls %in% Avail_ccls[Avail_ccls %in% Viability_Simple_Cell_Line_Harm()$Harmonized_Cell_Line_ID[Viability_Simple_Cell_Line_Harm()$African_Ancestry >= input$Viability_African[1]/100 &
+                                                                                                                   Viability_Simple_Cell_Line_Harm()$African_Ancestry <= input$Viability_African[2]/100 &
+                                                                                                                   Viability_Simple_Cell_Line_Harm()$Native_American_Ancestry >= input$Viability_Native_American[1]/100 &
+                                                                                                                   Viability_Simple_Cell_Line_Harm()$Native_American_Ancestry <= input$Viability_Native_American[2]/100 &
+                                                                                                                   Viability_Simple_Cell_Line_Harm()$`East_Asian_(North)_Ancestry` >= input$Viability_East_Asian_North[1]/100 &
+                                                                                                                   Viability_Simple_Cell_Line_Harm()$`East_Asian_(North)_Ancestry` <= input$Viability_East_Asian_North[2]/100 &
+                                                                                                                   Viability_Simple_Cell_Line_Harm()$`East_Asian_(South)_Ancestry` >= input$Viability_East_Asian_South[1]/100 &
+                                                                                                                   Viability_Simple_Cell_Line_Harm()$`East_Asian_(South)_Ancestry` <= input$Viability_East_Asian_South[2]/100 &
+                                                                                                                   Viability_Simple_Cell_Line_Harm()$South_Asian_Ancestry >= input$Viability_South_Asian[1]/100 &
+                                                                                                                   Viability_Simple_Cell_Line_Harm()$South_Asian_Ancestry <= input$Viability_South_Asian[2]/100 &
+                                                                                                                   Viability_Simple_Cell_Line_Harm()$`European_(North)_Ancestry` >= input$Viability_European_North[1]/100 &
+                                                                                                                   Viability_Simple_Cell_Line_Harm()$`European_(North)_Ancestry` <= input$Viability_European_North[2]/100 &
+                                                                                                                   Viability_Simple_Cell_Line_Harm()$`European_(South)_Ancestry` >= input$Viability_European_South[1]/100 &
+                                                                                                                   Viability_Simple_Cell_Line_Harm()$`European_(South)_Ancestry` <= input$Viability_European_South[2]/100]]]))
+                            }
+                            flag <- 1
+                          }
+      
+                          if(flag == 0){
+                            return(Avail_ccls)
+                          } else if(flag == 1){
+                            return(Filtered_ccls)
+                          }
+                        })
+      
+                      #Updating selection menus based on Viability_Currently_Available_Cell_Lines()
+                        observeEvent(Viability_Currently_Available_Cell_Lines(), {
+                          #Updating cell line selection menu
+                          isolate({
+                            updatePickerInput(session, "Viability_Cell_Lines", label = paste0("Select cell lines to plot data for (n = ", length(Viability_Currently_Available_Cell_Lines()), ")"), choices = Viability_Currently_Available_Cell_Lines(), selected = Viability_Currently_Available_Cell_Lines())
+                          })
+                        })
+      
+                  #Generating Viability Values
+                    observeEvent(input$Viability_Calc, ignoreInit = TRUE, eventExpr =  {
+                        req(input$Viability_Calc)
+                        warning("Running Code")
+                        warning(input$Viability_Calc)
+                      isolate({
+                        #Preloading data for coding ease
+                          temp_Instruction <- Viability_Instruction()
+                          temp_Cell_Lines <- input$Viability_Cell_Lines
+                          temp_dataset <- input$Viability_Dataset
+                        #Loading fitted curves and calculating Viability values
+                          Calculated_Viabilities <- vector(mode = "list", length = 0)
+                          withProgress(message = "Calculating viability values...", value = 0, expr = {
+                            for(i in 1:nrow(temp_Instruction)){
+                              #Loading results for this cell line
+                                filename <- Compound_Filenames$drug_file_names[Compound_Filenames$drugs %in% temp_Instruction$Compound[i]]
+                                isolate(temp_results <- readRDS(paste0("./www/Results/", filename, ".rds"))[[temp_dataset]])
+                              #Subsetting to selected cell lines
+                                temp_results <- temp_results[temp_results$Cell_Line %in% temp_Cell_Lines & ! is.na(temp_results$b_c_d_e),]
+                              if(nrow(temp_results) > 0){
+                                #Calculating Viability Values
+                                  temp_Viabilities <- ll.4(x = temp_Instruction$Concentration_uM[i], b_c_d_e = temp_results$b_c_d_e)
+                                #Constructing return values
+                                  temp_Return <- data.frame("Compound" = temp_results$Compound,
+                                                            "Cell_Line" = temp_results$Cell_Line,
+                                                            "Viability" = temp_Viabilities,
+                                                            "Concentration_uM" = temp_Instruction$Concentration_uM[i],
+                                                            "Min_Tested_Conc_uM" = temp_results$min_dose_uM,
+                                                            "Max_Tested_Conc_uM" = temp_results$max_dose_uM,
+                                                            stringsAsFactors = FALSE
+                                                            )
+                                  temp_Return$Concentration_Above_Max_Tested_Conc <- temp_Return$Max_Tested_Conc_uM < temp_Return$Concentration_uM
+                                  temp_Return$Concentration_Below_Max_Tested_Conc <- temp_Return$Min_Tested_Conc_uM > temp_Return$Concentration_uM
+                                #Storing result
+                                  Calculated_Viabilities[[i]] <- temp_Return
+                              } else {
+                                #Constructing empty result data frame
+                                  temp_Return <- data.frame("Compound" = temp_results$Compound,
+                                                              "Cell_Line" = character(0),
+                                                              "normalized_Viability" = numeric(0),
+                                                              "Concentration_uM" = numeric(0),
+                                                              "Min_Tested_Conc_uM" = numeric(0),
+                                                              "Max_Tested_Conc_uM" = numeric(0),
+                                                              "Concentration_Above_Max_Tested_Conc" = logical(0),
+                                                              "Concentration_Below_Max_Tested_Conc" = logical(0)
+                                                            )
+                                #Storing empty data frame
+                                  Calculated_Viabilities[[i]] <- temp_Return
+                              }
+                              incProgress(1/nrow(temp_Instruction))
+                            }
+                          })
+                        #Organizing calculated Viability values
+                          Returnable_Viabilities <- reactive({do.call(rbind, Calculated_Viabilities)})
+        
+                        #Allowing user to download results
+                          #Creating Download Button
+                            output$Viability_Download_UI <- renderUI({
+                              downloadButton(outputId = "Viability_Download_Viability_Values", label = "Download Calculated Viability Values") %>%
+                                      helper(type = "inline",
+                                        title = "Get Viability Values",
+                                        icon = "question-circle", colour = NULL,
+                                        content = c("Empty for now."),
+                                        size = "m",
+                                        buttonLabel = "Okay", easyClose = TRUE, fade = FALSE
+                                      )
+                            })
+                          #Allowing user to download Returnable_Viabilities
+                            output$Viability_Download_Viability_Values <- downloadHandler(
+                                  filename = paste0(input$Viability_Dataset, "_Calculated_Viabilities.xlsx"),
+                                  content = function(file){
+                                    write.xlsx2(Returnable_Viabilities(), file, row.names = FALSE)
+                                  }
+                                )
+                      }) #END: isolate
+                    })
+            
 #############################################################          
 #################################################### server #          
         }
         
         if(input$tabs == "Download Data"){
-          #Code for "Download Data" Tab
           
+          #Code for "Download Data" Tab
           
         }
       })

@@ -29,7 +29,7 @@
   #Csustained data
     Csustained <- as.data.frame(read_xlsx("./www/Csustained.xlsx", na = "NA"))
   #Cell line and compound information
-    Cell_Line_Harm <- as.data.frame(read_xlsx("./www/Harmonized_CCL_Data_11_3_2020_manual_updates.xlsx", na = "NA"))
+    Cell_Line_Harm <- as.data.frame(read_xlsx("./www/Harmonized_CCL_Data_v1.0.xlsx", na = "NA"))
       Cell_Line_Harm$Dataset[grepl("CTRPv2", Cell_Line_Harm$Dataset)] <- "CTRPv2"
       Cell_Line_Harm$Dataset[grepl("GDSC1", Cell_Line_Harm$Dataset)] <- "GDSC1"
       Cell_Line_Harm$Dataset[grepl("GDSC2", Cell_Line_Harm$Dataset)] <- "GDSC2"
@@ -41,7 +41,7 @@
       Cell_Line_Harm$South_Asian_Ancestry <- as.numeric(Cell_Line_Harm$South_Asian_Ancestry)
       Cell_Line_Harm$`European_(North)_Ancestry` <- as.numeric(Cell_Line_Harm$`European_(North)_Ancestry`)
       Cell_Line_Harm$`European_(South)_Ancestry` <- as.numeric(Cell_Line_Harm$`European_(South)_Ancestry`)
-    Compound_Harm <- as.data.frame(read_excel("./www/Harmonized_Compound_Data_11_1_2020_manual_updates.xlsx"))
+    Compound_Harm <- as.data.frame(read_excel("./www/Harmonized_Compound_Data_v1.0.xlsx"))
       Compound_Harm$Dataset[grepl("CTRPv2", Compound_Harm$Dataset)] <- "CTRPv2"
       Compound_Harm$Dataset[grepl("GDSC1", Compound_Harm$Dataset)] <- "GDSC1"
       Compound_Harm$Dataset[grepl("GDSC2", Compound_Harm$Dataset)] <- "GDSC2"

@@ -197,11 +197,112 @@
           )
         ),
 
+
 #############################################################          
+######################################################## UI #
+        navbarMenu(title = "About Simplicity",
+
 ######################################################## UI #           
-      tabPanel(value = "Download Data", title = "Download Data",
+          tabPanel(value = "Methods", title = "Methods",
+            list(
+              h4("Once the methods section for the paper is written, it will be formatted nicely and put here. The main things that need to be covered are as follows:"),
+              wellPanel(
+                h5("1. How was raw data obtained for each dataset?"),
+                h5("2. How was raw data pre-processed for each dataset (especially PRISM-Repurposing)?"),
+                h5("3. How was curve fitting performed?"),
+                h5("4. How were cell lines and compounds annotated/harmonized?"),
+                h5("5. How are normalized AUC and Viability values calculated?"),
+                h5("6. What makes the code tick (packages, environment, etc.) and where can the source code be accessed?")
+              )
+            )      
+          ),
+
+######################################################## UI #           
+          tabPanel(value = "Contact Us", title = "Contact Us",
+            list(
+              h3("Please feel free to contact us!"),
+              wellPanel(
+                p(HTML("We would love to answer any questions you have about Simplicity. We also want to hear about any bugs you encounter 
+                  when using the app or any features you would like us to add so we can keep improving Simplicity's usefullness to the field.")),
+                br(),
+                p(HTML("<b>Principal Investigator:</b>")),
+                p(HTML("R. Stephanie Huang (<i>rshuang@umn.edu</i>)")),
+                br(),
+                p(HTML("<b>Project Creator:</b>")),
+                p(HTML("Alexander Ling (<i>alling@umn.edu</i>)")),
+                br(),
+                p(HTML("<b>Project Maintainer:</b>")),
+                p(HTML("John/Jane Doe (<i></i>)"))
+              )
+            )      
+          ),
+
+######################################################## UI #           
+          tabPanel(value = "Citation", title = "Cite This Resource",
+            list(
+              h3("If you use this resource for your research, please cite us, along with the original creators of any datasets you use from Simplicity."),
+              wellPanel(
+              p(HTML("<b>Simplicity App:</b>")),
+              p(HTML("1. We're working on a manuscript for the app, and we will provide a citation for that manuscript here once it is published."))
+              ),
+              wellPanel(
+              p(HTML("<b>Compound and Cell Line Harmonization Tables and Csustained values:</b>")),
+              p(HTML("1.	Ling, A. & Huang, R. S. Computationally predicting clinical drug combination efficacy with cancer cell line screens and independent drug action. <i>Nat. Commun.</i> <b>11</b>, 1–13 (2020)."))
+              ),
+              wellPanel(
+              p(HTML("<b>CTRPv2:</b>")),
+              p(HTML("1.	Basu, A. et al. An Interactive Resource to Identify Cancer Genetic and Lineage Dependencies Targeted by Small Molecules. <i>Cell</i> <b>154</b>, 1151–1161 (2013).")),
+              p(HTML("2.	Seashore-Ludlow, B. et al. Harnessing Connectivity in a Large-Scale Small-Molecule Sensitivity Dataset. <i>Cancer Discov.</i> <b>5</b>, 1210–1223 (2015).")),
+              p(HTML("3.	Rees, M. G. et al. Correlating chemical sensitivity and basal gene expression reveals mechanism of action. <i>Nat. Chem. Biol.</i> <b>12</b>, 109–116 (2016).")),
+              p(HTML("Visit their website at <a href=\"https://portals.broadinstitute.org/ctrp/\">https://portals.broadinstitute.org/ctrp/</a>."))
+              ),
+              wellPanel(
+              p(HTML("<b>GDSC1 and GDSC2:</b>")),
+              p(HTML("1.	Iorio, F. et al. A Landscape of Pharmacogenomic Interactions in Cancer. <i>Cell</i> <b>166</b>, 740–754 (2016).")),
+              p(HTML("2.	Yang, W. et al. Genomics of Drug Sensitivity in Cancer (GDSC): a resource for therapeutic biomarker discovery in cancer cells. <i>Nucleic Acids Res.</i> <b>41</b>, D955–D961 (2013).")),
+              p(HTML("3.	Garnett, M. J. et al. Systematic identification of genomic markers of drug sensitivity in cancer cells. <i>Nature</i> <b>483</b>, 570–575 (2012).")),
+              p(HTML("Visit their website at <a href=\"https://www.cancerrxgene.org/\">https://www.cancerrxgene.org/</a>."))
+              ),
+              wellPanel(
+              p(HTML("<b>PRISM-Repurposing:</b>")),
+              p(HTML("1.	Corsello, S. M. et al. Discovering the anti-cancer potential of non-oncology drugs by systematic viability profiling. <i>Nat. Cancer</i> <b>1</b>, 235–248 (2020).")),
+              p(HTML("Visit their website at <a href=\"https://depmap.org/repurposing/\">https://depmap.org/repurposing/</a>."))
+              )
+            )      
+          ),
+
+######################################################## UI #           
+          tabPanel(value = "Methods", title = "Usage License",
+            list(
+              h4("This will specify the license for using Simplicity and provide a link to the license terms...
+                 once I bother to look it up. I believe it is GPL3 for the software itself. I don't know what
+                 the licenses will be for the reprocessed datasets. I still need to reach out to their creators.")
+            )      
+          )
+        ),
+
+#############################################################                    
+######################################################## UI # 
+        tabPanel(value = "Download Data", title = "Download Bulk Data",
           list(
-            h1("PAGE UNDER CONSTRUCTION")
+            h3("Download the bulk data used by Simplicity."),
+            h5("Note: If clicking on a link promts you to download an html file instead of the intended file, wait a few seconds and try again.
+               It can take a few moments for the app to properly set up the download links after first being started."),
+            wellPanel(
+              p(HTML("This page contains links to download the bulk data used by Simplicity. Please don't forget to visit the \"Cite This Resource\" tab
+              to find out how to cite Simplicity and the original creators of the data used by the app."))
+            ),
+            wellPanel(
+              p(HTML("<b>Harmonization Tables:</b>")),
+              downloadLink("Cell_Line_Harmonization_Download", label = "Cell_Line_Harmonizer.xlsx") %>%
+              p(HTML(" An excel spreadsheet containing information about each of the cell lines used by each dataset, along with harmonized identifiers for each cell line and the names originally used by each dataset.")),
+              downloadLink("Compound_Harmonization_Download", label = "Compound_Harmonizer.xlsx") %>%
+              p(HTML("An excel spreadsheet containing information about each of the compounds used by each dataset, along with harmonized identifiers for each compound and the names originally used by each dataset."))
+            ),
+            wellPanel(
+              p(HTML("<b>Dataset Summary Results:</b>")),
+              p(HTML("Once I get the okay from all of the dataset creators, I'll include links here for bulk summary results from each dataset as well as raw data files and the drc curve fit objects that have the full statistical information for each curve fit."))
+            )
             
           )      
         )
@@ -217,7 +318,23 @@
     #Observing help menu objects
       observe_helpers()
     
-    #Setting code to only run for each tab once that tab is selected
+#############################################################          
+#################################################### server #          
+      #Code for "Download Data" Tab
+          
+        #Defining download link handlers early so data can be downloaded as soon as people open the app and click on the download tab
+          
+          output$Cell_Line_Harmonization_Download <- downloadHandler(
+            filename = "Cell_Line_Harmonizer_v1.0.xlsx",
+            content = function(file){file.copy("./www/Harmonized_CCL_Data_v1.0.xlsx", file)}
+          )
+          
+          output$Compound_Harmonization_Download <- downloadHandler(
+            filename = "Compound_Harmonizer_v1.0.xlsx",
+            content = function(file){file.copy("./www/Harmonized_Compound_Data_v1.0.xlsx", file)}
+          )
+    
+    #Setting code for other tabs to only run for each tab once that tab is selected
       observeEvent(input$tabs, {
         
 #############################################################          
@@ -529,7 +646,7 @@
                                 helper(type = "inline",
                                   title = "Patient age filtering",
                                   icon = "question-circle", colour = NULL,
-                                  content = c("Each slider sets the minimum and maximum % ancestry for each ancestry group. Once any of the ancestry sliders has been changed from its maximum range, cell lines will be filtered to only include lines which meet the limits set on all of the ancestry sliders. Note that % ancestry adds to 100% across all ancestry groups for each individual cell line (i.e. a cell line cannot have 60% African ancestry and 60% Native American ancestry, because that would add to >100%). Ancestry information was obtained from the cellosaurus resource at https://www.expasy.org/."),
+                                  content = c("Each slider sets the minimum and maximum % ancestry for each ancestry group. Once any of the ancestry sliders has been changed from its maximum range, cell lines will be filtered to only include lines which meet the limits set on all of the ancestry sliders. Note that % ancestry adds to 100% across all ancestry groups for each individual cell line (i.e. a cell line cannot have 60% African ancestry and 60% Native American ancestry, because that would add to >100%). Ancestry information was obtained from the cellosaurus resource at <a href=\"https://www.expasy.org/\">https://www.expasy.org/</a>."),
                                   size = "m",
                                   buttonLabel = "Okay", easyClose = TRUE, fade = FALSE
                                 ),
@@ -1033,7 +1150,7 @@
                         helper(type = "inline",
                           title = "Patient age filtering",
                           icon = "question-circle", colour = NULL,
-                          content = c("Each slider sets the minimum and maximum % ancestry for each ancestry group. Once any of the ancestry sliders has been changed from its maximum range, cell lines will be filtered to only include lines which meet the limits set on all of the ancestry sliders. Note that % ancestry adds to 100% across all ancestry groups for each individual cell line (i.e. a cell line cannot have 60% African ancestry and 60% Native American ancestry, because that would add to >100%). Ancestry information was obtained from the cellosaurus resource at https://www.expasy.org/."),
+                          content = c("Each slider sets the minimum and maximum % ancestry for each ancestry group. Once any of the ancestry sliders has been changed from its maximum range, cell lines will be filtered to only include lines which meet the limits set on all of the ancestry sliders. Note that % ancestry adds to 100% across all ancestry groups for each individual cell line (i.e. a cell line cannot have 60% African ancestry and 60% Native American ancestry, because that would add to >100%). Ancestry information was obtained from the cellosaurus resource at <a href=\"https://www.expasy.org/\">https://www.expasy.org/</a>."),
                           size = "m",
                           buttonLabel = "Okay", easyClose = TRUE, fade = FALSE
                         ),
@@ -2323,7 +2440,7 @@
                               helper(type = "inline",
                                 title = "Patient age filtering",
                                 icon = "question-circle", colour = NULL,
-                                content = c("Each slider sets the minimum and maximum % ancestry for each ancestry group. Once any of the ancestry sliders has been changed from its maximum range, cell lines will be filtered to only include lines which meet the limits set on all of the ancestry sliders. Note that % ancestry adds to 100% across all ancestry groups for each individual cell line (i.e. a cell line cannot have 60% African ancestry and 60% Native American ancestry, because that would add to >100%). Ancestry information was obtained from the cellosaurus resource at https://www.expasy.org/."),
+                                content = c("Each slider sets the minimum and maximum % ancestry for each ancestry group. Once any of the ancestry sliders has been changed from its maximum range, cell lines will be filtered to only include lines which meet the limits set on all of the ancestry sliders. Note that % ancestry adds to 100% across all ancestry groups for each individual cell line (i.e. a cell line cannot have 60% African ancestry and 60% Native American ancestry, because that would add to >100%). Ancestry information was obtained from the cellosaurus resource at <a href=\"https://www.expasy.org/\">https://www.expasy.org/</a>."),
                                 size = "m",
                                 buttonLabel = "Okay", easyClose = TRUE, fade = FALSE
                               ),
@@ -2504,7 +2621,14 @@
                       #Creating Download Button
                         output$AUC_Download_UI <- renderUI({
                           if(is.data.frame(AUC_Custom_Values())){
-                            downloadButton(outputId = "AUC_Download_AUC_Values", label = "Download Calculated AUC Values")
+                            downloadButton(outputId = "AUC_Download_AUC_Values", label = "Download Calculated AUC Values") %>%
+                                    helper(type = "inline",
+                                      title = "Download AUC Values",
+                                      icon = "question-circle", colour = NULL,
+                                      content = c("Pressing this button will download a tab separated value (.tsv) text file containing the calculated AUC values."),
+                                      size = "m",
+                                      buttonLabel = "Okay", easyClose = TRUE, fade = FALSE
+                                    )
                           } else {
                             
                           }
@@ -3030,7 +3154,7 @@
                               helper(type = "inline",
                                 title = "Patient age filtering",
                                 icon = "question-circle", colour = NULL,
-                                content = c("Each slider sets the minimum and maximum % ancestry for each ancestry group. Once any of the ancestry sliders has been changed from its maximum range, cell lines will be filtered to only include lines which meet the limits set on all of the ancestry sliders. Note that % ancestry adds to 100% across all ancestry groups for each individual cell line (i.e. a cell line cannot have 60% African ancestry and 60% Native American ancestry, because that would add to >100%). Ancestry information was obtained from the cellosaurus resource at https://www.expasy.org/."),
+                                content = c("Each slider sets the minimum and maximum % ancestry for each ancestry group. Once any of the ancestry sliders has been changed from its maximum range, cell lines will be filtered to only include lines which meet the limits set on all of the ancestry sliders. Note that % ancestry adds to 100% across all ancestry groups for each individual cell line (i.e. a cell line cannot have 60% African ancestry and 60% Native American ancestry, because that would add to >100%). Ancestry information was obtained from the cellosaurus resource at <a href=\"https://www.expasy.org/\">https://www.expasy.org/</a>."),
                                 size = "m",
                                 buttonLabel = "Okay", easyClose = TRUE, fade = FALSE
                               ),
@@ -3295,7 +3419,7 @@
                           if(is.data.frame(Viability_Custom_Values())){
                             downloadButton(outputId = "Viability_Download_Viability_Values", label = "Download Calculated Viability Values") %>%
                                     helper(type = "inline",
-                                      title = "Viability Value Output",
+                                      title = "Download Viabilities",
                                       icon = "question-circle", colour = NULL,
                                       content = c("Pressing this button will download a tab separated value (.tsv) text file containing the calculated viability values."),
                                       size = "m",
@@ -3324,17 +3448,9 @@
                             )
                       })
                     })
-                    
-            
-#############################################################          
-#################################################### server #          
-        }
         
-        if(input$tabs == "Download Data"){
-          
-          #Code for "Download Data" Tab
-          
         }
+
       })
     
   }

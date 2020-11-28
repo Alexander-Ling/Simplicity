@@ -3441,7 +3441,7 @@
                                       temp_Concentrations <- data.frame(dose = temp_conc_list[[i]])
                                     #Calculating Viability Values
                                       temp_Viabilities <- as.data.frame(do.call(rbind, lapply(temp_results, predict.handle.errors.drc, newdata = temp_Concentrations, se.fit = T, vcov. = sandwich)))
-                                      temp_n_conc <- nrow(temp_Viabilities)
+                                      temp_n_conc <- nrow(temp_Concentrations)
                                     #Constructing return values
                                       temp_Return <- data.frame("Compound" = names(temp_conc_list)[i],
                                                                 "Cell_Line" = rep(names(temp_results), each = temp_n_conc),

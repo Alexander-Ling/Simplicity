@@ -2710,7 +2710,22 @@
                                   text = "Preparing Results for Download..."
                                 )
                                 
-                                write_delim(AUC_Custom_Values(), file, delim = "\t")
+                                temp_data <- AUC_Custom_Values()
+                                
+                                success.check <- try(write_delim(temp_data, file, delim = "\t"))
+                                
+                                if(class(success.check) == "try-error"){
+                                  warning("Download unsuccessful: ", Sys.time())
+                                  temp_class <- class(temp_data)
+                                  warning("File class = ", temp_class)
+                                  if(temp_class == "data.frame"){
+                                    temp_type <- NA
+                                    for(i in 1:ncol(temp_data)){
+                                      temp_type[i] <- typeof(temp_data[,i])
+                                    }
+                                    warning(paste0("Column Types: ", paste(temp_type, collapse = ", ")))
+                                  }
+                                }
                                 
                                 remove_modal_spinner()
                               }
@@ -3424,7 +3439,7 @@
                               remove_modal_progress()
                               return(Returnable_Viabilities)
                         } else if(input$Viability_Calculate_Uncertainty == TRUE){ #END: if(input$Viability_Calculate_Uncertainty == FALSE){
-                          #Performing calculations when standard errors are not needed
+                          #Performing calculations when standard errors are needed
                             #Loading fitted curves and calculating Viability values
                               Calculated_Viabilities <- vector(mode = "list", length = 0)
                               show_modal_progress_line(text = "Calculating Viability Values and Standard Errors...")
@@ -3454,7 +3469,9 @@
                                                                 )
                                     #Repairing missing viability values at 0 concentration
                                       temp_Params <- sapply(temp_results[temp_Return$Cell_Line], function(x){return(paste(x$coefficients, collapse = "_"))})
-                                      temp_Return$Viability[is.na(temp_Return$Viability)] <- ll.4(x = temp_Return$Concentration_uM[is.na(temp_Return$Viability)], b_c_d_e = temp_Params[is.na(temp_Return$Viability)])
+                                      if(any(is.na(temp_Return$Viability))){
+                                        temp_Return$Viability[is.na(temp_Return$Viability)] <- ll.4(x = temp_Return$Concentration_uM[is.na(temp_Return$Viability)], b_c_d_e = temp_Params[is.na(temp_Return$Viability)])
+                                      }
                                     #If SE values could not be estimated (usually happens when slope == 0), assigning unknown SE as median SE from other cell lines at that concentration with this drug
                                       if(any(is.na(temp_Return$Viability_SE))){
                                         for(j in 1:nrow(temp_Concentrations)){
@@ -3528,7 +3545,22 @@
                                   text = "Preparing Results for Download..."
                                 )
                                 
-                                write_delim(Viability_Custom_Values(), file, delim = "\t")
+                                temp_data <- Viability_Custom_Values()
+                                
+                                success.check <- try(write_delim(temp_data, file, delim = "\t"))
+                                
+                                if(class(success.check) == "try-error"){
+                                  warning("Download unsuccessful: ", Sys.time())
+                                  temp_class <- class(temp_data)
+                                  warning("File class = ", temp_class)
+                                  if(temp_class == "data.frame"){
+                                    temp_type <- NA
+                                    for(i in 1:ncol(temp_data)){
+                                      temp_type[i] <- typeof(temp_data[,i])
+                                    }
+                                    warning(paste0("Column Types: ", paste(temp_type, collapse = ", ")))
+                                  }
+                                }
                                 
                                 remove_modal_spinner()
                               }

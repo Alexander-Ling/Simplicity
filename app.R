@@ -12,7 +12,7 @@
   set.seed(06182020)
   
 #Working Directory
-  setwd("D:/Huang Lab/simplicity app/Simplicity")
+  #setwd("D:/Huang Lab/simplicity app/Simplicity")
  
 #Loading global datasets, functions, and packages
   source("globaldata.R")
@@ -28,19 +28,70 @@
         tabPanel(value = "Welcome", title = "Welcome",
           
           #Welcome text for app
-            h3("Welcome to the Cancer Drug Screen Portal!"),
-            p("This app is designed to provide easy, non-programmatic access to the CTRPv2, GDSC1, GDSC2, 
-            and PRISM Repurposing cancer cell line drug screening datasets. Please select the appropriate 
-            tab at the top for the task you wish to complete with this data. You can also see a summary 
-            of each of the datasets below."),
+            h3("Welcome to the Simplicity web app!"),
+            p("This app was created to provide easy, non-programmatic access to explore and perform calculations with the CTRPv2, GDSC1, GDSC2, and PRISM Repurposing cancer cell line drug screening datasets. Simplicity allows users to quickly visualize how various cell line subsets responded to a particular compound in each dataset, to visualize how various compound subsets affected a particular cell line in each dataset, to view individual dose-response curves and details from each experiment in each dataset, and to calculate AUC and viability values from each dataset using custom concentration ranges. Simplicity also includes detailed information about each cell line and compound tested in these datasets."),
+            p("For a quick tutorial on using Simplicity, please watch this video. Otherwise, please feel free to get started by selecting the appropriate tab at the top for the task you wish to complete with this data or by viewing a summary of each of the Simplicity datasets below."),
           #Selector for choosing which dataset to display a summary for
             sidebarLayout(sidebarPanel(
                 selectInput(inputId = "Summary_Dataset", label = "Which dataset would you like to see a summary for?", choices = Dataset_Summaries$Dataset, selected = Dataset_Summaries$Dataset[1], multiple = FALSE, selectize = FALSE),
                 uiOutput(outputId = "Dataset_Summary_Text")
               ), mainPanel(
-                plotlyOutput(outputId = "n_Compounds_Per_Cell_Line"),
-                plotlyOutput(outputId = "n_Cell_Lines_Per_Compound"),
-                plotlyOutput(outputId = "Dataset_Residual_Standard_Error")
+                plotlyOutput(outputId = "welcome_cancer_type") %>%
+                            helper(type = "inline",
+                              title = "Compound filtering",
+                              icon = "question-circle", colour = NULL,
+                              content = c("This stacked barplot shows the availability of cell lines by general cancer type and gender in the selected dataset. Cell lines can also be filtered by more detailed disease names in many of the tabs in this app. A detailed description of how cell line information was obtained is included in the \"About Simplicity/Methods\" tab. Full cell line annotation information can be downloaded in the \"Download Bulk Data\" tab."),
+                              size = "m",
+                              buttonLabel = "Okay", easyClose = TRUE, fade = FALSE
+                            ),
+                plotlyOutput(outputId = "welcome_ancestry") %>%
+                            helper(type = "inline",
+                              title = "Compound filtering",
+                              icon = "question-circle", colour = NULL,
+                              content = c("This density plot shows the scaled distributions of ancestry percentages for the cell lines in the selected dataset. Note that, for ease of viewing, each ancestry's distribution is scaled differently so that the maximum density for every ancestry is equal to 1. As such, the plot should be interpreted one ancestry at a time rather than by comparing densities across ancestries. Please note that traces for each ancestry can be hidden or shown by clicking on the corresponding label in the legend. A detailed description of how cell line information was obtained is included in the \"About Simplicity/Methods\" tab. Full cell line annotation information can be downloaded in the \"Download Bulk Data\" tab."),
+                              size = "m",
+                              buttonLabel = "Okay", easyClose = TRUE, fade = FALSE
+                            ),
+                plotlyOutput(outputId = "welcome_age") %>%
+                            helper(type = "inline",
+                              title = "Compound filtering",
+                              icon = "question-circle", colour = NULL,
+                              content = c("This density plot shows the scaled distribution of patient ages at the time tissue was collected for cell line derivation. Note that this plot only includes information from cell lines for which a numeric age could be determined (i.e. it would omit cell lines annotated with the generic age of \"Adult\"). A detailed description of how cell line information was obtained is included in the \"About Simplicity/Methods\" tab. Full cell line annotation information can be downloaded in the \"Download Bulk Data\" tab."),
+                              size = "m",
+                              buttonLabel = "Okay", easyClose = TRUE, fade = FALSE
+                            ),
+                plotlyOutput(outputId = "welcome_clinical_phase") %>%
+                            helper(type = "inline",
+                              title = "Compound filtering",
+                              icon = "question-circle", colour = NULL,
+                              content = c("This barplot shows the number of compounds at each clinical stage of development in the selected dataset. A detailed description of how compound information was obtained is included in the \"About Simplicity/Methods\" tab. Full compound annotation information can be downloaded in the \"Download Bulk Data\" tab."),
+                              size = "m",
+                              buttonLabel = "Okay", easyClose = TRUE, fade = FALSE
+                            ),
+                plotlyOutput(outputId = "n_Compounds_Per_Cell_Line") %>%
+                            helper(type = "inline",
+                              title = "Compound filtering",
+                              icon = "question-circle", colour = NULL,
+                              content = c("This barplot shows the number of compounds tested per cell line, calculated both using attempted tests and using only tests that passed Simplicity's QC metrics. A description of Simplicity's curve fitting and QC pipelines can be found in the \"About Simplicity/Methods\" tab."),
+                              size = "m",
+                              buttonLabel = "Okay", easyClose = TRUE, fade = FALSE
+                            ),
+                plotlyOutput(outputId = "n_Cell_Lines_Per_Compound") %>%
+                            helper(type = "inline",
+                              title = "Compound filtering",
+                              icon = "question-circle", colour = NULL,
+                              content = c("This barplot shows the number of cell lines tested per compound, calculated both using attempted tests and using only tests that passed Simplicity's QC metrics. A description of Simplicity's curve fitting and QC pipelines can be found in the \"About Simplicity/Methods\" tab."),
+                              size = "m",
+                              buttonLabel = "Okay", easyClose = TRUE, fade = FALSE
+                            ),
+                plotlyOutput(outputId = "Dataset_Residual_Standard_Error") %>%
+                            helper(type = "inline",
+                              title = "Compound filtering",
+                              icon = "question-circle", colour = NULL,
+                              content = c("This density plot shows the scaled distribution of residual standard errors (RSEs) for the fitted dose-response curves in the selected datset. Note that this includes RSEs from all curves from the dataset, regardless of whether or not they passed Simplicity's QC requirements. An RSE of 0 indicates a perfect curve fit, while an RSE of 1 indicates an RSE of 100% viability. Note that RSEs > 1 are possible with very noisy dose-response curves. For a description of how Simplicity dose-response curves were fit and the minimum RSE required to pass QC, please see the \"About Simplicity/Methods\" tab."),
+                              size = "m",
+                              buttonLabel = "Okay", easyClose = TRUE, fade = FALSE
+                            )
               )
             )
         ),
@@ -315,6 +366,12 @@
 #############################################################  
 #Creating server function
   server <- function(input, output, session){
+    #Creating modal spinner waiting screen while app initializes
+      show_modal_spinner(
+        spin = "swapping-squares",
+        color = "#112446",
+        text = "Initializing App. Please Wait..."
+      )
     #Observing help menu objects
       observe_helpers()
     
@@ -357,62 +414,153 @@
                 p(tags$b("# of Experiments: "), tags$em(selected_data_summary$n_Experiments)) 
               )
             })
+          #Plot of cancer type distribution
+            output$welcome_cancer_type <- renderPlotly({
+              # temp_dataset_ccl_data <- Simple_Cell_Line_Harm[Simple_Cell_Line_Harm$Harmonized_Cell_Line_ID %in% Dataset_ccls_successful[[input$Summary_Dataset]],]
+              # temp_dataset_ccl_data$Simple_Cancer_Type[temp_dataset_ccl_data$Simple_Cancer_Type == "unknown"] <- "unknown cancer type"
+              # plot_data <- as.data.frame.table(table(temp_dataset_ccl_data$Simple_Cancer_Type))
+              # plot_data <- plot_data[order(plot_data$Freq, decreasing = TRUE),]
+              # plot_data <- rbind(plot_data[! plot_data$Var1 == "unknown cancer type",], plot_data[plot_data$Var1 == "unknown cancer type",])
+              # 
+              # Gender_Unknown <- NA
+              # Gender_Female <- NA
+              # Gender_Male <- NA
+              # for(i in 1:nrow(plot_data)){
+              #   Gender_Unknown[i] <- nrow(temp_dataset_ccl_data[temp_dataset_ccl_data$Simple_Cancer_Type %in% plot_data$Var1[i] & temp_dataset_ccl_data$Gender == "Sex unspecified",])
+              #   Gender_Female[i] <- nrow(temp_dataset_ccl_data[temp_dataset_ccl_data$Simple_Cancer_Type %in% plot_data$Var1[i] & temp_dataset_ccl_data$Gender == "Female",])
+              #   Gender_Male[i] <- nrow(temp_dataset_ccl_data[temp_dataset_ccl_data$Simple_Cancer_Type %in% plot_data$Var1[i] & temp_dataset_ccl_data$Gender == "Male",])
+              # }
+              # 
+              # plot_data$Var1 <- factor(plot_data$Var1, levels = plot_data$Var1)
+              # 
+              # fig <- plot_ly(x = plot_data$Var1, y = Gender_Unknown, type = "bar", name = "Unknown Gender", marker = list(color = "lightgray")) %>%
+              #         add_trace(y = Gender_Male, name = "Male", marker = list(color = rgb(65,105,225, maxColorValue = 255))) %>%
+              #         add_trace(y = Gender_Female, name = "Female", marker = list(color = rgb(186,85,211, maxColorValue = 255))) %>%
+              #         layout(yaxis = list(title = "# of Cell Lines"), xaxis = list(tickangle = 45), barmode = "stack", margin = list(b = 150, l = 50))
+              # 
+              # fig
+              welcome_cancer_type_plots[[input$Summary_Dataset]]
+            })
+          #Plot of patient ages
+            output$welcome_age <- renderPlotly({
+              # temp_dataset_ccl_data <- Simple_Cell_Line_Harm[Simple_Cell_Line_Harm$Harmonized_Cell_Line_ID %in% Dataset_ccls_successful[[input$Summary_Dataset]],]
+              # completeness <- paste0("(data for ", nrow(temp_dataset_ccl_data[! is.na(temp_dataset_ccl_data$Numeric_Age_in_Years),]), " of ", nrow(temp_dataset_ccl_data), " cell lines)")
+              # temp_dataset_ccl_data <- temp_dataset_ccl_data[! is.na(temp_dataset_ccl_data$Numeric_Age_in_Years),]
+              # 
+              # p <- ggplot(temp_dataset_ccl_data, aes(x = Numeric_Age_in_Years)) +
+              #             geom_density(color = "darkblue", fill = "lightblue") +
+              #             theme_light() +
+              #             labs(x = paste("Patient Age when Cell Line was Derived", completeness), y = "Density")
+              # fig <- ggplotly(p)
+              # 
+              # fig
+              welcome_age_plots[[input$Summary_Dataset]]
+            })
+          #Plot of patient ancestries
+            output$welcome_ancestry <- renderPlotly({
+              # temp_dataset_ccl_data <- Simple_Cell_Line_Harm[Simple_Cell_Line_Harm$Harmonized_Cell_Line_ID %in% Dataset_ccls_successful[[input$Summary_Dataset]],]
+              # completeness <- paste0("(data for ", nrow(temp_dataset_ccl_data[! is.na(temp_dataset_ccl_data$African_Ancestry),]), " of ", nrow(temp_dataset_ccl_data), " cell lines)")
+              # temp_dataset_ccl_data <- temp_dataset_ccl_data[! is.na(temp_dataset_ccl_data$African_Ancestry),]
+              # plot_data <- data.frame(Ancestry_Percentage = c(temp_dataset_ccl_data$African_Ancestry,
+              #                          temp_dataset_ccl_data$Native_American_Ancestry,
+              #                          temp_dataset_ccl_data$`East_Asian_(North)_Ancestry`,
+              #                          temp_dataset_ccl_data$`East_Asian_(South)_Ancestry`,
+              #                          temp_dataset_ccl_data$South_Asian_Ancestry,
+              #                          temp_dataset_ccl_data$`European_(North)_Ancestry`,
+              #                          temp_dataset_ccl_data$`European_(South)_Ancestry`)*100,
+              #                        Ancestry = c(rep("African", nrow(temp_dataset_ccl_data)),
+              #                          rep("Native American", nrow(temp_dataset_ccl_data)),
+              #                          rep("East Asian (North)", nrow(temp_dataset_ccl_data)),
+              #                          rep("East Asian (South)", nrow(temp_dataset_ccl_data)),
+              #                          rep("South Asian", nrow(temp_dataset_ccl_data)),
+              #                          rep("European (North)", nrow(temp_dataset_ccl_data)),
+              #                          rep("European (South)", nrow(temp_dataset_ccl_data))))
+              # 
+              # p <- ggplot(plot_data, aes(x = Ancestry_Percentage, group = Ancestry, fill = Ancestry)) +
+              #             geom_density(adjust=1.5, position="fill") +
+              #             theme_light() +
+              #             labs(x = paste("Cell Line Ancestry Percentage", completeness), y = "Density")
+              # fig <- ggplotly(p)
+              # 
+              # fig
+              welcome_ancestry_plots[[input$Summary_Dataset]]
+            })
+          #Plot of clinical phase information
+            output$welcome_clinical_phase <- renderPlotly({
+              # temp_dataset_compound_data <- Simple_Compound_Harm[Simple_Compound_Harm$Harmonized_Compound_Name %in% Dataset_compounds_successful[[input$Summary_Dataset]],]
+              # temp_dataset_compound_data$Compound_Clinical_Phase[temp_dataset_compound_data$Compound_Clinical_Phase == "NA"] <- "Unknown"
+              # 
+              # plot_data <- as.data.frame.table(table(temp_dataset_compound_data$Compound_Clinical_Phase))
+              # plot_data$Var1 <- factor(plot_data$Var1, levels = c("Unknown", "Preclinical", "Phase 1", "Phase 1/Phase 2", "Phase 2", "Phase 2/Phase 3", "Phase 3", "Launched", "Withdrawn"))
+              # # plot_data <- plot_data[match(c("Unknown", "Preclinical", "Phase 1", "Phase 1/Phase 2", "Phase 2", "Phase 2/Phase 3", "Phase 3", "Launched", "Withdrawn"), plot_data$Var1),]
+              # 
+              # fig <- plot_ly(x = plot_data$Var1, y = plot_data$Freq, type = "bar")
+              # fig <- layout(fig,
+              #               xaxis = list(title = paste("Clinical Phase")),
+              #               yaxis = list(title = paste("# of Compounds")))
+              # 
+              # fig
+              welcome_clinical_phase_plots[[input$Summary_Dataset]]
+            })
           #Plot of # of compounds tested per cell line in dataset
             output$n_Compounds_Per_Cell_Line <- renderPlotly({
-              selected_n_cpds_per_ccl <- Dataset_cpds_per_ccl[[input$Summary_Dataset]]
-              plot_data <- as.data.frame.table(table(selected_n_cpds_per_ccl$x), stringsAsFactors = FALSE)
-              plot_data$Var1 <- as.numeric(plot_data$Var1)
-              if(nrow(plot_data) > 1){
-                plot_range <- min(plot_data$Var1):max(plot_data$Var1)
-              } else {
-                plot_range <- (plot_data$Var1-5):(plot_data$Var1+5)
-              }
-              missing_values <-  plot_range[! plot_range %in% plot_data$Var1]
-              extra_data <- cbind(missing_values, 0)
-              colnames(extra_data) <- colnames(plot_data)
-              plot_data <- rbind(plot_data, extra_data)
-              plot_data <- plot_data[order(plot_data$Var1, decreasing = FALSE),]
-              
-              
-              fig <- plot_ly(x = plot_data$Var1, y = plot_data$Freq, type = "bar")
-              fig <- layout(fig,
-                            xaxis = list(title = paste("# of Compounds Tested per Cell Line")),
-                            yaxis = list(title = paste("Cell Line Count")))
-              fig
+              # selected_n_cpds_per_ccl <- Dataset_cpds_per_ccl[[input$Summary_Dataset]]
+              # plot_data <- as.data.frame.table(table(selected_n_cpds_per_ccl$x), stringsAsFactors = FALSE)
+              # plot_data$Var1 <- as.numeric(plot_data$Var1)
+              # if(nrow(plot_data) > 1){
+              #   plot_range <- min(plot_data$Var1):max(plot_data$Var1)
+              # } else {
+              #   plot_range <- (plot_data$Var1-5):(plot_data$Var1+5)
+              # }
+              # missing_values <-  plot_range[! plot_range %in% plot_data$Var1]
+              # extra_data <- cbind(missing_values, 0)
+              # colnames(extra_data) <- colnames(plot_data)
+              # plot_data <- rbind(plot_data, extra_data)
+              # plot_data <- plot_data[order(plot_data$Var1, decreasing = FALSE),]
+              # 
+              # 
+              # fig <- plot_ly(x = plot_data$Var1, y = plot_data$Freq, type = "bar")
+              # fig <- layout(fig,
+              #               xaxis = list(title = paste("# of Compounds Tested per Cell Line")),
+              #               yaxis = list(title = paste("Cell Line Count")))
+              # fig
+              n_Compounds_Per_Cell_Line_Plots[[input$Summary_Dataset]]
             })
           #Plot of # of cell lines tested per compound
             output$n_Cell_Lines_Per_Compound <- renderPlotly({
-              selected_n_ccls_per_cpd <- Dataset_ccls_per_cpd[[input$Summary_Dataset]]
-              plot_data <- as.data.frame.table(table(selected_n_ccls_per_cpd$x), stringsAsFactors = FALSE)
-              plot_data$Var1 <- as.numeric(plot_data$Var1)
-              if(nrow(plot_data) > 1){
-                plot_range <- min(plot_data$Var1):max(plot_data$Var1)
-              } else {
-                plot_range <- (plot_data$Var1-5):(plot_data$Var1+5)
-              }
-              missing_values <-  plot_range[! plot_range %in% plot_data$Var1]
-              extra_data <- cbind(missing_values, 0)
-              colnames(extra_data) <- colnames(plot_data)
-              plot_data <- rbind(plot_data, extra_data)
-              plot_data <- plot_data[order(plot_data$Var1, decreasing = FALSE),]
-              
-              
-              fig <- plot_ly(x = plot_data$Var1, y = plot_data$Freq, type = "bar")
-              fig <- layout(fig,
-                            xaxis = list(title = paste("# of Cell Lines Tested per Compound")),
-                            yaxis = list(title = paste("Compound Count")))
-              fig
+              # selected_n_ccls_per_cpd <- Dataset_ccls_per_cpd[[input$Summary_Dataset]]
+              # plot_data <- as.data.frame.table(table(selected_n_ccls_per_cpd$x), stringsAsFactors = FALSE)
+              # plot_data$Var1 <- as.numeric(plot_data$Var1)
+              # if(nrow(plot_data) > 1){
+              #   plot_range <- min(plot_data$Var1):max(plot_data$Var1)
+              # } else {
+              #   plot_range <- (plot_data$Var1-5):(plot_data$Var1+5)
+              # }
+              # missing_values <-  plot_range[! plot_range %in% plot_data$Var1]
+              # extra_data <- cbind(missing_values, 0)
+              # colnames(extra_data) <- colnames(plot_data)
+              # plot_data <- rbind(plot_data, extra_data)
+              # plot_data <- plot_data[order(plot_data$Var1, decreasing = FALSE),]
+              # 
+              # 
+              # fig <- plot_ly(x = plot_data$Var1, y = plot_data$Freq, type = "bar")
+              # fig <- layout(fig,
+              #               xaxis = list(title = paste("# of Cell Lines Tested per Compound")),
+              #               yaxis = list(title = paste("Compound Count")))
+              # fig
+              n_Cell_Lines_Per_Compound_Plots[[input$Summary_Dataset]]
             })
           #Plot of residual standard errors
             output$Dataset_Residual_Standard_Error <- renderPlotly({
-              RSE_plot_data <- data.frame(Dataset_rse[[input$Summary_Dataset]])
-              colnames(RSE_plot_data) <- "RSE"
-              p <- ggplot(RSE_plot_data, aes(x = RSE)) +
-                          geom_density(color = "darkblue", fill = "lightblue") +
-                          theme_light() +
-                          labs(x = "Residual Standard Error for Dose-Response Curves", y = "Density")
-              fig <- ggplotly(p)
-              fig
+              # RSE_plot_data <- data.frame(Dataset_rse[[input$Summary_Dataset]])
+              # colnames(RSE_plot_data) <- "RSE"
+              # p <- ggplot(RSE_plot_data, aes(x = RSE)) +
+              #             geom_density(color = "darkblue", fill = "lightblue") +
+              #             theme_light() +
+              #             labs(x = "Residual Standard Error for Dose-Response Curves", y = "Density")
+              # fig <- ggplotly(p)
+              # fig
+              Dataset_Residual_Standard_Error_Plots[[input$Summary_Dataset]]
             })
             
 #############################################################          
@@ -3571,7 +3719,7 @@
       #   }
       # 
       # })
-    
+    remove_modal_spinner()
   }
 
 #Assemble user interface and server

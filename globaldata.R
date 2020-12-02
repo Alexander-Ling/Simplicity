@@ -15,6 +15,8 @@
     Dataset_Summaries <- read.delim("./www/Dataset_Summaries/Dataset_Summaries.txt", sep = "\t")
     Dataset_ccls_per_cpd <- readRDS("./www/Dataset_Summaries/ccls_per_cpd.rds")
     Dataset_cpds_per_ccl <- readRDS("./www/Dataset_Summaries/cpds_per_ccl.rds")
+    Dataset_ccls_per_cpd_successful <- readRDS("./www/Dataset_Summaries/ccls_per_cpd_passed_QC.rds")
+    Dataset_cpds_per_ccl_successful <- readRDS("./www/Dataset_Summaries/cpds_per_ccl_passed_QC.rds")
     Dataset_rse <- readRDS("./www/Dataset_Summaries/dataset_rse.rds")
   #Compound and cell line availability
     compound_ccl_availability <- readRDS("./www/CCL_Availability_by_Compound.rds")
@@ -95,6 +97,21 @@
     Compound_MOAs <- strsplit(Simple_Compound_Harm$Compound_MOA, ":\\|:")
       names(Compound_MOAs) <- Simple_Compound_Harm$Harmonized_Compound_Name
     Unique_Compound_MOAs <- sort(unique(unlist(Compound_MOAs)))
+    
+  #Creating list of cell lines (successfully tested) available for each compound
+    Dataset_ccls_successful <- list(NULL)
+    datasets <- names(compound_ccl_availability_successful[[1]])
+    for(i in 1:length(datasets)){
+      Dataset_ccls_successful[[i]] <- sort(unique(unlist(lapply(compound_ccl_availability_successful, function(x){return(x[datasets[i]])}))))
+    }
+    names(Dataset_ccls_successful) <- datasets
+    
+  #Creating list of compounds (successfully tested) available for each compound
+    Dataset_compounds_successful <- list(NULL)
+    for(i in 1:length(datasets)){
+      Dataset_compounds_successful[[i]] <- sort(unique(unlist(lapply(ccl_compound_availability_successful, function(x){return(x[datasets[i]])}))))
+    }
+    names(Dataset_compounds_successful) <- datasets
     
 #Writing function for 4-parameter log-logistic curve
   #b = slope
@@ -372,3 +389,190 @@
     return(temp)
   }
   
+#Pre-rendering plots for welcome page to make the app feel more responsive
+  welcome_cancer_type_plots <- list(NULL)
+  for(i in 1:length(datasets)){
+    temp_dataset_ccl_data <- Simple_Cell_Line_Harm[Simple_Cell_Line_Harm$Harmonized_Cell_Line_ID %in% Dataset_ccls_successful[[datasets[i]]],]
+    temp_dataset_ccl_data$Simple_Cancer_Type[temp_dataset_ccl_data$Simple_Cancer_Type == "unknown"] <- "unknown cancer type"
+    plot_data <- as.data.frame.table(table(temp_dataset_ccl_data$Simple_Cancer_Type))
+    plot_data <- plot_data[order(plot_data$Freq, decreasing = TRUE),]
+    plot_data <- rbind(plot_data[! plot_data$Var1 == "unknown cancer type",], plot_data[plot_data$Var1 == "unknown cancer type",])
+    
+    Gender_Unknown <- NA
+    Gender_Female <- NA
+    Gender_Male <- NA
+    for(j in 1:nrow(plot_data)){
+      Gender_Unknown[j] <- nrow(temp_dataset_ccl_data[temp_dataset_ccl_data$Simple_Cancer_Type %in% plot_data$Var1[j] & temp_dataset_ccl_data$Gender == "Sex unspecified",])
+      Gender_Female[j] <- nrow(temp_dataset_ccl_data[temp_dataset_ccl_data$Simple_Cancer_Type %in% plot_data$Var1[j] & temp_dataset_ccl_data$Gender == "Female",])
+      Gender_Male[j] <- nrow(temp_dataset_ccl_data[temp_dataset_ccl_data$Simple_Cancer_Type %in% plot_data$Var1[j] & temp_dataset_ccl_data$Gender == "Male",])
+    }
+    
+    plot_data$Var1 <- factor(plot_data$Var1, levels = plot_data$Var1)
+    
+    welcome_cancer_type_plots[[i]] <- plot_ly(x = plot_data$Var1, y = Gender_Unknown, type = "bar", name = "Unknown Gender", marker = list(color = "lightgray")) %>%
+                                      add_trace(y = Gender_Male, name = "Male", marker = list(color = rgb(65,105,225, maxColorValue = 255))) %>%
+                                      add_trace(y = Gender_Female, name = "Female", marker = list(color = rgb(186,85,211, maxColorValue = 255))) %>%
+                                      layout(yaxis = list(title = "# of Cell Lines"), xaxis = list(tickangle = 45), barmode = "stack", margin = list(b = 150, l = 50))
+    
+  }
+  names(welcome_cancer_type_plots) <- datasets
+  
+  welcome_age_plots <- list(NULL)
+  for(i in 1:length(datasets)){
+    temp_dataset_ccl_data <- Simple_Cell_Line_Harm[Simple_Cell_Line_Harm$Harmonized_Cell_Line_ID %in% Dataset_ccls_successful[[datasets[i]]],]
+    completeness <- paste0("(data for ", nrow(temp_dataset_ccl_data[! is.na(temp_dataset_ccl_data$Numeric_Age_in_Years),]), " of ", nrow(temp_dataset_ccl_data), " cell lines)")
+    temp_dataset_ccl_data <- temp_dataset_ccl_data[! is.na(temp_dataset_ccl_data$Numeric_Age_in_Years),]
+    
+    p <- ggplot(temp_dataset_ccl_data, aes(x = Numeric_Age_in_Years, y = after_stat(scaled))) +
+                geom_density(color = "darkblue", fill = "lightblue") +
+                theme_light() +
+                labs(x = paste("Patient Age when Cell Line was Derived", completeness), y = "Scaled Density")
+
+    welcome_age_plots[[i]] <- ggplotly(p)
+  }
+  names(welcome_age_plots) <- datasets
+
+  welcome_ancestry_plots <- list(NULL)
+  for(i in 1:length(datasets)){
+    temp_dataset_ccl_data <- Simple_Cell_Line_Harm[Simple_Cell_Line_Harm$Harmonized_Cell_Line_ID %in% Dataset_ccls_successful[[datasets[i]]],]
+    completeness <- paste0("(data for ", nrow(temp_dataset_ccl_data[! is.na(temp_dataset_ccl_data$African_Ancestry),]), " of ", nrow(temp_dataset_ccl_data), " cell lines)")
+    temp_dataset_ccl_data <- temp_dataset_ccl_data[! is.na(temp_dataset_ccl_data$African_Ancestry),]
+    plot_data <- data.frame(Ancestry_Percentage = c(temp_dataset_ccl_data$African_Ancestry,
+                             temp_dataset_ccl_data$Native_American_Ancestry,
+                             temp_dataset_ccl_data$`East_Asian_(North)_Ancestry`,
+                             temp_dataset_ccl_data$`East_Asian_(South)_Ancestry`,
+                             temp_dataset_ccl_data$South_Asian_Ancestry,
+                             temp_dataset_ccl_data$`European_(North)_Ancestry`,
+                             temp_dataset_ccl_data$`European_(South)_Ancestry`)*100,
+                           Ancestry = c(rep("African", nrow(temp_dataset_ccl_data)),
+                             rep("Native American", nrow(temp_dataset_ccl_data)),
+                             rep("East Asian (North)", nrow(temp_dataset_ccl_data)),
+                             rep("East Asian (South)", nrow(temp_dataset_ccl_data)),
+                             rep("South Asian", nrow(temp_dataset_ccl_data)),
+                             rep("European (North)", nrow(temp_dataset_ccl_data)),
+                             rep("European (South)", nrow(temp_dataset_ccl_data))))
+    
+    # p <- ggplot(plot_data, aes(x = Ancestry_Percentage, group = Ancestry, fill = Ancestry)) +
+    #             geom_density(adjust=1.5, position="fill") +
+    #             theme_light() +
+    #             labs(x = paste("Cell Line Ancestry Percentage", completeness), y = "Scaled Density")
+    n_ccls <- nrow(temp_dataset_ccl_data)
+    p <- ggplot(plot_data, aes(x = Ancestry_Percentage, y = after_stat(scaled), group = Ancestry, color = Ancestry)) +
+                geom_density(adjust=1.5) +
+                theme_light() +
+                labs(x = paste("Cell Line Ancestry Percentage", completeness), y = "Scaled Density")
+    welcome_ancestry_plots[[i]] <- ggplotly(p)
+  }
+  names(welcome_ancestry_plots) <- datasets
+  
+  welcome_clinical_phase_plots <- list(NULL)
+  for(i in 1:length(datasets)){
+    temp_dataset_compound_data <- Simple_Compound_Harm[Simple_Compound_Harm$Harmonized_Compound_Name %in% Dataset_compounds_successful[[datasets[i]]],]
+    temp_dataset_compound_data$Compound_Clinical_Phase[temp_dataset_compound_data$Compound_Clinical_Phase == "NA"] <- "Unknown"
+    
+    plot_data <- as.data.frame.table(table(temp_dataset_compound_data$Compound_Clinical_Phase))
+    plot_data$Var1 <- factor(plot_data$Var1, levels = c("Unknown", "Preclinical", "Phase 1", "Phase 1/Phase 2", "Phase 2", "Phase 2/Phase 3", "Phase 3", "Launched", "Withdrawn"))
+    # plot_data <- plot_data[match(c("Unknown", "Preclinical", "Phase 1", "Phase 1/Phase 2", "Phase 2", "Phase 2/Phase 3", "Phase 3", "Launched", "Withdrawn"), plot_data$Var1),]
+    
+    fig <- plot_ly(x = plot_data$Var1, y = plot_data$Freq, type = "bar")
+    welcome_clinical_phase_plots[[i]] <- layout(fig,
+                                        xaxis = list(title = paste("Clinical Phase")),
+                                        yaxis = list(title = paste("# of Compounds")))
+  }
+  names(welcome_clinical_phase_plots) <- datasets
+  
+  n_Compounds_Per_Cell_Line_Plots <- list(NULL)
+  for(i in 1:length(datasets)){
+    #For attempted tests
+      selected_n_cpds_per_ccl <- Dataset_cpds_per_ccl[[datasets[i]]]
+      plot_data <- as.data.frame.table(table(selected_n_cpds_per_ccl$x), stringsAsFactors = FALSE)
+      plot_data$Var1 <- as.numeric(plot_data$Var1)
+      if(nrow(plot_data) > 1){
+        plot_range <- min(plot_data$Var1):max(plot_data$Var1)
+      } else {
+        plot_range <- (plot_data$Var1-5):(plot_data$Var1+5)
+      }
+      missing_values <-  plot_range[! plot_range %in% plot_data$Var1]
+      extra_data <- cbind(missing_values, 0)
+      colnames(extra_data) <- colnames(plot_data)
+      plot_data <- rbind(plot_data, extra_data)
+      plot_data <- plot_data[order(plot_data$Var1, decreasing = FALSE),]
+    #For successful tests
+      selected_n_cpds_per_ccl_successful <- Dataset_cpds_per_ccl_successful[[datasets[i]]]
+      plot_data_successful <- as.data.frame.table(table(selected_n_cpds_per_ccl_successful$x), stringsAsFactors = FALSE)
+      plot_data_successful$Var1 <- as.numeric(plot_data_successful$Var1)
+      if(nrow(plot_data_successful) > 1){
+        plot_range <- min(plot_data_successful$Var1):max(plot_data_successful$Var1)
+      } else {
+        plot_range <- (plot_data_successful$Var1-5):(plot_data_successful$Var1+5)
+      }
+      missing_values <-  plot_range[! plot_range %in% plot_data_successful$Var1]
+      extra_data <- cbind(missing_values, 0)
+      colnames(extra_data) <- colnames(plot_data_successful)
+      plot_data_successful <- rbind(plot_data_successful, extra_data)
+      plot_data_successful <- plot_data_successful[order(plot_data_successful$Var1, decreasing = FALSE),]
+      
+    full_plot_data <- merge(plot_data, plot_data_successful, by = "Var1", all.x = TRUE, all.y = TRUE)
+    full_plot_data$Freq.x[is.na(full_plot_data$Freq.x)] <- 0
+    full_plot_data$Freq.y[is.na(full_plot_data$Freq.y)] <- 0
+
+    
+    n_Compounds_Per_Cell_Line_Plots[[i]] <- plot_ly(data = full_plot_data, x = ~Var1, y = ~Freq.x, type = "bar", name = "Attempted") %>%
+                                            add_trace(y = ~Freq.y, name = "Passed QC") %>%
+                                            layout(xaxis = list(title = paste("# of Compounds Tested per Cell Line")), yaxis = list(title = paste("Cell Line Count")), barmode = 'group')
+
+  }
+  names(n_Compounds_Per_Cell_Line_Plots) <- datasets
+  
+  n_Cell_Lines_Per_Compound_Plots <- list(NULL)
+  for(i in 1:length(datasets)){
+    #For attempted tests
+      selected_n_ccls_per_cpd <- Dataset_ccls_per_cpd[[datasets[i]]]
+      plot_data <- as.data.frame.table(table(selected_n_ccls_per_cpd$x), stringsAsFactors = FALSE)
+      plot_data$Var1 <- as.numeric(plot_data$Var1)
+      if(nrow(plot_data) > 1){
+        plot_range <- min(plot_data$Var1):max(plot_data$Var1)
+      } else {
+        plot_range <- (plot_data$Var1-5):(plot_data$Var1+5)
+      }
+      missing_values <-  plot_range[! plot_range %in% plot_data$Var1]
+      extra_data <- cbind(missing_values, 0)
+      colnames(extra_data) <- colnames(plot_data)
+      plot_data <- rbind(plot_data, extra_data)
+      plot_data <- plot_data[order(plot_data$Var1, decreasing = FALSE),]
+    #For successful tests
+      selected_n_ccls_per_cpd_successful <- Dataset_ccls_per_cpd_successful[[datasets[i]]]
+      plot_data_successful <- as.data.frame.table(table(selected_n_ccls_per_cpd_successful$x), stringsAsFactors = FALSE)
+      plot_data_successful$Var1 <- as.numeric(plot_data_successful$Var1)
+      if(nrow(plot_data_successful) > 1){
+        plot_range <- min(plot_data_successful$Var1):max(plot_data_successful$Var1)
+      } else {
+        plot_range <- (plot_data_successful$Var1-5):(plot_data_successful$Var1+5)
+      }
+      missing_values <-  plot_range[! plot_range %in% plot_data_successful$Var1]
+      extra_data <- cbind(missing_values, 0)
+      colnames(extra_data) <- colnames(plot_data_successful)
+      plot_data_successful <- rbind(plot_data_successful, extra_data)
+      plot_data_successful <- plot_data_successful[order(plot_data_successful$Var1, decreasing = FALSE),]
+      
+    full_plot_data <- merge(plot_data, plot_data_successful, by = "Var1", all.x = TRUE, all.y = TRUE)
+    full_plot_data$Freq.x[is.na(full_plot_data$Freq.x)] <- 0
+    full_plot_data$Freq.y[is.na(full_plot_data$Freq.y)] <- 0
+    
+    n_Cell_Lines_Per_Compound_Plots[[i]] <- plot_ly(data = full_plot_data, x = ~Var1, y = ~Freq.x, type = "bar", name = "Attempted") %>%
+                                            add_trace(y = ~Freq.y, name = "Passed QC") %>%
+                                            layout(xaxis = list(title = paste("# of Cell Lines Tested per Compound")), yaxis = list(title = paste("Compound Count")), barmode = 'group')
+  }
+  names(n_Cell_Lines_Per_Compound_Plots) <- datasets
+  
+  Dataset_Residual_Standard_Error_Plots <- list(NULL)
+  for(i in 1:length(datasets)){
+    RSE_plot_data <- data.frame(Dataset_rse[[datasets[i]]])
+    colnames(RSE_plot_data) <- "RSE"
+    p <- ggplot(RSE_plot_data, aes(x = RSE, y = after_stat(scaled))) +
+                geom_density(color = "darkblue", fill = "lightblue") +
+                theme_light() +
+                labs(x = paste0("Residual Standard Error for Dose-Response Curves (n = ", nrow(RSE_plot_data), ")"), y = "Scaled Density")
+    Dataset_Residual_Standard_Error_Plots[[i]] <- ggplotly(p)
+  }
+  names(Dataset_Residual_Standard_Error_Plots) <- datasets

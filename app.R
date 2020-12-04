@@ -22,6 +22,7 @@
 #############################################################
 #Creating user interface function
   ui <- navbarPage(id = "tabs", title = "Simplicity v1.0",
+        
                    
 ############################################################          
 ####################################################### UI #               
@@ -29,8 +30,45 @@
           
           #Welcome text for app
             h3("Welcome to the Simplicity web app!"),
-            p("This app was created to provide easy, non-programmatic access to explore and perform calculations with the CTRPv2, GDSC1, GDSC2, and PRISM Repurposing cancer cell line drug screening datasets. Simplicity allows users to quickly visualize how various cell line subsets responded to a particular compound in each dataset, to visualize how various compound subsets affected a particular cell line in each dataset, to view individual dose-response curves and details from each experiment in each dataset, and to calculate AUC and viability values from each dataset using custom concentration ranges. Simplicity also includes detailed information about each cell line and compound tested in these datasets."),
-            p("For a quick tutorial on using Simplicity, please watch this video. Otherwise, please feel free to get started by selecting the appropriate tab at the top for the task you wish to complete with this data or by viewing a summary of each of the Simplicity datasets below."),
+            p(HTML("This app was created to provide simple, non-programmatic access to explore and perform calculations with data from high-throughput cancer drug screens performed in cancer cell lines. Each of the included datasets (CTRPv2, GDSC1, GDSC2, and PRISM-Repurposing) have screened hundreds of compounds in hundreds of cell lines.")),
+            p(HTML("You can watch <u>this video</u> for a quick tutorial on using Simplicity. Otherwise, please feel free to get started by selecting the appropriate tab at the top for the task you wish to complete. The basic functions of each tab are as follows:")),
+            wellPanel(
+              HTML("<b><u>Data Explorer</u></b>
+                      <ul>
+                        <li><b>Explore Datasets:</b> Provides a birds-eye overview of the compounds, cell lines, screening methodologies, and data quality associated with each of the datasets included in Simplicity.</li>
+                        <li><b>Explore Compounds:</b> Easily visualize the effectiveness of a compound across a custom set of cell lines in each dataset. Also allows you to see the characteristics (i.e. age, gender, ethnicity) of the cell lines tested with each compound in each dataset.</li>
+                        <li><b>Explore Datasets:</b> Easily visualize the response of a cell line to a custom set of compounds in each dataset.</li>
+                        <li><b>Plot Dose-Respone Curves:</b> A detailed look at single compound-cell line pairs. View raw data, fitted dose-response curves, and experimental details from each dataset for the selected pair.</li>
+                      </ul>
+                      <br/>
+                      <b><u>Calculate Custom Statistics</u></b>
+                      <ul>
+                        <li><b>AUC Values:</b> Calculate normalized area under the curve (AUC) values from each dataset using custom concentration ranges for each compound.</li>
+                        <li><b>Viability Values:</b> Calculate viability values from each dataset using custom concentration ranges for each compound. Can be used to generate custom inputs for our IDACombo-shiny app.</li>
+                      </ul>
+                      <br/>
+                      <b><u>About Simplicity</u></b>
+                      <ul>
+                        <li><b>Methods:</b> Details about how the data in Simplicity was generated.</li>
+                        <li><b>Contact Us:</b> Who we are and how to get in touch with us.</li>
+                        <li><b>Cite This Resource:</b> If you use this resource for your research, please cite us and the researchers who generated the data in Simplicity when you publish your work! This tab contains information on how to do that.</li>
+                        <li><b>Usage License:</b> If you download any data from any tabs in Simplicity, please read this to learn about what you can and cannot do with that data.</li>
+                      </ul>
+                      <br/>
+                      <b><u>Download Bulk Data:</u></b> Where to go if you want to download the data being used by this app.")
+            )
+        ),                  
+
+#############################################################          
+######################################################## UI #        
+        navbarMenu(title = "Data Explorer",
+          
+####################################################### UI #               
+        tabPanel(value = "Explore Datasets", title = "Explore Datasets",
+          
+          #Explore dataset page text
+            h3("Dataset Explorer"),
+            p("This page provides a birds-eye overview of each of the datasets included in Simplicity. You can change which dataset is being summarized using the drop-down menu below."),
           #Selector for choosing which dataset to display a summary for
             sidebarLayout(sidebarPanel(
                 selectInput(inputId = "Summary_Dataset", label = "Which dataset would you like to see a summary for?", choices = Dataset_Summaries$Dataset, selected = Dataset_Summaries$Dataset[1], multiple = FALSE, selectize = FALSE),
@@ -38,7 +76,7 @@
               ), mainPanel(
                 plotlyOutput(outputId = "welcome_cancer_type") %>%
                             helper(type = "inline",
-                              title = "Compound filtering",
+                              title = "Tested cell line cancer types",
                               icon = "question-circle", colour = NULL,
                               content = c("This stacked barplot shows the availability of cell lines by general cancer type and gender in the selected dataset. Cell lines can also be filtered by more detailed disease names in many of the tabs in this app. A detailed description of how cell line information was obtained is included in the \"About Simplicity/Methods\" tab. Full cell line annotation information can be downloaded in the \"Download Bulk Data\" tab."),
                               size = "m",
@@ -46,15 +84,15 @@
                             ),
                 plotlyOutput(outputId = "welcome_ancestry") %>%
                             helper(type = "inline",
-                              title = "Compound filtering",
+                              title = "Tested cell line ancestries",
                               icon = "question-circle", colour = NULL,
-                              content = c("This density plot shows the scaled distributions of ancestry percentages for the cell lines in the selected dataset. Note that, for ease of viewing, each ancestry's distribution is scaled differently so that the maximum density for every ancestry is equal to 1. As such, the plot should be interpreted one ancestry at a time rather than by comparing densities across ancestries. Please note that traces for each ancestry can be hidden or shown by clicking on the corresponding label in the legend. A detailed description of how cell line information was obtained is included in the \"About Simplicity/Methods\" tab. Full cell line annotation information can be downloaded in the \"Download Bulk Data\" tab."),
+                              content = c("This stacked barplot shows the ancestry makeup of each of the tested cell lines in the selected dataset. Each bar summarizes the ancestry of a single cell line, with ancestry for each cell line being represented by the percentage of that cell line's ancestry which belongs to each of the 7 labeled ancestry groups. All ancestry groups for each cell line must sum to 100%. For example, if a cell line has 50% South Asian ancestry and 50% Native American Ancestry, it would be represented by a bar which is half purple (South Asian) and half orange (Native American). A detailed description of how cell line information was obtained is included in the \"About Simplicity/Methods\" tab. Full cell line annotation information can be downloaded in the \"Download Bulk Data\" tab."),
                               size = "m",
                               buttonLabel = "Okay", easyClose = TRUE, fade = FALSE
                             ),
                 plotlyOutput(outputId = "welcome_age") %>%
                             helper(type = "inline",
-                              title = "Compound filtering",
+                              title = "Tested cell line patient ages",
                               icon = "question-circle", colour = NULL,
                               content = c("This density plot shows the scaled distribution of patient ages at the time tissue was collected for cell line derivation. Note that this plot only includes information from cell lines for which a numeric age could be determined (i.e. it would omit cell lines annotated with the generic age of \"Adult\"). A detailed description of how cell line information was obtained is included in the \"About Simplicity/Methods\" tab. Full cell line annotation information can be downloaded in the \"Download Bulk Data\" tab."),
                               size = "m",
@@ -62,7 +100,7 @@
                             ),
                 plotlyOutput(outputId = "welcome_clinical_phase") %>%
                             helper(type = "inline",
-                              title = "Compound filtering",
+                              title = "Tested compound clinical phases",
                               icon = "question-circle", colour = NULL,
                               content = c("This barplot shows the number of compounds at each clinical stage of development in the selected dataset. A detailed description of how compound information was obtained is included in the \"About Simplicity/Methods\" tab. Full compound annotation information can be downloaded in the \"Download Bulk Data\" tab."),
                               size = "m",
@@ -70,7 +108,7 @@
                             ),
                 plotlyOutput(outputId = "n_Compounds_Per_Cell_Line") %>%
                             helper(type = "inline",
-                              title = "Compound filtering",
+                              title = "# of tested compounds per cell line",
                               icon = "question-circle", colour = NULL,
                               content = c("This barplot shows the number of compounds tested per cell line, calculated both using attempted tests and using only tests that passed Simplicity's QC metrics. A description of Simplicity's curve fitting and QC pipelines can be found in the \"About Simplicity/Methods\" tab."),
                               size = "m",
@@ -78,7 +116,7 @@
                             ),
                 plotlyOutput(outputId = "n_Cell_Lines_Per_Compound") %>%
                             helper(type = "inline",
-                              title = "Compound filtering",
+                              title = "# of tested cell lines per compound",
                               icon = "question-circle", colour = NULL,
                               content = c("This barplot shows the number of cell lines tested per compound, calculated both using attempted tests and using only tests that passed Simplicity's QC metrics. A description of Simplicity's curve fitting and QC pipelines can be found in the \"About Simplicity/Methods\" tab."),
                               size = "m",
@@ -86,7 +124,7 @@
                             ),
                 plotlyOutput(outputId = "Dataset_Residual_Standard_Error") %>%
                             helper(type = "inline",
-                              title = "Compound filtering",
+                              title = "Residual standard errors",
                               icon = "question-circle", colour = NULL,
                               content = c("This density plot shows the scaled distribution of residual standard errors (RSEs) for the fitted dose-response curves in the selected datset. Note that this includes RSEs from all curves from the dataset, regardless of whether or not they passed Simplicity's QC requirements. An RSE of 0 indicates a perfect curve fit, while an RSE of 1 indicates an RSE of 100% viability. Note that RSEs > 1 are possible with very noisy dose-response curves. For a description of how Simplicity dose-response curves were fit and the minimum RSE required to pass QC, please see the \"About Simplicity/Methods\" tab."),
                               size = "m",
@@ -95,11 +133,7 @@
               )
             )
         ),
-
-#############################################################          
-######################################################## UI #        
-        navbarMenu(title = "Data Explorer",
-                   
+                            
 ######################################################## UI #                    
           tabPanel(value = "Explore Compounds", title = "Explore Compounds",
                 sidebarLayout(sidebarPanel(
@@ -125,7 +159,14 @@
                     uiOutput(outputId = "Compound_Explorer_Cell_Line_Menu"),
                     uiOutput(outputId = "Compound_Explorer_Cell_Line_Filters")
                 ), mainPanel(
-                  selectInput(inputId = "Compound_Explorer_to_Plot", "Select what values to plot", choices = c("AUC values for most commonly used concentration range", "AUC values for concentration range available for all cell lines", "IC50 values"), selected = "AUC values for most commonly used concentration range", multiple = FALSE, selectize = FALSE),
+                  selectInput(inputId = "Compound_Explorer_to_Plot", "Select what values to plot", choices = c("AUC values for most commonly used concentration range", "AUC values for concentration range available for all tested cell lines", "IC50 values", "Tested Cell Line Cancer Types & Genders", "Tested Cell Line Ethnicities", "Tested Cell Line Ages"), selected = "AUC values for most commonly used concentration range", multiple = FALSE, selectize = FALSE) %>%
+                            helper(type = "inline",
+                              title = "Selecting what to plot",
+                              icon = "question-circle", colour = NULL,
+                              content = c(""),
+                              size = "m",
+                              buttonLabel = "Okay", easyClose = TRUE, fade = FALSE
+                            ),
                   uiOutput(outputId = "Compound_Explorer_Plots")
                 ))
           ),
@@ -155,7 +196,7 @@
                     uiOutput(outputId = "Cell_Line_Explorer_Compound_Menu"),
                     uiOutput(outputId = "Cell_Line_Explorer_Compound_Filters")
                 ), mainPanel(
-                  selectInput(inputId = "Cell_Line_Explorer_to_Plot", "Select what values to plot", choices = c("AUC values for most commonly used concentration range", "AUC values for concentration range available for all cell lines", "IC50 values"), selected = "AUC values for most commonly used concentration range", multiple = FALSE, selectize = FALSE),
+                  selectInput(inputId = "Cell_Line_Explorer_to_Plot", "Select what values to plot", choices = c("AUC values for most commonly used concentration range", "AUC values for concentration range available for all tested cell lines", "IC50 values"), selected = "AUC values for most commonly used concentration range", multiple = FALSE, selectize = FALSE),
                   uiOutput(outputId = "Cell_Line_Explorer_Plots")
                 ))
           ),
@@ -396,8 +437,8 @@
         
 #############################################################          
 #################################################### server #          
-        # if(input$tabs == "Welcome"){
-        #Code for "Welcome" tab
+        # if(input$tabs == "Explore Datasets"){
+        #Code for "Explore Datasets" tab
         
           #Summary text for dataset
             output$Dataset_Summary_Text <- renderUI({
@@ -1000,13 +1041,13 @@
                   #Rendering plot UI for dataset with data for this compound
                     Compound_Explorer_Plot_UI <- vector(mode = "list")
                     if("CTRPv2" %in% Compound_Explorer_Datasets_with_Compound_Data()){
-                      Compound_Explorer_Plot_UI <- c(Compound_Explorer_Plot_UI, plotlyOutput(outputId = "Compound_Explorer_CTRPv2_Plot"))
+                      Compound_Explorer_Plot_UI <- c(Compound_Explorer_Plot_UI, plotlyOutput(outputId = "Compound_Explorer_CTRPv2_Plot"), HTML("---"))
                     }
                     if("GDSC1" %in% Compound_Explorer_Datasets_with_Compound_Data()){
-                      Compound_Explorer_Plot_UI <- c(Compound_Explorer_Plot_UI, plotlyOutput(outputId = "Compound_Explorer_GDSC1_Plot"))
+                      Compound_Explorer_Plot_UI <- c(Compound_Explorer_Plot_UI, plotlyOutput(outputId = "Compound_Explorer_GDSC1_Plot"), HTML("---"))
                     }
                     if("GDSC2" %in% Compound_Explorer_Datasets_with_Compound_Data()){
-                      Compound_Explorer_Plot_UI <- c(Compound_Explorer_Plot_UI, plotlyOutput(outputId = "Compound_Explorer_GDSC2_Plot"))
+                      Compound_Explorer_Plot_UI <- c(Compound_Explorer_Plot_UI, plotlyOutput(outputId = "Compound_Explorer_GDSC2_Plot"), HTML("---"))
                     }
                     if("PRISM_Repurposing" %in% Compound_Explorer_Datasets_with_Compound_Data()){
                       Compound_Explorer_Plot_UI <- c(Compound_Explorer_Plot_UI, plotlyOutput(outputId = "Compound_Explorer_PRISM_Repurposing_Plot"))
@@ -1039,10 +1080,11 @@
                                        type = "scatter",
                                        mode = "markers")
                         fig <- layout(fig,
+                                      title = "CTRPv2 AUCs",
                                       xaxis = list(title = paste0("CTRPv2 Cell Lines (n = ", nrow(plot_data), ")"), showticklabels = FALSE),
                                       yaxis = list(title = ylab))
                         fig
-                      } else if(input$Compound_Explorer_to_Plot == "AUC values for concentration range available for all cell lines"){
+                      } else if(input$Compound_Explorer_to_Plot == "AUC values for concentration range available for all tested cell lines"){
                         plot_data <- CTRPv2_Results[! is.na(CTRPv2_Results$AUC_all_ccl_CTRPv2_conc),]
                         plot_data <- plot_data[order(plot_data$AUC_all_ccl_CTRPv2_conc, decreasing = FALSE),]
                         plot_data$Cell_Line <- factor(plot_data$Cell_Line, levels = plot_data$Cell_Line)
@@ -1052,6 +1094,7 @@
                                        type = "scatter",
                                        mode = "markers")
                         fig <- layout(fig,
+                                      title = "CTRPv2 AUCs",
                                       xaxis = list(title = paste0("CTRPv2 Cell Lines (n = ", nrow(plot_data), ")"), showticklabels = FALSE),
                                       yaxis = list(title = ylab))
                         fig
@@ -1059,15 +1102,114 @@
                         plot_data <- CTRPv2_Results[! is.na(CTRPv2_Results$IC50),]
                         if(nrow(plot_data) > 0){
                           plot_data <- plot_data[order(plot_data$IC50, decreasing = FALSE),]
+                          plot_data$Group <- "IC50 <= max tested concentration"
+                          plot_data$Group[plot_data$IC50 > plot_data$max_dose_uM] <- "IC50 > max tested concentration"
+                          plot_data$Group[plot_data$IC50 == Inf] <- "Infinite IC50"
+                          if(any(plot_data$IC50 != Inf)){
+                            plot_data$IC50[plot_data$IC50 == Inf] <- max(plot_data$IC50[! plot_data$IC50 == Inf])
+                          } else {
+                            plot_data$IC50[plot_data$IC50 == Inf] <- max(plot_data$max_dose_uM)+1
+                          }
                           plot_data$Cell_Line <- factor(plot_data$Cell_Line, levels = plot_data$Cell_Line)
                           ylab <- "IC50 (microMolar)"
                           fig <- plot_ly(x = plot_data$Cell_Line,
                                          y = plot_data$IC50,
                                          type = "scatter",
-                                         mode = "markers")
+                                         mode = "markers",
+                                         color = plot_data$Group,
+                                         colors = c("blue", "red", "lightgray"))
                           fig <- layout(fig,
+                                        title = "CTRPv2 IC50s",
                                         xaxis = list(paste0("CTRPv2 Cell Lines (n = ", nrow(plot_data), ")"), showticklabels = FALSE),
                                         yaxis = list(title = ylab, type = "log"))
+                          fig
+                        }
+                      } else if(input$Compound_Explorer_to_Plot == "Tested Cell Line Cancer Types & Genders"){
+                        ccls <- unique(CTRPv2_Results$Cell_Line)
+                        if(length(ccls) > 0){
+                          temp_dataset_ccl_data <- Simple_Cell_Line_Harm[Simple_Cell_Line_Harm$Harmonized_Cell_Line_ID %in% ccls,]
+                          temp_dataset_ccl_data$Simple_Cancer_Type[temp_dataset_ccl_data$Simple_Cancer_Type == "unknown"] <- "unknown cancer type"
+                          plot_data <- as.data.frame.table(table(temp_dataset_ccl_data$Simple_Cancer_Type))
+                          plot_data <- plot_data[order(plot_data$Freq, decreasing = TRUE),]
+                          plot_data <- rbind(plot_data[! plot_data$Var1 == "unknown cancer type",], plot_data[plot_data$Var1 == "unknown cancer type",])
+                          
+                          Gender_Unknown <- NA
+                          Gender_Female <- NA
+                          Gender_Male <- NA
+                          for(j in 1:nrow(plot_data)){
+                            Gender_Unknown[j] <- nrow(temp_dataset_ccl_data[temp_dataset_ccl_data$Simple_Cancer_Type %in% plot_data$Var1[j] & temp_dataset_ccl_data$Gender == "Sex unspecified",])
+                            Gender_Female[j] <- nrow(temp_dataset_ccl_data[temp_dataset_ccl_data$Simple_Cancer_Type %in% plot_data$Var1[j] & temp_dataset_ccl_data$Gender == "Female",])
+                            Gender_Male[j] <- nrow(temp_dataset_ccl_data[temp_dataset_ccl_data$Simple_Cancer_Type %in% plot_data$Var1[j] & temp_dataset_ccl_data$Gender == "Male",])
+                          }
+                          
+                          plot_data$Var1 <- factor(plot_data$Var1, levels = plot_data$Var1)
+                          
+                          fig <- plot_ly(x = plot_data$Var1, y = Gender_Unknown, type = "bar", name = "Unknown Gender", marker = list(color = "lightgray")) %>%
+                                  add_trace(y = Gender_Male, name = "Male", marker = list(color = rgb(65,105,225, maxColorValue = 255))) %>%
+                                  add_trace(y = Gender_Female, name = "Female", marker = list(color = rgb(186,85,211, maxColorValue = 255))) %>%
+                                  layout(title = 'CTRPv2 Cell Line Cancer Types/Genders', yaxis = list(title = "# of Cell Lines"), xaxis = list(tickangle = 45), barmode = "stack", margin = list(b = 150, l = 50))
+                          fig
+                        }
+                      } else if(input$Compound_Explorer_to_Plot == "Tested Cell Line Ethnicities"){
+                        ccls <- unique(CTRPv2_Results$Cell_Line)
+                        if(length(ccls) > 0){
+                          temp_dataset_ccl_data <- Simple_Cell_Line_Harm[Simple_Cell_Line_Harm$Harmonized_Cell_Line_ID %in% ccls,]
+                          completeness <- paste0("(data for ", nrow(temp_dataset_ccl_data[! is.na(temp_dataset_ccl_data$African_Ancestry),]), " of ", nrow(temp_dataset_ccl_data), " cell lines)")
+                          temp_dataset_ccl_data <- temp_dataset_ccl_data[! is.na(temp_dataset_ccl_data$African_Ancestry),]
+                          
+                          plot_data <- temp_dataset_ccl_data[,grepl("_Ancestry", colnames(temp_dataset_ccl_data))]*100
+                          rownames(plot_data) <- temp_dataset_ccl_data$Harmonized_Cell_Line_ID
+                          
+                          if(nrow(plot_data) > 2){
+                            plot_data <- plot_data[hclust(dist(plot_data))$order,]
+                          }
+                          colnames(plot_data) <- gsub("_Ancestry", "", colnames(plot_data))
+                          colnames(plot_data) <- gsub("_", " ", colnames(plot_data))
+                          x <- factor(rownames(plot_data), levels = rownames(plot_data))
+                          
+                          if(nrow(plot_data) > 0){
+                            plot_colors <- c("#6A3D9A", "#33A02C", "#FB9A99", "#E31A1C", "#FDBF6F", "#A6CEE3", "#1F78B4")
+                            fig <- plot_ly(x = x, y = plot_data[,1], name = colnames(plot_data)[1], type = "bar", marker = list(color = plot_colors[1])) %>%
+                              add_trace(y = plot_data[,2], name = colnames(plot_data)[2], marker = list(color = plot_colors[2])) %>%
+                              add_trace(y = plot_data[,3], name = colnames(plot_data)[3], marker = list(color = plot_colors[3])) %>%
+                              add_trace(y = plot_data[,4], name = colnames(plot_data)[4], marker = list(color = plot_colors[4])) %>%
+                              add_trace(y = plot_data[,5], name = colnames(plot_data)[5], marker = list(color = plot_colors[5])) %>%
+                              add_trace(y = plot_data[,6], name = colnames(plot_data)[6], marker = list(color = plot_colors[6])) %>%
+                              add_trace(y = plot_data[,7], name = colnames(plot_data)[7], marker = list(color = plot_colors[7])) %>%
+                              layout(title = 'CTRPv2 Ethnicities', barmode = "stack", xaxis = list(title = paste("Tested Cell Lines", completeness), showticklabels = FALSE), yaxis = list(title = "% Ancestry Makeup"), bargap = 0, legend = list(traceorder = "normal"))
+                          } else {
+                            fig <- plot_ly(x = 1, y = 100, name = "No Values", type = "bar", marker = list(color = "white")) %>%
+                            layout(title = 'CTRPv2 Cell Line Ethnicities', barmode = "stack", xaxis = list(title = paste("Tested Cell Lines", completeness), showticklabels = FALSE), yaxis = list(title = "% Ancestry Makeup"), bargap = 0, legend = list(traceorder = "normal"))
+                          }
+                          fig
+                        }
+                      } else if(input$Compound_Explorer_to_Plot == "Tested Cell Line Ages"){
+                        ccls <- unique(CTRPv2_Results$Cell_Line)
+                        if(length(ccls) > 0){
+                          temp_dataset_ccl_data <- Simple_Cell_Line_Harm[Simple_Cell_Line_Harm$Harmonized_Cell_Line_ID %in% ccls,]
+                          completeness <- paste0("(data for ", nrow(temp_dataset_ccl_data[! is.na(temp_dataset_ccl_data$Numeric_Age_in_Years),]), " of ", nrow(temp_dataset_ccl_data), " cell lines)")
+                          temp_dataset_ccl_data <- temp_dataset_ccl_data[! is.na(temp_dataset_ccl_data$Numeric_Age_in_Years),]
+                          
+                          if(nrow(temp_dataset_ccl_data) > 1){
+                            p <- ggplot(temp_dataset_ccl_data, aes(x = Numeric_Age_in_Years, y = after_stat(scaled))) +
+                                        geom_density(color = "darkblue", fill = "lightblue") +
+                                        theme_light() +
+                                        labs(x = paste("Patient Age (in Years) when Cell Line was Derived ", completeness), y = "Scaled Density") +
+                                        ggtitle("CTRPv2 Ages")
+                          } else if(nrow(temp_dataset_ccl_data) == 1){
+                            p <- ggplot(temp_dataset_ccl_data, aes(x = Numeric_Age_in_Years, y = Harmonized_Cell_Line_ID)) +
+                                        geom_bar(stat="identity") +
+                                        theme_light() +
+                                        labs(x = paste("Patient Age (in Years) when Cell Line was Derived ", completeness), y = "") +
+                                        ggtitle("CTRPv2 Ages")
+                          } else {
+                            p <- ggplot(data.frame(x = c(0,100), y = c(0,1)), aes(x = x, y = y)) +
+                                        geom_blank() +
+                                        labs(x = paste("Patient Age (in Years) when Cell Line was Derived ", completeness), y = "Scaled Density") +
+                                        ggtitle("CTRPv2 Cell Line Patient Age Distribution")
+                          }
+                      
+                          fig <- ggplotly(p)
                           fig
                         }
                       }
@@ -1100,10 +1242,11 @@
                                        type = "scatter",
                                        mode = "markers")
                         fig <- layout(fig,
+                                      title = "GDSC1 AUCs",
                                       xaxis = list(title = paste0("GDSC1 Cell Lines (n = ", nrow(plot_data), ")"), showticklabels = FALSE),
                                       yaxis = list(title = ylab))
                         fig
-                      } else if(input$Compound_Explorer_to_Plot == "AUC values for concentration range available for all cell lines"){
+                      } else if(input$Compound_Explorer_to_Plot == "AUC values for concentration range available for all tested cell lines"){
                         plot_data <- GDSC1_Results[! is.na(GDSC1_Results$AUC_all_ccl_GDSC1_conc),]
                         plot_data <- plot_data[order(plot_data$AUC_all_ccl_GDSC1_conc, decreasing = FALSE),]
                         plot_data$Cell_Line <- factor(plot_data$Cell_Line, levels = plot_data$Cell_Line)
@@ -1113,6 +1256,7 @@
                                        type = "scatter",
                                        mode = "markers")
                         fig <- layout(fig,
+                                      title = "GDSC1 AUCs",
                                       xaxis = list(title = paste0("GDSC1 Cell Lines (n = ", nrow(plot_data), ")"), showticklabels = FALSE),
                                       yaxis = list(title = ylab))
                         fig
@@ -1120,21 +1264,121 @@
                         plot_data <- GDSC1_Results[! is.na(GDSC1_Results$IC50),]
                         if(nrow(plot_data) > 0){
                           plot_data <- plot_data[order(plot_data$IC50, decreasing = FALSE),]
+                          plot_data$Group <- "IC50 <= max tested concentration"
+                          plot_data$Group[plot_data$IC50 > plot_data$max_dose_uM] <- "IC50 > max tested concentration"
+                          plot_data$Group[plot_data$IC50 == Inf] <- "Infinite IC50"
+                          if(any(plot_data$IC50 != Inf)){
+                            plot_data$IC50[plot_data$IC50 == Inf] <- max(plot_data$IC50[! plot_data$IC50 == Inf])
+                          } else {
+                            plot_data$IC50[plot_data$IC50 == Inf] <- max(plot_data$max_dose_uM)+1
+                          }
                           plot_data$Cell_Line <- factor(plot_data$Cell_Line, levels = plot_data$Cell_Line)
                           ylab <- "IC50 (microMolar)"
                           fig <- plot_ly(x = plot_data$Cell_Line,
                                          y = plot_data$IC50,
                                          type = "scatter",
-                                         mode = "markers")
+                                         mode = "markers",
+                                         color = plot_data$Group,
+                                         colors = c("blue", "red", "lightgray"))
                           fig <- layout(fig,
-                                        xaxis = list(title = paste0("GDSC1 Cell Lines (n = ", nrow(plot_data), ")"), showticklabels = FALSE),
+                                        title = "GDSC1 IC50s",
+                                        xaxis = list(paste0("GDSC1 Cell Lines (n = ", nrow(plot_data), ")"), showticklabels = FALSE),
                                         yaxis = list(title = ylab, type = "log"))
+                          fig
+                        }
+                      } else if(input$Compound_Explorer_to_Plot == "Tested Cell Line Cancer Types & Genders"){
+                        ccls <- unique(GDSC1_Results$Cell_Line)
+                        if(length(ccls) > 0){
+                          temp_dataset_ccl_data <- Simple_Cell_Line_Harm[Simple_Cell_Line_Harm$Harmonized_Cell_Line_ID %in% ccls,]
+                          temp_dataset_ccl_data$Simple_Cancer_Type[temp_dataset_ccl_data$Simple_Cancer_Type == "unknown"] <- "unknown cancer type"
+                          plot_data <- as.data.frame.table(table(temp_dataset_ccl_data$Simple_Cancer_Type))
+                          plot_data <- plot_data[order(plot_data$Freq, decreasing = TRUE),]
+                          plot_data <- rbind(plot_data[! plot_data$Var1 == "unknown cancer type",], plot_data[plot_data$Var1 == "unknown cancer type",])
+                          
+                          Gender_Unknown <- NA
+                          Gender_Female <- NA
+                          Gender_Male <- NA
+                          for(j in 1:nrow(plot_data)){
+                            Gender_Unknown[j] <- nrow(temp_dataset_ccl_data[temp_dataset_ccl_data$Simple_Cancer_Type %in% plot_data$Var1[j] & temp_dataset_ccl_data$Gender == "Sex unspecified",])
+                            Gender_Female[j] <- nrow(temp_dataset_ccl_data[temp_dataset_ccl_data$Simple_Cancer_Type %in% plot_data$Var1[j] & temp_dataset_ccl_data$Gender == "Female",])
+                            Gender_Male[j] <- nrow(temp_dataset_ccl_data[temp_dataset_ccl_data$Simple_Cancer_Type %in% plot_data$Var1[j] & temp_dataset_ccl_data$Gender == "Male",])
+                          }
+                          
+                          plot_data$Var1 <- factor(plot_data$Var1, levels = plot_data$Var1)
+                          
+                          fig <- plot_ly(x = plot_data$Var1, y = Gender_Unknown, type = "bar", name = "Unknown Gender", marker = list(color = "lightgray")) %>%
+                                  add_trace(y = Gender_Male, name = "Male", marker = list(color = rgb(65,105,225, maxColorValue = 255))) %>%
+                                  add_trace(y = Gender_Female, name = "Female", marker = list(color = rgb(186,85,211, maxColorValue = 255))) %>%
+                                  layout(title = 'GDSC1 Cell Line Cancer Types/Genders', yaxis = list(title = "# of Cell Lines"), xaxis = list(tickangle = 45), barmode = "stack", margin = list(b = 150, l = 50))
+                          fig
+                        }
+                      } else if(input$Compound_Explorer_to_Plot == "Tested Cell Line Ethnicities"){
+                        ccls <- unique(GDSC1_Results$Cell_Line)
+                        if(length(ccls) > 0){
+                          temp_dataset_ccl_data <- Simple_Cell_Line_Harm[Simple_Cell_Line_Harm$Harmonized_Cell_Line_ID %in% ccls,]
+                          completeness <- paste0("(data for ", nrow(temp_dataset_ccl_data[! is.na(temp_dataset_ccl_data$African_Ancestry),]), " of ", nrow(temp_dataset_ccl_data), " cell lines)")
+                          temp_dataset_ccl_data <- temp_dataset_ccl_data[! is.na(temp_dataset_ccl_data$African_Ancestry),]
+                          
+                          plot_data <- temp_dataset_ccl_data[,grepl("_Ancestry", colnames(temp_dataset_ccl_data))]*100
+                          rownames(plot_data) <- temp_dataset_ccl_data$Harmonized_Cell_Line_ID
+                          
+                          if(nrow(plot_data) > 2){
+                            plot_data <- plot_data[hclust(dist(plot_data))$order,]
+                          }
+                          colnames(plot_data) <- gsub("_Ancestry", "", colnames(plot_data))
+                          colnames(plot_data) <- gsub("_", " ", colnames(plot_data))
+                          x <- factor(rownames(plot_data), levels = rownames(plot_data))
+                          
+                          if(nrow(plot_data) > 0){
+                            plot_colors <- c("#6A3D9A", "#33A02C", "#FB9A99", "#E31A1C", "#FDBF6F", "#A6CEE3", "#1F78B4")
+                            fig <- plot_ly(x = x, y = plot_data[,1], name = colnames(plot_data)[1], type = "bar", marker = list(color = plot_colors[1])) %>%
+                              add_trace(y = plot_data[,2], name = colnames(plot_data)[2], marker = list(color = plot_colors[2])) %>%
+                              add_trace(y = plot_data[,3], name = colnames(plot_data)[3], marker = list(color = plot_colors[3])) %>%
+                              add_trace(y = plot_data[,4], name = colnames(plot_data)[4], marker = list(color = plot_colors[4])) %>%
+                              add_trace(y = plot_data[,5], name = colnames(plot_data)[5], marker = list(color = plot_colors[5])) %>%
+                              add_trace(y = plot_data[,6], name = colnames(plot_data)[6], marker = list(color = plot_colors[6])) %>%
+                              add_trace(y = plot_data[,7], name = colnames(plot_data)[7], marker = list(color = plot_colors[7])) %>%
+                              layout(title = 'GDSC1 Ethnicities', barmode = "stack", xaxis = list(title = paste("Tested Cell Lines", completeness), showticklabels = FALSE), yaxis = list(title = "% Ancestry Makeup"), bargap = 0, legend = list(traceorder = "normal"))
+                          } else {
+                            fig <- plot_ly(x = 1, y = 100, name = "No Values", type = "bar", marker = list(color = "white")) %>%
+                            layout(title = 'GDSC1 Cell Line Ethnicities', barmode = "stack", xaxis = list(title = paste("Tested Cell Lines", completeness), showticklabels = FALSE), yaxis = list(title = "% Ancestry Makeup"), bargap = 0, legend = list(traceorder = "normal"))
+                          }
+                          fig
+                        }
+                      } else if(input$Compound_Explorer_to_Plot == "Tested Cell Line Ages"){
+                        ccls <- unique(GDSC1_Results$Cell_Line)
+                        if(length(ccls) > 0){
+                          temp_dataset_ccl_data <- Simple_Cell_Line_Harm[Simple_Cell_Line_Harm$Harmonized_Cell_Line_ID %in% ccls,]
+                          completeness <- paste0("(data for ", nrow(temp_dataset_ccl_data[! is.na(temp_dataset_ccl_data$Numeric_Age_in_Years),]), " of ", nrow(temp_dataset_ccl_data), " cell lines)")
+                          temp_dataset_ccl_data <- temp_dataset_ccl_data[! is.na(temp_dataset_ccl_data$Numeric_Age_in_Years),]
+                          
+                          if(nrow(temp_dataset_ccl_data) > 1){
+                            p <- ggplot(temp_dataset_ccl_data, aes(x = Numeric_Age_in_Years, y = after_stat(scaled))) +
+                                        geom_density(color = "darkblue", fill = "lightblue") +
+                                        theme_light() +
+                                        labs(x = paste("Patient Age (in Years) when Cell Line was Derived ", completeness), y = "Scaled Density") +
+                                        ggtitle("GDSC1 Ages")
+                          } else if(nrow(temp_dataset_ccl_data) == 1){
+                            p <- ggplot(temp_dataset_ccl_data, aes(x = Numeric_Age_in_Years, y = Harmonized_Cell_Line_ID)) +
+                                        geom_bar(stat="identity") +
+                                        theme_light() +
+                                        labs(x = paste("Patient Age (in Years) when Cell Line was Derived ", completeness), y = "") +
+                                        ggtitle("GDSC1 Ages")
+                          } else {
+                            p <- ggplot(data.frame(x = c(0,100), y = c(0,1)), aes(x = x, y = y)) +
+                                        geom_blank() +
+                                        labs(x = paste("Patient Age (in Years) when Cell Line was Derived ", completeness), y = "Scaled Density") +
+                                        ggtitle("GDSC1 Cell Line Patient Age Distribution")
+                          }
+                      
+                          fig <- ggplotly(p)
                           fig
                         }
                       }
                     }
                 })
-  
+                
+                
                 output$Compound_Explorer_GDSC2_Plot <- renderPlotly({
                   #Loading raw data for this compound and any datasets with data for this compound
                     if("GDSC2" %in% Compound_Explorer_Datasets_with_Compound_Data()){
@@ -1160,10 +1404,11 @@
                                        type = "scatter",
                                        mode = "markers")
                         fig <- layout(fig,
+                                      title = "GDSC2 AUCs",
                                       xaxis = list(title = paste0("GDSC2 Cell Lines (n = ", nrow(plot_data), ")"), showticklabels = FALSE),
                                       yaxis = list(title = ylab))
                         fig
-                      } else if(input$Compound_Explorer_to_Plot == "AUC values for concentration range available for all cell lines"){
+                      } else if(input$Compound_Explorer_to_Plot == "AUC values for concentration range available for all tested cell lines"){
                         plot_data <- GDSC2_Results[! is.na(GDSC2_Results$AUC_all_ccl_GDSC2_conc),]
                         plot_data <- plot_data[order(plot_data$AUC_all_ccl_GDSC2_conc, decreasing = FALSE),]
                         plot_data$Cell_Line <- factor(plot_data$Cell_Line, levels = plot_data$Cell_Line)
@@ -1173,6 +1418,7 @@
                                        type = "scatter",
                                        mode = "markers")
                         fig <- layout(fig,
+                                      title = "GDSC2 AUCs",
                                       xaxis = list(title = paste0("GDSC2 Cell Lines (n = ", nrow(plot_data), ")"), showticklabels = FALSE),
                                       yaxis = list(title = ylab))
                         fig
@@ -1180,21 +1426,121 @@
                         plot_data <- GDSC2_Results[! is.na(GDSC2_Results$IC50),]
                         if(nrow(plot_data) > 0){
                           plot_data <- plot_data[order(plot_data$IC50, decreasing = FALSE),]
+                          plot_data$Group <- "IC50 <= max tested concentration"
+                          plot_data$Group[plot_data$IC50 > plot_data$max_dose_uM] <- "IC50 > max tested concentration"
+                          plot_data$Group[plot_data$IC50 == Inf] <- "Infinite IC50"
+                          if(any(plot_data$IC50 != Inf)){
+                            plot_data$IC50[plot_data$IC50 == Inf] <- max(plot_data$IC50[! plot_data$IC50 == Inf])
+                          } else {
+                            plot_data$IC50[plot_data$IC50 == Inf] <- max(plot_data$max_dose_uM)+1
+                          }
                           plot_data$Cell_Line <- factor(plot_data$Cell_Line, levels = plot_data$Cell_Line)
                           ylab <- "IC50 (microMolar)"
                           fig <- plot_ly(x = plot_data$Cell_Line,
                                          y = plot_data$IC50,
                                          type = "scatter",
-                                         mode = "markers")
+                                         mode = "markers",
+                                         color = plot_data$Group,
+                                         colors = c("blue", "red", "lightgray"))
                           fig <- layout(fig,
-                                        xaxis = list(title = paste0("GDSC2 Cell Lines (n = ", nrow(plot_data), ")"), showticklabels = FALSE),
+                                        title = "GDSC2 IC50s",
+                                        xaxis = list(paste0("GDSC2 Cell Lines (n = ", nrow(plot_data), ")"), showticklabels = FALSE),
                                         yaxis = list(title = ylab, type = "log"))
+                          fig
+                        }
+                      } else if(input$Compound_Explorer_to_Plot == "Tested Cell Line Cancer Types & Genders"){
+                        ccls <- unique(GDSC2_Results$Cell_Line)
+                        if(length(ccls) > 0){
+                          temp_dataset_ccl_data <- Simple_Cell_Line_Harm[Simple_Cell_Line_Harm$Harmonized_Cell_Line_ID %in% ccls,]
+                          temp_dataset_ccl_data$Simple_Cancer_Type[temp_dataset_ccl_data$Simple_Cancer_Type == "unknown"] <- "unknown cancer type"
+                          plot_data <- as.data.frame.table(table(temp_dataset_ccl_data$Simple_Cancer_Type))
+                          plot_data <- plot_data[order(plot_data$Freq, decreasing = TRUE),]
+                          plot_data <- rbind(plot_data[! plot_data$Var1 == "unknown cancer type",], plot_data[plot_data$Var1 == "unknown cancer type",])
+                          
+                          Gender_Unknown <- NA
+                          Gender_Female <- NA
+                          Gender_Male <- NA
+                          for(j in 1:nrow(plot_data)){
+                            Gender_Unknown[j] <- nrow(temp_dataset_ccl_data[temp_dataset_ccl_data$Simple_Cancer_Type %in% plot_data$Var1[j] & temp_dataset_ccl_data$Gender == "Sex unspecified",])
+                            Gender_Female[j] <- nrow(temp_dataset_ccl_data[temp_dataset_ccl_data$Simple_Cancer_Type %in% plot_data$Var1[j] & temp_dataset_ccl_data$Gender == "Female",])
+                            Gender_Male[j] <- nrow(temp_dataset_ccl_data[temp_dataset_ccl_data$Simple_Cancer_Type %in% plot_data$Var1[j] & temp_dataset_ccl_data$Gender == "Male",])
+                          }
+                          
+                          plot_data$Var1 <- factor(plot_data$Var1, levels = plot_data$Var1)
+                          
+                          fig <- plot_ly(x = plot_data$Var1, y = Gender_Unknown, type = "bar", name = "Unknown Gender", marker = list(color = "lightgray")) %>%
+                                  add_trace(y = Gender_Male, name = "Male", marker = list(color = rgb(65,105,225, maxColorValue = 255))) %>%
+                                  add_trace(y = Gender_Female, name = "Female", marker = list(color = rgb(186,85,211, maxColorValue = 255))) %>%
+                                  layout(title = 'GDSC2 Cell Line Cancer Types/Genders', yaxis = list(title = "# of Cell Lines"), xaxis = list(tickangle = 45), barmode = "stack", margin = list(b = 150, l = 50))
+                          fig
+                        }
+                      } else if(input$Compound_Explorer_to_Plot == "Tested Cell Line Ethnicities"){
+                        ccls <- unique(GDSC2_Results$Cell_Line)
+                        if(length(ccls) > 0){
+                          temp_dataset_ccl_data <- Simple_Cell_Line_Harm[Simple_Cell_Line_Harm$Harmonized_Cell_Line_ID %in% ccls,]
+                          completeness <- paste0("(data for ", nrow(temp_dataset_ccl_data[! is.na(temp_dataset_ccl_data$African_Ancestry),]), " of ", nrow(temp_dataset_ccl_data), " cell lines)")
+                          temp_dataset_ccl_data <- temp_dataset_ccl_data[! is.na(temp_dataset_ccl_data$African_Ancestry),]
+                          
+                          plot_data <- temp_dataset_ccl_data[,grepl("_Ancestry", colnames(temp_dataset_ccl_data))]*100
+                          rownames(plot_data) <- temp_dataset_ccl_data$Harmonized_Cell_Line_ID
+                          
+                          if(nrow(plot_data) > 2){
+                            plot_data <- plot_data[hclust(dist(plot_data))$order,]
+                          }
+                          colnames(plot_data) <- gsub("_Ancestry", "", colnames(plot_data))
+                          colnames(plot_data) <- gsub("_", " ", colnames(plot_data))
+                          x <- factor(rownames(plot_data), levels = rownames(plot_data))
+                          
+                          if(nrow(plot_data) > 0){
+                            plot_colors <- c("#6A3D9A", "#33A02C", "#FB9A99", "#E31A1C", "#FDBF6F", "#A6CEE3", "#1F78B4")
+                            fig <- plot_ly(x = x, y = plot_data[,1], name = colnames(plot_data)[1], type = "bar", marker = list(color = plot_colors[1])) %>%
+                              add_trace(y = plot_data[,2], name = colnames(plot_data)[2], marker = list(color = plot_colors[2])) %>%
+                              add_trace(y = plot_data[,3], name = colnames(plot_data)[3], marker = list(color = plot_colors[3])) %>%
+                              add_trace(y = plot_data[,4], name = colnames(plot_data)[4], marker = list(color = plot_colors[4])) %>%
+                              add_trace(y = plot_data[,5], name = colnames(plot_data)[5], marker = list(color = plot_colors[5])) %>%
+                              add_trace(y = plot_data[,6], name = colnames(plot_data)[6], marker = list(color = plot_colors[6])) %>%
+                              add_trace(y = plot_data[,7], name = colnames(plot_data)[7], marker = list(color = plot_colors[7])) %>%
+                              layout(title = 'GDSC2 Ethnicities', barmode = "stack", xaxis = list(title = paste("Tested Cell Lines", completeness), showticklabels = FALSE), yaxis = list(title = "% Ancestry Makeup"), bargap = 0, legend = list(traceorder = "normal"))
+                          } else {
+                            fig <- plot_ly(x = 1, y = 100, name = "No Values", type = "bar", marker = list(color = "white")) %>%
+                            layout(title = 'GDSC2 Cell Line Ethnicities', barmode = "stack", xaxis = list(title = paste("Tested Cell Lines", completeness), showticklabels = FALSE), yaxis = list(title = "% Ancestry Makeup"), bargap = 0, legend = list(traceorder = "normal"))
+                          }
+                          fig
+                        }
+                      } else if(input$Compound_Explorer_to_Plot == "Tested Cell Line Ages"){
+                        ccls <- unique(GDSC2_Results$Cell_Line)
+                        if(length(ccls) > 0){
+                          temp_dataset_ccl_data <- Simple_Cell_Line_Harm[Simple_Cell_Line_Harm$Harmonized_Cell_Line_ID %in% ccls,]
+                          completeness <- paste0("(data for ", nrow(temp_dataset_ccl_data[! is.na(temp_dataset_ccl_data$Numeric_Age_in_Years),]), " of ", nrow(temp_dataset_ccl_data), " cell lines)")
+                          temp_dataset_ccl_data <- temp_dataset_ccl_data[! is.na(temp_dataset_ccl_data$Numeric_Age_in_Years),]
+                          
+                          if(nrow(temp_dataset_ccl_data) > 1){
+                            p <- ggplot(temp_dataset_ccl_data, aes(x = Numeric_Age_in_Years, y = after_stat(scaled))) +
+                                        geom_density(color = "darkblue", fill = "lightblue") +
+                                        theme_light() +
+                                        labs(x = paste("Patient Age (in Years) when Cell Line was Derived ", completeness), y = "Scaled Density") +
+                                        ggtitle("GDSC2 Ages")
+                          } else if(nrow(temp_dataset_ccl_data) == 1){
+                            p <- ggplot(temp_dataset_ccl_data, aes(x = Numeric_Age_in_Years, y = Harmonized_Cell_Line_ID)) +
+                                        geom_bar(stat="identity") +
+                                        theme_light() +
+                                        labs(x = paste("Patient Age (in Years) when Cell Line was Derived ", completeness), y = "") +
+                                        ggtitle("GDSC2 Ages")
+                          } else {
+                            p <- ggplot(data.frame(x = c(0,100), y = c(0,1)), aes(x = x, y = y)) +
+                                        geom_blank() +
+                                        labs(x = paste("Patient Age (in Years) when Cell Line was Derived ", completeness), y = "Scaled Density") +
+                                        ggtitle("GDSC2 Cell Line Patient Age Distribution")
+                          }
+                      
+                          fig <- ggplotly(p)
                           fig
                         }
                       }
                     }
                 })
-  
+                
+                
                 output$Compound_Explorer_PRISM_Repurposing_Plot <- renderPlotly({
                   #Loading raw data for this compound and any datasets with data for this compound
                     if("PRISM_Repurposing" %in% Compound_Explorer_Datasets_with_Compound_Data()){
@@ -1220,10 +1566,11 @@
                                        type = "scatter",
                                        mode = "markers")
                         fig <- layout(fig,
-                                      xaxis = list(title = paste0("PRISM-Repurposing Cell Lines (n = ", nrow(plot_data), ")"), showticklabels = FALSE),
+                                      title = "PRISM_Repurposing AUCs",
+                                      xaxis = list(title = paste0("PRISM_Repurposing Cell Lines (n = ", nrow(plot_data), ")"), showticklabels = FALSE),
                                       yaxis = list(title = ylab))
                         fig
-                      } else if(input$Compound_Explorer_to_Plot == "AUC values for concentration range available for all cell lines"){
+                      } else if(input$Compound_Explorer_to_Plot == "AUC values for concentration range available for all tested cell lines"){
                         plot_data <- PRISM_Repurposing_Results[! is.na(PRISM_Repurposing_Results$AUC_all_ccl_PRISM_Repurposing_conc),]
                         plot_data <- plot_data[order(plot_data$AUC_all_ccl_PRISM_Repurposing_conc, decreasing = FALSE),]
                         plot_data$Cell_Line <- factor(plot_data$Cell_Line, levels = plot_data$Cell_Line)
@@ -1233,27 +1580,129 @@
                                        type = "scatter",
                                        mode = "markers")
                         fig <- layout(fig,
-                                      xaxis = list(title = paste0("PRISM-Repurposing Cell Lines (n = ", nrow(plot_data), ")"), showticklabels = FALSE),
+                                      title = "PRISM_Repurposing AUCs",
+                                      xaxis = list(title = paste0("PRISM_Repurposing Cell Lines (n = ", nrow(plot_data), ")"), showticklabels = FALSE),
                                       yaxis = list(title = ylab))
                         fig
                       } else if(input$Compound_Explorer_to_Plot == "IC50 values"){
                         plot_data <- PRISM_Repurposing_Results[! is.na(PRISM_Repurposing_Results$IC50),]
                         if(nrow(plot_data) > 0){
                           plot_data <- plot_data[order(plot_data$IC50, decreasing = FALSE),]
+                          plot_data$Group <- "IC50 <= max tested concentration"
+                          plot_data$Group[plot_data$IC50 > plot_data$max_dose_uM] <- "IC50 > max tested concentration"
+                          plot_data$Group[plot_data$IC50 == Inf] <- "Infinite IC50"
+                          if(any(plot_data$IC50 != Inf)){
+                            plot_data$IC50[plot_data$IC50 == Inf] <- max(plot_data$IC50[! plot_data$IC50 == Inf])
+                          } else {
+                            plot_data$IC50[plot_data$IC50 == Inf] <- max(plot_data$max_dose_uM)+1
+                          }
                           plot_data$Cell_Line <- factor(plot_data$Cell_Line, levels = plot_data$Cell_Line)
                           ylab <- "IC50 (microMolar)"
                           fig <- plot_ly(x = plot_data$Cell_Line,
                                          y = plot_data$IC50,
                                          type = "scatter",
-                                         mode = "markers")
+                                         mode = "markers",
+                                         color = plot_data$Group,
+                                         colors = c("blue", "red", "lightgray"))
                           fig <- layout(fig,
-                                        xaxis = list(title = paste0("PRISM-Repurposing Cell Lines (n = ", nrow(plot_data), ")"), showticklabels = FALSE),
+                                        title = "PRISM_Repurposing IC50s",
+                                        xaxis = list(paste0("PRISM_Repurposing Cell Lines (n = ", nrow(plot_data), ")"), showticklabels = FALSE),
                                         yaxis = list(title = ylab, type = "log"))
+                          fig
+                        }
+                      } else if(input$Compound_Explorer_to_Plot == "Tested Cell Line Cancer Types & Genders"){
+                        ccls <- unique(PRISM_Repurposing_Results$Cell_Line)
+                        if(length(ccls) > 0){
+                          temp_dataset_ccl_data <- Simple_Cell_Line_Harm[Simple_Cell_Line_Harm$Harmonized_Cell_Line_ID %in% ccls,]
+                          temp_dataset_ccl_data$Simple_Cancer_Type[temp_dataset_ccl_data$Simple_Cancer_Type == "unknown"] <- "unknown cancer type"
+                          plot_data <- as.data.frame.table(table(temp_dataset_ccl_data$Simple_Cancer_Type))
+                          plot_data <- plot_data[order(plot_data$Freq, decreasing = TRUE),]
+                          plot_data <- rbind(plot_data[! plot_data$Var1 == "unknown cancer type",], plot_data[plot_data$Var1 == "unknown cancer type",])
+                          
+                          Gender_Unknown <- NA
+                          Gender_Female <- NA
+                          Gender_Male <- NA
+                          for(j in 1:nrow(plot_data)){
+                            Gender_Unknown[j] <- nrow(temp_dataset_ccl_data[temp_dataset_ccl_data$Simple_Cancer_Type %in% plot_data$Var1[j] & temp_dataset_ccl_data$Gender == "Sex unspecified",])
+                            Gender_Female[j] <- nrow(temp_dataset_ccl_data[temp_dataset_ccl_data$Simple_Cancer_Type %in% plot_data$Var1[j] & temp_dataset_ccl_data$Gender == "Female",])
+                            Gender_Male[j] <- nrow(temp_dataset_ccl_data[temp_dataset_ccl_data$Simple_Cancer_Type %in% plot_data$Var1[j] & temp_dataset_ccl_data$Gender == "Male",])
+                          }
+                          
+                          plot_data$Var1 <- factor(plot_data$Var1, levels = plot_data$Var1)
+                          
+                          fig <- plot_ly(x = plot_data$Var1, y = Gender_Unknown, type = "bar", name = "Unknown Gender", marker = list(color = "lightgray")) %>%
+                                  add_trace(y = Gender_Male, name = "Male", marker = list(color = rgb(65,105,225, maxColorValue = 255))) %>%
+                                  add_trace(y = Gender_Female, name = "Female", marker = list(color = rgb(186,85,211, maxColorValue = 255))) %>%
+                                  layout(title = 'PRISM_Repurposing Cell Line Cancer Types/Genders', yaxis = list(title = "# of Cell Lines"), xaxis = list(tickangle = 45), barmode = "stack", margin = list(b = 150, l = 50))
+                          fig
+                        }
+                      } else if(input$Compound_Explorer_to_Plot == "Tested Cell Line Ethnicities"){
+                        ccls <- unique(PRISM_Repurposing_Results$Cell_Line)
+                        if(length(ccls) > 0){
+                          temp_dataset_ccl_data <- Simple_Cell_Line_Harm[Simple_Cell_Line_Harm$Harmonized_Cell_Line_ID %in% ccls,]
+                          completeness <- paste0("(data for ", nrow(temp_dataset_ccl_data[! is.na(temp_dataset_ccl_data$African_Ancestry),]), " of ", nrow(temp_dataset_ccl_data), " cell lines)")
+                          temp_dataset_ccl_data <- temp_dataset_ccl_data[! is.na(temp_dataset_ccl_data$African_Ancestry),]
+                          
+                          plot_data <- temp_dataset_ccl_data[,grepl("_Ancestry", colnames(temp_dataset_ccl_data))]*100
+                          rownames(plot_data) <- temp_dataset_ccl_data$Harmonized_Cell_Line_ID
+                          
+                          if(nrow(plot_data) > 2){
+                            plot_data <- plot_data[hclust(dist(plot_data))$order,]
+                          }
+                          colnames(plot_data) <- gsub("_Ancestry", "", colnames(plot_data))
+                          colnames(plot_data) <- gsub("_", " ", colnames(plot_data))
+                          x <- factor(rownames(plot_data), levels = rownames(plot_data))
+                          
+                          if(nrow(plot_data) > 0){
+                            plot_colors <- c("#6A3D9A", "#33A02C", "#FB9A99", "#E31A1C", "#FDBF6F", "#A6CEE3", "#1F78B4")
+                            fig <- plot_ly(x = x, y = plot_data[,1], name = colnames(plot_data)[1], type = "bar", marker = list(color = plot_colors[1])) %>%
+                              add_trace(y = plot_data[,2], name = colnames(plot_data)[2], marker = list(color = plot_colors[2])) %>%
+                              add_trace(y = plot_data[,3], name = colnames(plot_data)[3], marker = list(color = plot_colors[3])) %>%
+                              add_trace(y = plot_data[,4], name = colnames(plot_data)[4], marker = list(color = plot_colors[4])) %>%
+                              add_trace(y = plot_data[,5], name = colnames(plot_data)[5], marker = list(color = plot_colors[5])) %>%
+                              add_trace(y = plot_data[,6], name = colnames(plot_data)[6], marker = list(color = plot_colors[6])) %>%
+                              add_trace(y = plot_data[,7], name = colnames(plot_data)[7], marker = list(color = plot_colors[7])) %>%
+                              layout(title = 'PRISM_Repurposing Ethnicities', barmode = "stack", xaxis = list(title = paste("Tested Cell Lines", completeness), showticklabels = FALSE), yaxis = list(title = "% Ancestry Makeup"), bargap = 0, legend = list(traceorder = "normal"))
+                          } else {
+                            fig <- plot_ly(x = 1, y = 100, name = "No Values", type = "bar", marker = list(color = "white")) %>%
+                            layout(title = 'PRISM_Repurposing Cell Line Ethnicities', barmode = "stack", xaxis = list(title = paste("Tested Cell Lines", completeness), showticklabels = FALSE), yaxis = list(title = "% Ancestry Makeup"), bargap = 0, legend = list(traceorder = "normal"))
+                          }
+                          fig
+                        }
+                      } else if(input$Compound_Explorer_to_Plot == "Tested Cell Line Ages"){
+                        ccls <- unique(PRISM_Repurposing_Results$Cell_Line)
+                        if(length(ccls) > 0){
+                          temp_dataset_ccl_data <- Simple_Cell_Line_Harm[Simple_Cell_Line_Harm$Harmonized_Cell_Line_ID %in% ccls,]
+                          completeness <- paste0("(data for ", nrow(temp_dataset_ccl_data[! is.na(temp_dataset_ccl_data$Numeric_Age_in_Years),]), " of ", nrow(temp_dataset_ccl_data), " cell lines)")
+                          temp_dataset_ccl_data <- temp_dataset_ccl_data[! is.na(temp_dataset_ccl_data$Numeric_Age_in_Years),]
+                          
+                          if(nrow(temp_dataset_ccl_data) > 1){
+                            p <- ggplot(temp_dataset_ccl_data, aes(x = Numeric_Age_in_Years, y = after_stat(scaled))) +
+                                        geom_density(color = "darkblue", fill = "lightblue") +
+                                        theme_light() +
+                                        labs(x = paste("Patient Age (in Years) when Cell Line was Derived ", completeness), y = "Scaled Density") +
+                                        ggtitle("PRISM_Repurposing Ages")
+                          } else if(nrow(temp_dataset_ccl_data) == 1){
+                            p <- ggplot(temp_dataset_ccl_data, aes(x = Numeric_Age_in_Years, y = Harmonized_Cell_Line_ID)) +
+                                        geom_bar(stat="identity") +
+                                        theme_light() +
+                                        labs(x = paste("Patient Age (in Years) when Cell Line was Derived ", completeness), y = "") +
+                                        ggtitle("PRISM_Repurposing Ages")
+                          } else {
+                            p <- ggplot(data.frame(x = c(0,100), y = c(0,1)), aes(x = x, y = y)) +
+                                        geom_blank() +
+                                        labs(x = paste("Patient Age (in Years) when Cell Line was Derived ", completeness), y = "Scaled Density") +
+                                        ggtitle("PRISM_Repurposing Cell Line Patient Age Distribution")
+                          }
+                      
+                          fig <- ggplotly(p)
                           fig
                         }
                       }
                     }
                 })
+                
+                
               }) #END: observe({
               
                   
@@ -1782,7 +2231,7 @@
                                           xaxis = list(title = paste0("CTRPv2 Compounds (n = ", nrow(plot_data), ")"), showticklabels = FALSE),
                                           yaxis = list(title = ylab))
                             fig
-                          } else if(input$Cell_Line_Explorer_to_Plot == "AUC values for concentration range available for all cell lines"){
+                          } else if(input$Cell_Line_Explorer_to_Plot == "AUC values for concentration range available for all tested cell lines"){
                             plot_data <- CTRPv2_Results[! is.na(CTRPv2_Results$Percentile_AUC_All_CCL),]
                             plot_data <- plot_data[order(plot_data$Percentile_AUC_All_CCL, decreasing = FALSE),]
                             plot_data$Compound <- factor(plot_data$Compound, levels = plot_data$Compound)
@@ -1842,7 +2291,7 @@
                                           xaxis = list(title = paste0("GDSC1 Compounds (n = ", nrow(plot_data), ")"), showticklabels = FALSE),
                                           yaxis = list(title = ylab))
                             fig
-                          } else if(input$Cell_Line_Explorer_to_Plot == "AUC values for concentration range available for all cell lines"){
+                          } else if(input$Cell_Line_Explorer_to_Plot == "AUC values for concentration range available for all tested cell lines"){
                             plot_data <- GDSC1_Results[! is.na(GDSC1_Results$Percentile_AUC_All_CCL),]
                             plot_data <- plot_data[order(plot_data$Percentile_AUC_All_CCL, decreasing = FALSE),]
                             plot_data$Compound <- factor(plot_data$Compound, levels = plot_data$Compound)
@@ -1902,7 +2351,7 @@
                                           xaxis = list(title = paste0("GDSC2 Compounds (n = ", nrow(plot_data), ")"), showticklabels = FALSE),
                                           yaxis = list(title = ylab))
                             fig
-                          } else if(input$Cell_Line_Explorer_to_Plot == "AUC values for concentration range available for all cell lines"){
+                          } else if(input$Cell_Line_Explorer_to_Plot == "AUC values for concentration range available for all tested cell lines"){
                             plot_data <- GDSC2_Results[! is.na(GDSC2_Results$Percentile_AUC_All_CCL),]
                             plot_data <- plot_data[order(plot_data$Percentile_AUC_All_CCL, decreasing = FALSE),]
                             plot_data$Compound <- factor(plot_data$Compound, levels = plot_data$Compound)
@@ -1962,7 +2411,7 @@
                                           xaxis = list(title = paste0("PRISM-Repurposing Compounds (n = ", nrow(plot_data), ")"), showticklabels = FALSE),
                                           yaxis = list(title = ylab))
                             fig
-                          } else if(input$Cell_Line_Explorer_to_Plot == "AUC values for concentration range available for all cell lines"){
+                          } else if(input$Cell_Line_Explorer_to_Plot == "AUC values for concentration range available for all tested cell lines"){
                             plot_data <- PRISM_Repurposing_Results[! is.na(PRISM_Repurposing_Results$Percentile_AUC_All_CCL),]
                             plot_data <- plot_data[order(plot_data$Percentile_AUC_All_CCL, decreasing = FALSE),]
                             plot_data$Compound <- factor(plot_data$Compound, levels = plot_data$Compound)

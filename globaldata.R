@@ -9,7 +9,7 @@
   require(ggplot2)
   require(openxlsx)
   require(drc)
-  
+
 #Loading data for ui
   #Dataset Summaries
     Dataset_Summaries <- read.delim("./www/Dataset_Summaries/Dataset_Summaries.txt", sep = "\t")
@@ -426,7 +426,7 @@
     p <- ggplot(temp_dataset_ccl_data, aes(x = Numeric_Age_in_Years, y = after_stat(scaled))) +
                 geom_density(color = "darkblue", fill = "lightblue") +
                 theme_light() +
-                labs(x = paste("Patient Age when Cell Line was Derived", completeness), y = "Scaled Density")
+                labs(x = paste("Patient Age (in Years) when Cell Line was Derived ", completeness), y = "Scaled Density")
 
     welcome_age_plots[[i]] <- ggplotly(p)
   }
@@ -437,31 +437,56 @@
     temp_dataset_ccl_data <- Simple_Cell_Line_Harm[Simple_Cell_Line_Harm$Harmonized_Cell_Line_ID %in% Dataset_ccls_successful[[datasets[i]]],]
     completeness <- paste0("(data for ", nrow(temp_dataset_ccl_data[! is.na(temp_dataset_ccl_data$African_Ancestry),]), " of ", nrow(temp_dataset_ccl_data), " cell lines)")
     temp_dataset_ccl_data <- temp_dataset_ccl_data[! is.na(temp_dataset_ccl_data$African_Ancestry),]
-    plot_data <- data.frame(Ancestry_Percentage = c(temp_dataset_ccl_data$African_Ancestry,
-                             temp_dataset_ccl_data$Native_American_Ancestry,
-                             temp_dataset_ccl_data$`East_Asian_(North)_Ancestry`,
-                             temp_dataset_ccl_data$`East_Asian_(South)_Ancestry`,
-                             temp_dataset_ccl_data$South_Asian_Ancestry,
-                             temp_dataset_ccl_data$`European_(North)_Ancestry`,
-                             temp_dataset_ccl_data$`European_(South)_Ancestry`)*100,
-                           Ancestry = c(rep("African", nrow(temp_dataset_ccl_data)),
-                             rep("Native American", nrow(temp_dataset_ccl_data)),
-                             rep("East Asian (North)", nrow(temp_dataset_ccl_data)),
-                             rep("East Asian (South)", nrow(temp_dataset_ccl_data)),
-                             rep("South Asian", nrow(temp_dataset_ccl_data)),
-                             rep("European (North)", nrow(temp_dataset_ccl_data)),
-                             rep("European (South)", nrow(temp_dataset_ccl_data))))
-    
+    # plot_data <- data.frame(Ancestry_Percentage = c(temp_dataset_ccl_data$African_Ancestry,
+    #                          temp_dataset_ccl_data$Native_American_Ancestry,
+    #                          temp_dataset_ccl_data$`East_Asian_(North)_Ancestry`,
+    #                          temp_dataset_ccl_data$`East_Asian_(South)_Ancestry`,
+    #                          temp_dataset_ccl_data$South_Asian_Ancestry,
+    #                          temp_dataset_ccl_data$`European_(North)_Ancestry`,
+    #                          temp_dataset_ccl_data$`European_(South)_Ancestry`)*100,
+    #                        Ancestry = c(rep("African", nrow(temp_dataset_ccl_data)),
+    #                          rep("Native American", nrow(temp_dataset_ccl_data)),
+    #                          rep("East Asian (North)", nrow(temp_dataset_ccl_data)),
+    #                          rep("East Asian (South)", nrow(temp_dataset_ccl_data)),
+    #                          rep("South Asian", nrow(temp_dataset_ccl_data)),
+    #                          rep("European (North)", nrow(temp_dataset_ccl_data)),
+    #                          rep("European (South)", nrow(temp_dataset_ccl_data))))
+    # 
     # p <- ggplot(plot_data, aes(x = Ancestry_Percentage, group = Ancestry, fill = Ancestry)) +
     #             geom_density(adjust=1.5, position="fill") +
     #             theme_light() +
     #             labs(x = paste("Cell Line Ancestry Percentage", completeness), y = "Scaled Density")
-    n_ccls <- nrow(temp_dataset_ccl_data)
-    p <- ggplot(plot_data, aes(x = Ancestry_Percentage, y = after_stat(scaled), group = Ancestry, color = Ancestry)) +
-                geom_density(adjust=1.5) +
-                theme_light() +
-                labs(x = paste("Cell Line Ancestry Percentage", completeness), y = "Scaled Density")
-    welcome_ancestry_plots[[i]] <- ggplotly(p)
+    # n_ccls <- nrow(temp_dataset_ccl_data)
+    # p <- ggplot(plot_data, aes(x = Ancestry_Percentage, y = after_stat(scaled), group = Ancestry, color = Ancestry)) +
+    #             geom_density(adjust=1.5) +
+    #             theme_light() +
+    #             labs(x = paste("Cell Line Ancestry Percentage", completeness), y = "Scaled Density")
+    
+    plot_data <- temp_dataset_ccl_data[,grepl("_Ancestry", colnames(temp_dataset_ccl_data))]*100
+    rownames(plot_data) <- temp_dataset_ccl_data$Harmonized_Cell_Line_ID
+    plot_data <- plot_data[hclust(dist(plot_data))$order,]
+    colnames(plot_data) <- gsub("_Ancestry", "", colnames(plot_data))
+    colnames(plot_data) <- gsub("_", " ", colnames(plot_data))
+    x <- factor(rownames(plot_data), levels = rownames(plot_data))
+    
+    # fig <- plot_ly(x = x, y = plot_data[,1], name = colnames(plot_data)[1], type = "scatter", mode = "none", stackgroup = "one")
+    # for(j in 2:ncol(plot_data)){
+    #   fig <- fig %>% add_trace(y = plot_data[,j], name = colnames(plot_data)[j])
+    # }
+    # fig <- fig %>% layout(xaxis = list(title = "Tested Cell Lines", showticklabels = FALSE), yaxis = list(title = "% Ancestry Makeup"))
+    # plot_colors <- RColorBrewer::brewer.pal(12, "Paired")
+    plot_colors <- c("#6A3D9A", "#33A02C", "#FB9A99", "#E31A1C", "#FDBF6F", "#A6CEE3", "#1F78B4")
+    fig <- plot_ly(x = x, y = plot_data[,1], name = colnames(plot_data)[1], type = "bar", marker = list(color = plot_colors[1])) %>%
+      add_trace(y = plot_data[,2], name = colnames(plot_data)[2], marker = list(color = plot_colors[2])) %>%
+      add_trace(y = plot_data[,3], name = colnames(plot_data)[3], marker = list(color = plot_colors[3])) %>%
+      add_trace(y = plot_data[,4], name = colnames(plot_data)[4], marker = list(color = plot_colors[4])) %>%
+      add_trace(y = plot_data[,5], name = colnames(plot_data)[5], marker = list(color = plot_colors[5])) %>%
+      add_trace(y = plot_data[,6], name = colnames(plot_data)[6], marker = list(color = plot_colors[6])) %>%
+      add_trace(y = plot_data[,7], name = colnames(plot_data)[7], marker = list(color = plot_colors[7])) %>%
+      layout(barmode = "stack", xaxis = list(title = paste("Tested Cell Lines", completeness), showticklabels = FALSE), yaxis = list(title = "% Ancestry Makeup"), bargap = 0, legend = list(traceorder = "normal"))
+    
+    # welcome_ancestry_plots[[i]] <- ggplotly(p)
+    welcome_ancestry_plots[[i]] <- fig
   }
   names(welcome_ancestry_plots) <- datasets
   
@@ -576,3 +601,4 @@
     Dataset_Residual_Standard_Error_Plots[[i]] <- ggplotly(p)
   }
   names(Dataset_Residual_Standard_Error_Plots) <- datasets
+  

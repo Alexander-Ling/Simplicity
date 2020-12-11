@@ -9,6 +9,10 @@
   require(ggplot2)
   require(openxlsx)
   require(drc)
+  require(ipc)
+  require(promises)
+  require(future)
+    plan(multiprocess)
 
 #Loading data for ui
   #Dataset Summaries

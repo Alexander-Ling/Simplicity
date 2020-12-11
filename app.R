@@ -3485,13 +3485,26 @@
                       temp_Instruction <- AUC_Instruction()
                       temp_Cell_Lines <- input$AUC_Cell_Lines
                       temp_dataset <- input$AUC_Dataset
+                      wd <- getwd()
                     #Loading fitted curves and calculating AUC values
+                      show_modal_spinner(
+                                spin = "atom",
+                                color = "#112446",
+                                text = "Calculating AUCs..."
+                              )
+                      progress <- AsyncProgress$new(session, min = 0, max = nrow(temp_Instruction), message = "Initializing Calculation...")
+                      future_data <- future(
+                        global = c("progress", "temp_Instruction", "temp_Cell_Lines", "temp_dataset", "wd", "Compound_Filenames", "AUC", "ll.4.AUC"),
+                        packages = c("drc"),
+                        expr = {
                       Calculated_AUCs <- vector(mode = "list", length = 0)
-                      show_modal_progress_line(text = "Calculating AUC Values...")
                         for(i in 1:nrow(temp_Instruction)){
+                          if(i == 1){
+                            progress$set(value = 0, message = paste0(0, " of ", nrow(temp_Instruction), " Rows Complete..."))
+                          }
                           #Loading results for this cell line
                             filename <- Compound_Filenames$drug_file_names[Compound_Filenames$drugs %in% temp_Instruction$Compound[i]]
-                            isolate(temp_results <- readRDS(paste0("./www/Results/", filename, ".rds"))[[temp_dataset]])
+                            temp_results <- readRDS(paste0("./www/Results/", filename, ".rds"))[[temp_dataset]]
                           #Subsetting to selected cell lines
                             temp_results <- temp_results[temp_results$Cell_Line %in% temp_Cell_Lines & ! is.na(temp_results$b_c_d_e),]
                           if(nrow(temp_results) > 0){
@@ -3522,69 +3535,72 @@
                             #Storing empty data frame
                               Calculated_AUCs[[i]] <- temp_Return
                           }
-                          update_modal_progress(value = i / nrow(temp_Instruction))
+                          progress$set(value = i, message = paste0(i, " of ", nrow(temp_Instruction), " Rows Complete..."))
                         }
                     #Organizing calculated AUC values
                       Returnable_AUCs <- as.data.frame(do.call(rbind, Calculated_AUCs))
-                      remove_modal_progress()
+                      progress$close()
                       return(Returnable_AUCs)
+                    }) #END: future
                   }) #END: isolate
+                  promise_race(future_data) %...>% {remove_modal_spinner()}
+                  future_data
                 })
                 
               #Allowing user to download results
                 observeEvent(AUC_Custom_Values(), {
                   req(AUC_Custom_Values())
                   req(input$AUC_Dataset)
-                  isolate({
-                  #Creating Download Button
-                    output$AUC_Download_UI <- renderUI({
-                      if(is.data.frame(AUC_Custom_Values())){
-                        downloadButton(outputId = "AUC_Download_AUC_Values", label = "Download Calculated AUC Values") %>%
-                                helper(type = "inline",
-                                  title = "Download AUC Values",
-                                  icon = "question-circle", colour = NULL,
-                                  content = c("Pressing this button will download a tab separated value (.tsv) text file containing the calculated AUC values."),
-                                  size = "m",
-                                  buttonLabel = "Okay", easyClose = TRUE, fade = FALSE
-                                )
-                      } else {
-                        
-                      }
-                    })
-                    
-                  #Allowing user to download AUC_Custom_Values()
-                    output$AUC_Download_AUC_Values <- downloadHandler(
-                          filename = paste0(input$AUC_Dataset, "_Calculated_AUCs.tsv"),
-                          content = function(file){
-                            
-                            show_modal_spinner(
-                              spin = "atom",
-                              color = "#112446",
-                              text = "Preparing Results for Download..."
-                            )
-                            
-                            temp_data <- AUC_Custom_Values()
-                            
-                            success.check <- try(write_delim(temp_data, file, delim = "\t"))
-                            
-                            if(class(success.check) == "try-error"){
-                              warning("Download unsuccessful: ", Sys.time())
-                              temp_class <- class(temp_data)
-                              warning("File class = ", temp_class)
-                              if(temp_class == "data.frame"){
-                                temp_type <- NA
-                                for(i in 1:ncol(temp_data)){
-                                  temp_type[i] <- typeof(temp_data[,i])
+                  promise_all(data = AUC_Custom_Values()) %...>% with({
+                    isolate({
+                    #Creating Download Button
+                      output$AUC_Download_UI <- renderUI({
+                        if(is.data.frame(data)){
+                          downloadButton(outputId = "AUC_Download_AUC_Values", label = "Download Calculated AUC Values") %>%
+                                  helper(type = "inline",
+                                    title = "Download AUC Values",
+                                    icon = "question-circle", colour = NULL,
+                                    content = c("Pressing this button will download a tab separated value (.tsv) text file containing the calculated AUC values."),
+                                    size = "m",
+                                    buttonLabel = "Okay", easyClose = TRUE, fade = FALSE
+                                  )
+                        } else {
+                          
+                        }
+                      })
+                      
+                    #Allowing user to download AUC_Custom_Values()
+                      output$AUC_Download_AUC_Values <- downloadHandler(
+                            filename = paste0(input$AUC_Dataset, "_Calculated_AUCs.tsv"),
+                            content = function(file){
+                              
+                              show_modal_spinner(
+                                spin = "atom",
+                                color = "#112446",
+                                text = "Preparing Results for Download..."
+                              )
+                              
+                              success.check <- try(write_delim(data, file, delim = "\t"))
+                              
+                              if(class(success.check) == "try-error"){
+                                warning("Download unsuccessful: ", Sys.time())
+                                temp_class <- class(data)
+                                warning("File class = ", temp_class)
+                                if(temp_class == "data.frame"){
+                                  temp_type <- NA
+                                  for(i in 1:ncol(data)){
+                                    temp_type[i] <- typeof(data[,i])
+                                  }
+                                  warning(paste0("Column Types: ", paste(temp_type, collapse = ", ")))
                                 }
-                                warning(paste0("Column Types: ", paste(temp_type, collapse = ", ")))
                               }
+                              
+                              remove_modal_spinner()
                             }
-                            
-                            remove_modal_spinner()
-                          }
-                        )
-                  })
-                })
+                          )
+                    }) #END: Isolate
+                  }) #END: promise_all(data = AUC_Custom_Values()) %...>% with({
+                }) #END: observeEvent(AUC_Custom_Values(), {
 
           
 #############################################################          
@@ -4212,7 +4228,10 @@
                       temp_Instruction <- Viability_Instruction()
                       temp_Cell_Lines <- input$Viability_Cell_Lines
                       temp_dataset <- input$Viability_Dataset
-                      
+                      temp_via_calc_uncertainty <- input$Viability_Calculate_Uncertainty
+                      temp_via_format_IDACombo <- input$Viability_Format_For_IDACombo
+                      wd <- getwd()
+                    
                     #Generating requested concentrations for each compound
                       temp_compounds <- sort(unique(temp_Instruction$Compound))
                       temp_conc_list <- list(NULL)
@@ -4230,194 +4249,215 @@
                         temp_conc_list[[i]] <- to_return
                       }
                       names(temp_conc_list) <- temp_compounds
-                    
-                    if(input$Viability_Calculate_Uncertainty == FALSE){
-                      #Performing calculations when standard errors are not needed
-                        #Loading fitted curves and calculating Viability values
-                          Calculated_Viabilities <- vector(mode = "list", length = 0)
-                          show_modal_progress_line(text = "Calculating Viability Values...")
-                            for(i in 1:length(temp_conc_list)){
-                              #Loading results for this cell line
-                                filename <- Compound_Filenames$drug_file_names[Compound_Filenames$drugs %in% names(temp_conc_list)[i]]
-                                isolate(temp_results <- readRDS(paste0("./www/Results/", filename, ".rds"))[[temp_dataset]])
-                              #Subsetting to selected cell lines
-                                temp_results <- temp_results[temp_results$Cell_Line %in% temp_Cell_Lines & ! is.na(temp_results$b_c_d_e),]
-                              if(nrow(temp_results) > 0){
-                                #Determining which concentrations to calculate viability values at
-                                  temp_Concentrations <- temp_conc_list[[i]]
-                                  temp_n_conc <- length(temp_Concentrations)
-                                #Calculating Viability Values
-                                  temp_Viabilities <- ll.4(x = rep(temp_Concentrations, times = nrow(temp_results)), b_c_d_e = rep(temp_results$b_c_d_e, each = temp_n_conc))
-                                #Constructing return values
-                                  temp_Return <- data.frame("Compound" = rep(temp_results$Compound, each = temp_n_conc),
-                                                            "Cell_Line" = rep(temp_results$Cell_Line, each = temp_n_conc),
-                                                            "Viability" = temp_Viabilities,
-                                                            "Concentration_uM" = rep(temp_Concentrations, times = nrow(temp_results)),
-                                                            "Min_Tested_Conc_uM" = rep(temp_results$min_dose_uM, each = temp_n_conc),
-                                                            "Max_Tested_Conc_uM" = rep(temp_results$max_dose_uM, each = temp_n_conc),
-                                                            stringsAsFactors = FALSE
-                                                            )
-                                #Storing result
-                                  Calculated_Viabilities[[i]] <- temp_Return
-                              } else {
-                                #Constructing empty result data frame
-                                  temp_Return <- data.frame("Compound" = character(0),
-                                                            "Cell_Line" = character(0),
-                                                            "Viability" = numeric(0),
-                                                            "Concentration_uM" = numeric(0),
-                                                            "Min_Tested_Conc_uM" = numeric(0),
-                                                            "Max_Tested_Conc_uM" = numeric(0),
-                                                            stringsAsFactors = FALSE
-                                                            )
-                                #Storing empty data frame
-                                  Calculated_Viabilities[[i]] <- temp_Return
-                              }
-                              update_modal_progress(value = i / length(temp_conc_list))
-                            }
-                        #Organizing calculated Viability values
-                          Returnable_Viabilities <- as.data.frame(do.call(rbind, Calculated_Viabilities))
-                        if(input$Viability_Format_For_IDACombo == TRUE){
-                           #If option is selected, formatting for IDACombo app
-                              Returnable_Viabilities <- Returnable_Viabilities[,c("Compound", "Cell_Line", "Viability", "Concentration_uM")]
-                            #Renaming columns
-                              colnames(Returnable_Viabilities) <- c("Drug", "Cell_Line", "Efficacy", "Drug_Dose")
-                            #Adding cell line cancer types
-                              Returnable_Viabilities$Cell_Line_Subgroup <- NA
-                              Returnable_Viabilities$Cell_Line_Subgroup <- Simple_Cell_Line_Harm$Simple_Cancer_Type[match(Returnable_Viabilities$Cell_Line, Simple_Cell_Line_Harm$Harmonized_Cell_Line_ID)] 
-                        }
-                          remove_modal_progress()
-                          return(Returnable_Viabilities)
-                    } else if(input$Viability_Calculate_Uncertainty == TRUE){ #END: if(input$Viability_Calculate_Uncertainty == FALSE){
-                      #Performing calculations when standard errors are needed
-                        #Loading fitted curves and calculating Viability values
-                          Calculated_Viabilities <- vector(mode = "list", length = 0)
-                          show_modal_progress_line(text = "Calculating Viability Values and Standard Errors...")
-                            for(i in 1:length(temp_conc_list)){
-                              #Loading results for this cell line
-                                filename <- Compound_Filenames$drug_file_names[Compound_Filenames$drugs %in% names(temp_conc_list)[i]]
-                                isolate(temp_results <- readRDS(paste0("./www/Curve_Fits/", temp_dataset, "/", filename, ".rds")))
-                              #Removing drug from result list names
-                                names(temp_results) <- gsub(":\\|:.*$", "", names(temp_results))
-                              #Subsetting to selected cell lines with successful fits
-                                temp_results <- temp_results[names(temp_results) %in% temp_Cell_Lines & ! sapply(temp_results, length) == 1]
-                              if(length(temp_results) > 0){
-                                #Determining which concentrations to calculate viability values at
-                                  temp_Concentrations <- data.frame(dose = temp_conc_list[[i]])
-                                #Calculating Viability Values
-                                  temp_Viabilities <- as.data.frame(do.call(rbind, lapply(temp_results, predict.handle.errors.drc, newdata = temp_Concentrations, se.fit = T, vcov. = sandwich)))
-                                  temp_n_conc <- nrow(temp_Concentrations)
-                                #Constructing return values
-                                  temp_Return <- data.frame("Compound" = names(temp_conc_list)[i],
-                                                            "Cell_Line" = rep(names(temp_results), each = temp_n_conc),
-                                                            "Viability" = temp_Viabilities$Prediction,
-                                                            "Viability_SE" = temp_Viabilities$SE,
-                                                            "Concentration_uM" = rep(temp_Concentrations[,1], times = length(temp_results)),
-                                                            "Min_Tested_Conc_uM" = rep(sapply(temp_results, function(x){return(min(x$dataList$dose))}), each = temp_n_conc),
-                                                            "Max_Tested_Conc_uM" = rep(sapply(temp_results, function(x){return(max(x$dataList$dose))}), each = temp_n_conc),
-                                                            stringsAsFactors = FALSE
-                                                            )
-                                #Repairing missing viability values at 0 concentration
-                                  temp_Params <- sapply(temp_results[temp_Return$Cell_Line], function(x){return(paste(x$coefficients, collapse = "_"))})
-                                  if(any(is.na(temp_Return$Viability))){
-                                    temp_Return$Viability[is.na(temp_Return$Viability)] <- ll.4(x = temp_Return$Concentration_uM[is.na(temp_Return$Viability)], b_c_d_e = temp_Params[is.na(temp_Return$Viability)])
-                                  }
-                                #If SE values could not be estimated (usually happens when slope == 0), assigning unknown SE as median SE from other cell lines at that concentration with this drug
-                                  if(any(is.na(temp_Return$Viability_SE))){
-                                    for(j in 1:nrow(temp_Concentrations)){
-                                      temp_Return$Viability_SE[is.na(temp_Return$Viability_SE) & temp_Return$Concentration_uM == temp_Concentrations$dose[j]] <- median(temp_Return$Viability_SE[! is.na(temp_Return$Viability_SE) & temp_Return$Concentration_uM == temp_Concentrations$dose[j]])
+                       
+                    #Processing asynchronously 
+                      show_modal_spinner(
+                                spin = "atom",
+                                color = "#112446",
+                                text = "Calculating Viabilities..."
+                              )
+                      progress <- AsyncProgress$new(session, min = 0, max = length(temp_conc_list), message = "Initializing Calculation...")
+                      future_data <- future(
+                        global = c("progress", "temp_conc_list", "Compound_Filenames", "temp_Instruction", "temp_Cell_Lines", "temp_dataset", "temp_via_calc_uncertainty", "temp_via_format_IDACombo", "wd", "ll.4", "predict.handle.errors.drc", "estfun.drc", "bread.drc", "meat.drc", "sandwich", "predict.drc"),
+                        packages = c("drc"),
+                        expr = {
+                          #Setting working directory
+                            setwd(wd)
+                          #Calculating viabilities    
+                          if(temp_via_calc_uncertainty == FALSE){
+                            #Performing calculations when standard errors are not needed
+                              #Loading fitted curves and calculating Viability values
+                                Calculated_Viabilities <- vector(mode = "list", length = 0)
+                                  for(i in 1:length(temp_conc_list)){
+                                    if(i == 1){
+                                      progress$set(value = 0, message = paste0(0, " of ", length(temp_conc_list), " Compounds Complete..."))
                                     }
+                                    #Loading results for this cell line
+                                      filename <- Compound_Filenames$drug_file_names[Compound_Filenames$drugs %in% names(temp_conc_list)[i]]
+                                      temp_results <- readRDS(paste0("./www/Results/", filename, ".rds"))[[temp_dataset]]
+                                    #Subsetting to selected cell lines
+                                      temp_results <- temp_results[temp_results$Cell_Line %in% temp_Cell_Lines & ! is.na(temp_results$b_c_d_e),]
+                                    if(nrow(temp_results) > 0){
+                                      #Determining which concentrations to calculate viability values at
+                                        temp_Concentrations <- temp_conc_list[[i]]
+                                        temp_n_conc <- length(temp_Concentrations)
+                                      #Calculating Viability Values
+                                        temp_Viabilities <- ll.4(x = rep(temp_Concentrations, times = nrow(temp_results)), b_c_d_e = rep(temp_results$b_c_d_e, each = temp_n_conc))
+                                      #Constructing return values
+                                        temp_Return <- data.frame("Compound" = rep(temp_results$Compound, each = temp_n_conc),
+                                                                  "Cell_Line" = rep(temp_results$Cell_Line, each = temp_n_conc),
+                                                                  "Viability" = temp_Viabilities,
+                                                                  "Concentration_uM" = rep(temp_Concentrations, times = nrow(temp_results)),
+                                                                  "Min_Tested_Conc_uM" = rep(temp_results$min_dose_uM, each = temp_n_conc),
+                                                                  "Max_Tested_Conc_uM" = rep(temp_results$max_dose_uM, each = temp_n_conc),
+                                                                  stringsAsFactors = FALSE
+                                                                  )
+                                      #Storing result
+                                        Calculated_Viabilities[[i]] <- temp_Return
+                                    } else {
+                                      #Constructing empty result data frame
+                                        temp_Return <- data.frame("Compound" = character(0),
+                                                                  "Cell_Line" = character(0),
+                                                                  "Viability" = numeric(0),
+                                                                  "Concentration_uM" = numeric(0),
+                                                                  "Min_Tested_Conc_uM" = numeric(0),
+                                                                  "Max_Tested_Conc_uM" = numeric(0),
+                                                                  stringsAsFactors = FALSE
+                                                                  )
+                                      #Storing empty data frame
+                                        Calculated_Viabilities[[i]] <- temp_Return
+                                    }
+                                    progress$set(value = i, message = paste0(i, " of ", length(temp_conc_list), " Compounds Complete..."))
                                   }
-                                #Storing result
-                                  Calculated_Viabilities[[i]] <- temp_Return
-                              } else {
-                                #Constructing empty result data frame
-                                  temp_Return <- data.frame("Compound" = character(0),
-                                                            "Cell_Line" = character(0),
-                                                            "Viability" = numeric(0),
-                                                            "Viability_SE" = numeric(0),
-                                                            "Concentration_uM" = numeric(0),
-                                                            "Min_Tested_Conc_uM" = numeric(0),
-                                                            "Max_Tested_Conc_uM" = numeric(0),
-                                                            stringsAsFactors = FALSE
-                                                            )
-                                #Storing empty data frame
-                                  Calculated_Viabilities[[i]] <- temp_Return
+                              #Organizing calculated Viability values
+                                Returnable_Viabilities <- as.data.frame(do.call(rbind, Calculated_Viabilities))
+                              if(temp_via_format_IDACombo == TRUE){
+                                 #If option is selected, formatting for IDACombo app
+                                    Returnable_Viabilities <- Returnable_Viabilities[,c("Compound", "Cell_Line", "Viability", "Concentration_uM")]
+                                  #Renaming columns
+                                    colnames(Returnable_Viabilities) <- c("Drug", "Cell_Line", "Efficacy", "Drug_Dose")
+                                  #Adding cell line cancer types
+                                    Returnable_Viabilities$Cell_Line_Subgroup <- NA
+                                    Returnable_Viabilities$Cell_Line_Subgroup <- Simple_Cell_Line_Harm$Simple_Cancer_Type[match(Returnable_Viabilities$Cell_Line, Simple_Cell_Line_Harm$Harmonized_Cell_Line_ID)] 
                               }
-                              update_modal_progress(value = i / length(temp_conc_list))
-                            }
-                        #Organizing calculated Viability values
-                          Returnable_Viabilities <- as.data.frame(do.call(rbind, Calculated_Viabilities))
-                        if(input$Viability_Format_For_IDACombo == TRUE){
-                           #If option is selected, formatting for IDACombo app
-                              Returnable_Viabilities <- Returnable_Viabilities[,c("Compound", "Cell_Line", "Viability", "Viability_SE", "Concentration_uM")]
-                            #Renaming columns
-                              colnames(Returnable_Viabilities) <- c("Drug", "Cell_Line", "Efficacy", "Efficacy_SE", "Drug_Dose")
-                            #Adding cell line cancer types
-                              Returnable_Viabilities$Cell_Line_Subgroup <- NA
-                              Returnable_Viabilities$Cell_Line_Subgroup <- Simple_Cell_Line_Harm$Simple_Cancer_Type[match(Returnable_Viabilities$Cell_Line, Simple_Cell_Line_Harm$Harmonized_Cell_Line_ID)]
-                        }
-                          remove_modal_progress()
-                          return(Returnable_Viabilities)
-                    } #END: else if(input$Viability_Calculate_Uncertainty == TRUE){
+                                progress$close()
+                                return(Returnable_Viabilities)
+                          } else if(temp_via_calc_uncertainty == TRUE){ #END: if(temp_via_calc_uncertainty == FALSE){
+                            #Performing calculations when standard errors are needed
+                              #Loading fitted curves and calculating Viability values
+                                Calculated_Viabilities <- vector(mode = "list", length = 0)
+                                  for(i in 1:length(temp_conc_list)){
+                                    if(i == 1){
+                                      progress$set(value = 0, message = paste0(0, " of ", length(temp_conc_list), " Compounds Complete..."))
+                                    }
+                                    #Loading results for this cell line
+                                      filename <- Compound_Filenames$drug_file_names[Compound_Filenames$drugs %in% names(temp_conc_list)[i]]
+                                      temp_results <- readRDS(paste0("./www/Curve_Fits/", temp_dataset, "/", filename, ".rds"))
+                                    #Removing drug from result list names
+                                      names(temp_results) <- gsub(":\\|:.*$", "", names(temp_results))
+                                    #Subsetting to selected cell lines with successful fits
+                                      temp_results <- temp_results[names(temp_results) %in% temp_Cell_Lines & ! sapply(temp_results, length) == 1]
+                                    if(length(temp_results) > 0){
+                                      #Determining which concentrations to calculate viability values at
+                                        temp_Concentrations <- data.frame(dose = temp_conc_list[[i]])
+                                      #Calculating Viability Values
+                                        temp_Viabilities <- as.data.frame(do.call(rbind, lapply(temp_results, predict.handle.errors.drc, newdata = temp_Concentrations, se.fit = T, vcov. = sandwich)))
+                                        temp_n_conc <- nrow(temp_Concentrations)
+                                      #Constructing return values
+                                        temp_Return <- data.frame("Compound" = names(temp_conc_list)[i],
+                                                                  "Cell_Line" = rep(names(temp_results), each = temp_n_conc),
+                                                                  "Viability" = temp_Viabilities$Prediction,
+                                                                  "Viability_SE" = temp_Viabilities$SE,
+                                                                  "Concentration_uM" = rep(temp_Concentrations[,1], times = length(temp_results)),
+                                                                  "Min_Tested_Conc_uM" = rep(sapply(temp_results, function(x){return(min(x$dataList$dose))}), each = temp_n_conc),
+                                                                  "Max_Tested_Conc_uM" = rep(sapply(temp_results, function(x){return(max(x$dataList$dose))}), each = temp_n_conc),
+                                                                  stringsAsFactors = FALSE
+                                                                  )
+                                      #Repairing missing viability values at 0 concentration
+                                        temp_Params <- sapply(temp_results[temp_Return$Cell_Line], function(x){return(paste(x$coefficients, collapse = "_"))})
+                                        if(any(is.na(temp_Return$Viability))){
+                                          temp_Return$Viability[is.na(temp_Return$Viability)] <- ll.4(x = temp_Return$Concentration_uM[is.na(temp_Return$Viability)], b_c_d_e = temp_Params[is.na(temp_Return$Viability)])
+                                        }
+                                      #If SE values could not be estimated (usually happens when slope == 0), assigning unknown SE as median SE from other cell lines at that concentration with this drug
+                                        if(any(is.na(temp_Return$Viability_SE))){
+                                          for(j in 1:nrow(temp_Concentrations)){
+                                            temp_Return$Viability_SE[is.na(temp_Return$Viability_SE) & temp_Return$Concentration_uM == temp_Concentrations$dose[j]] <- median(temp_Return$Viability_SE[! is.na(temp_Return$Viability_SE) & temp_Return$Concentration_uM == temp_Concentrations$dose[j]])
+                                          }
+                                        }
+                                      #Storing result
+                                        Calculated_Viabilities[[i]] <- temp_Return
+                                    } else {
+                                      #Constructing empty result data frame
+                                        temp_Return <- data.frame("Compound" = character(0),
+                                                                  "Cell_Line" = character(0),
+                                                                  "Viability" = numeric(0),
+                                                                  "Viability_SE" = numeric(0),
+                                                                  "Concentration_uM" = numeric(0),
+                                                                  "Min_Tested_Conc_uM" = numeric(0),
+                                                                  "Max_Tested_Conc_uM" = numeric(0),
+                                                                  stringsAsFactors = FALSE
+                                                                  )
+                                      #Storing empty data frame
+                                        Calculated_Viabilities[[i]] <- temp_Return
+                                    }
+                                    progress$set(value = i, message = paste0(i, " of ", length(temp_conc_list), " Compounds Complete..."))
+                                  }
+                              #Organizing calculated Viability values
+                                Returnable_Viabilities <- as.data.frame(do.call(rbind, Calculated_Viabilities))
+                              if(temp_via_format_IDACombo == TRUE){
+                                 #If option is selected, formatting for IDACombo app
+                                    Returnable_Viabilities <- Returnable_Viabilities[,c("Compound", "Cell_Line", "Viability", "Viability_SE", "Concentration_uM")]
+                                  #Renaming columns
+                                    colnames(Returnable_Viabilities) <- c("Drug", "Cell_Line", "Efficacy", "Efficacy_SE", "Drug_Dose")
+                                  #Adding cell line cancer types
+                                    Returnable_Viabilities$Cell_Line_Subgroup <- NA
+                                    Returnable_Viabilities$Cell_Line_Subgroup <- Simple_Cell_Line_Harm$Simple_Cancer_Type[match(Returnable_Viabilities$Cell_Line, Simple_Cell_Line_Harm$Harmonized_Cell_Line_ID)]
+                              }
+                                progress$close()
+                                return(Returnable_Viabilities)
+                          } #END: else if(temp_via_calc_uncertainty == TRUE){
+                        }) #END: future_data <- future(...
                   }) #END: isolate
+                  promise_race(future_data) %...>% {remove_modal_spinner()}
+                  future_data
                 })
                 
               #Allowing user to download results
                 observeEvent(Viability_Custom_Values(), {
                   req(Viability_Custom_Values())
                   req(input$Viability_Dataset)
-                  isolate({
-                  #Creating Download Button
-                    output$Viability_Download_UI <- renderUI({
-                      if(is.data.frame(Viability_Custom_Values())){
-                        downloadButton(outputId = "Viability_Download_Viability_Values", label = "Download Calculated Viability Values") %>%
-                                helper(type = "inline",
-                                  title = "Download Viabilities",
-                                  icon = "question-circle", colour = NULL,
-                                  content = c("Pressing this button will download a tab separated value (.tsv) text file containing the calculated viability values."),
-                                  size = "m",
-                                  buttonLabel = "Okay", easyClose = TRUE, fade = FALSE
-                                )
-                      } else {
-                        
-                      }
-                    })
-                    
-                  #Allowing user to download Viability_Custom_Values()
-                    output$Viability_Download_Viability_Values <- downloadHandler(
-                          filename = paste0(input$Viability_Dataset, "_Calculated_Viabilities.tsv"),
-                          content = function(file){
-                            
-                            show_modal_spinner(
-                              spin = "atom",
-                              color = "#112446",
-                              text = "Preparing Results for Download..."
-                            )
-                            
-                            temp_data <- Viability_Custom_Values()
-                            
-                            success.check <- try(write_delim(temp_data, file, delim = "\t"))
-                            
-                            if(class(success.check) == "try-error"){
-                              warning("Download unsuccessful: ", Sys.time())
-                              temp_class <- class(temp_data)
-                              warning("File class = ", temp_class)
-                              if(temp_class == "data.frame"){
-                                temp_type <- NA
-                                for(i in 1:ncol(temp_data)){
-                                  temp_type[i] <- typeof(temp_data[,i])
+                  promise_all(data = Viability_Custom_Values()) %...>% with({
+                    isolate({
+                    #Creating Download Button
+                      output$Viability_Download_UI <- renderUI({
+                        if(is.data.frame(data)){
+                          downloadButton(outputId = "Viability_Download_Viability_Values", label = "Download Calculated Viability Values") %>%
+                                  helper(type = "inline",
+                                    title = "Download Viabilities",
+                                    icon = "question-circle", colour = NULL,
+                                    content = c("Pressing this button will download a tab separated value (.tsv) text file containing the calculated viability values."),
+                                    size = "m",
+                                    buttonLabel = "Okay", easyClose = TRUE, fade = FALSE
+                                  )
+                        } else {
+                          
+                        }
+                      })
+                      
+                    #Allowing user to download data
+                      output$Viability_Download_Viability_Values <- downloadHandler(
+                            filename = paste0(input$Viability_Dataset, "_Calculated_Viabilities.tsv"),
+                            content = function(file){
+                              
+                              show_modal_spinner(
+                                spin = "atom",
+                                color = "#112446",
+                                text = "Preparing Results for Download..."
+                              )
+                              
+                              success.check <- try(write_delim(data, file, delim = "\t"))
+                              
+                              if(class(success.check) == "try-error"){
+                                warning("Download unsuccessful: ", Sys.time())
+                                temp_class <- class(data)
+                                warning("File class = ", temp_class)
+                                if(temp_class == "data.frame"){
+                                  temp_type <- NA
+                                  for(i in 1:ncol(data)){
+                                    temp_type[i] <- typeof(data[,i])
+                                  }
+                                  warning(paste0("Column Types: ", paste(temp_type, collapse = ", ")))
                                 }
-                                warning(paste0("Column Types: ", paste(temp_type, collapse = ", ")))
                               }
+                              
+                              remove_modal_spinner()
                             }
-                            
-                            remove_modal_spinner()
-                          }
-                        )
-                  })
-                })
+                          )
+                    }) #END: isolate
+                  }) #END: promise_all(data = Viability_Custom_Values()) %...>% with({
+                }) #END: observeEvent(Viability_Custom_Values(), {
         
-    remove_modal_spinner()
+    remove_modal_spinner() #For app startup
   }
 
 #Assemble user interface and server

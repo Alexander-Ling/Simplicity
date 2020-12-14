@@ -3224,7 +3224,17 @@
                           column(width = 6,
                             wellPanel(
                               h4("Step 3: Upload instruction file"),
-                              fileInput("AUC_Instruction", label = "Upload Instruction file", accept = ".xlsx"),
+                              fileInput("AUC_Instruction", label = "Upload Instruction file", accept = ".xlsx") %>%
+                                helper(type = "inline",
+                                  title = "Upload Instruction File",
+                                  icon = "question-circle", colour = NULL,
+                                  content = c("Upload an instruction file in .xlsx format which specifies the compounds and concentration ranges to calculate AUC values for. The following columns are required, with additional columns being ignored.", "",
+                                              HTML("<b>Compound:</b>"), "Name of the compound for which normalized AUC values are to be calculated.", "",
+                                              HTML("<b>Lower_Conc_Limit_uM:</b>"), "The lower concentration boundary for the integration area to be used when calculating AUC values (in microMolar). Note that these values will be rounded to 3 significant figures.", "",
+                                              HTML("<b>Upper_Conc_Limit_uM:</b>"), "The upper concentration boundary for the integration area to be used when calculating AUC values (in microMolar). Note that these values will be rounded to 3 significant figures."),
+                                  size = "m",
+                                  buttonLabel = "Okay", easyClose = TRUE, fade = FALSE
+                                ),
                               uiOutput("AUC_Error"),
                               #Generating UI for cell line selection
                                 uiOutput("AUC_Cell_Line_Menu")
@@ -3832,7 +3842,16 @@
                                   helper(type = "inline",
                                     title = "Download AUC Values",
                                     icon = "question-circle", colour = NULL,
-                                    content = c("Pressing this button will download a tab separated value (.tsv) text file containing the calculated AUC values."),
+                                    content = HTML("Pressing this button will download a tab separated value (.tsv) text file containing the calculated normalized AUC values, where each row reports a calculated AUC value for a single set of compound, cell line, and concentration range. This file will have the following columns:
+                                                   <ol>
+                                                    <li><b>Compound:</b> Compound name.</li>
+                                                    <li><b>Cell_Line:</b> Cell line name.</li>
+                                                    <li><b>normalized_AUC:</b> The area under the curve (AUC) for this compound-cell line pair from the Lower_Conc_Limit_uM to the Upper_Conc_Limit_uM, normalized by dividing the AUC by the concentration range used to calculate it. As such the normalized AUC value will range from ~0 to ~1, with a normalized AUC of 1 indicating 100% viability across the entire concentration range and a normalized AUC of 0 indicating 0% viability across the entire concentration range.</li>
+                                                    <li><b>Lower_Conc_Limit_uM:</b> The lower concentration boundary, in microMolar, from which to calculate AUC values.</li>
+                                                    <li><b>Upper_Conc_Limit_uM:</b> The upper concentration boundary, in microMolar, to which to calculate AUC values.</li>
+                                                    <li><b>Min_Tested_Conc_uM:</b> The minimum tested concentration, in microMolar, for this compound with this cell line in this dataset.</li>
+                                                    <li><b>Max_Tested_Conc_uM:</b> The maximum tested concentration, in microMolar, for this compound with this cell line in this dataset.</li>
+                                                  </ol>"),
                                     size = "m",
                                     buttonLabel = "Okay", easyClose = TRUE, fade = FALSE
                                   )
@@ -3919,7 +3938,7 @@
                                   icon = "question-circle", colour = NULL,
                                   content = c("Downloads a template Instruction file for the specified dataset and compounds for use in step 3. If at least one compound has been selected, the columns in the file will be as described below. Note that only the first four columns are necessary for the Instruction file, with the rest of the columns being provided for reference.", "",
                                               HTML("<b>Compound:</b>"), "Name of the compound for which viability values are to be calculated.", "",
-                                              HTML("<b>n_Concentrations:</b>"), "The number of concentrations for which viability values should be calculated. Must be >=2 and <=20.", "",
+                                              HTML("<b>n_Concentrations:</b>"), "The number of concentrations between Lower_Conc_Limit_uM and Upper_Conc_Limit_uM at which viability values should be calculated. Must be >=2 and <=20.", "",
                                               HTML("<b>Lower_Conc_Limit_uM:</b>"), "The lowest concentration to be used when calculating viability values (in microMolar). Defaults to 0.", "",
                                               HTML("<b>Upper_Conc_Limit_uM:</b>"), "The highest concentration to be used when calculating viability values (in microMolar). Defaults to Most_Commonly_Used_Max_Tested_Conc_uM or to Csustained_uM if a Csustained concentration is available and the \"Generate using Csustained when available?\" checkbox is ticked.", "",
                                               HTML("<b>Min_Tested_Conc_uM:</b>"), "The minimum tested concentration (in microMolar) of this compound in the selected dataset in any cell line.", "",
@@ -3936,7 +3955,19 @@
                           column(width = 6,
                             wellPanel(
                               h4("Step 3: Upload instruction file"),
-                              fileInput("Viability_Instruction", label = "Upload Instruction file", accept = ".xlsx"),
+                              fileInput("Viability_Instruction", label = "Upload Instruction file", accept = ".xlsx") %>%
+                                helper(type = "inline",
+                                  title = "Upload Instruction File",
+                                  icon = "question-circle", colour = NULL,
+                                  content = c("Upload an instruction file in .xlsx format which specifies the compounds and concentration ranges to calculate viability values for. The following columns are required, with additional columns being ignored.", "",
+                                              HTML("<b>Compound:</b>"), "Name of the compound for which viability values are to be calculated.", "",
+                                              HTML("<b>n_Concentrations:</b>"), "The number of concentrations between Lower_Conc_Limit_uM and Upper_Conc_Limit_uM at which viability values should be calculated. Must be >=2 and <=20.", "",
+                                              HTML("<b>Lower_Conc_Limit_uM:</b>"), "The lowest concentration to be used when calculating viability values (in microMolar). Note that these values will be rounded to 3 significant digits.", "",
+                                              HTML("<b>Upper_Conc_Limit_uM:</b>"), "The highest concentration to be used when calculating viability values (in microMolar). Note that these values will be rounded to 3 signficant digits.", "",
+                                              HTML("<b><u>Important Note</u>:</b> When multiple records exist for the same compound, the specified concentration ranges will be layered on top of each other in order of appearance in the Instruction file, with overlapping concentrations being ignored. For example, if two records exist for compound A, with the first record requesting 5 concentrations between 1 and 5 uM and the second record requesting 6 concentrations between 0 and 10 uM, all 5 concentrations from the first record would be included (1,2,3,4,5) but only the concentrations from the second record that did not overlap those requested from the first record would be included (0,6,8,10), such that the concentrations at which viabilities were reported for this comopund would be 0, 1, 2, 3, 4, 5, 6, 8, and 10 uM.")),
+                                  size = "m",
+                                  buttonLabel = "Okay", easyClose = TRUE, fade = FALSE
+                                ),
                               uiOutput("Viability_Error"),
                               #Generating UI for cell line selection
                                 uiOutput("Viability_Cell_Line_Menu")
@@ -4530,7 +4561,7 @@
                               )
                       progress <- AsyncProgress$new(session, min = 0, max = length(temp_conc_list), message = "Initializing Calculation...")
                       future_data <- future(
-                        global = c("progress", "temp_conc_list", "Compound_Filenames", "temp_Instruction", "temp_Cell_Lines", "temp_dataset", "temp_via_calc_uncertainty", "temp_via_format_IDACombo", "wd", "ll.4", "predict.handle.errors.drc", "estfun.drc", "bread.drc", "meat.drc", "sandwich", "predict.drc"),
+                        global = c("progress", "temp_conc_list", "Compound_Filenames", "temp_Instruction", "temp_Cell_Lines", "temp_dataset", "temp_via_calc_uncertainty", "temp_via_format_IDACombo", "wd", "ll.4", "predict.handle.errors.drc", "estfun.drc", "bread.drc", "meat.drc", "sandwich", "predict.drc", "Simple_Cell_Line_Harm"),
                         packages = c("drc"),
                         expr = {
                           #Setting working directory
@@ -4687,7 +4718,18 @@
                                   helper(type = "inline",
                                     title = "Download Viabilities",
                                     icon = "question-circle", colour = NULL,
-                                    content = c("Pressing this button will download a tab separated value (.tsv) text file containing the calculated viability values."),
+                                    content = HTML("Pressing this button will download a tab separated value (.tsv) text file containing the calculated viability values, where each row reports a calculated viability value for a single set of compound, cell line, and concentration. This file will have the following columns:
+                                                   <ol>
+                                                    <li><b>Compound:</b> Compound name.</li>
+                                                    <li><b>Cell_Line:</b> Cell line name.</li>
+                                                    <li><b>Viability:</b> The calculated viability value for this compound, cell line, and concentration. These values range from ~0 to ~1, with 0 indicating 0% viability and 1 indicating 100% viability. Viability is definined in the \"About Simplicity/Methods\" tab.</li>
+                                                    <li><b>Viability_SE:</b> Reports estimated standard error values for the calculated viability values, and only appears if the \"Calculate viability standard errors?\" option was selected prior to calculating the viability values.</li>
+                                                    <li><b>Concentration_uM:</b> The concentration, in microMolar, for which this viability is being reported.</li>
+                                                    <li><b>Min_Tested_Conc_uM:</b> The minimum tested concentration, in microMolar, for this compound with this cell line in this dataset.</li>
+                                                    <li><b>Max_Tested_Conc_uM:</b> The maximum tested concentration, in microMolar, for this compound with this cell line in this dataset.</li>
+                                                  </ol>
+                                                  <br/>
+                                                   Note that, if the \"Format ouput for use with IDACombo shiny app?\" option was selected prior to calculating the viabilites, the Compound, Cell_Line, Viability, Viability_SE, and Concentration_uM columns will be named Drug, Cell_Line, Efficacy, Efficacy_SE, and Drug_Dose respectively, and a Cell_Line_Subgroup column will be added containing the general cancer type corresponding with each row's cell line."),
                                     size = "m",
                                     buttonLabel = "Okay", easyClose = TRUE, fade = FALSE
                                   )

@@ -675,6 +675,14 @@
                       `live-Search-Normalize` = TRUE,
                       `selected-Text-Format` = "count"
                     )),
+                    checkboxInput("Compound_Explorer_Highlight_Cell_Lines", label = "Highlight cell lines instead of filtering cell lines?", value = FALSE) %>%
+                        helper(type = "inline",
+                          title = "Highlight or Filter Cell Lines?",
+                          icon = "question-circle", colour = NULL,
+                          content = HTML("If this box is left unchecked, only selected cell lines will be shown in the plots. If this box is checked, all available cell lines will be shown in the plots, but selected cell lines will be highlighted.<br/><br/><b><u>NOTE: This options does not apply to plots of:</u></b><ul><li>Cancer Types and Genders</li><li>Cell Line Ancestries</li><li>Cell Line Ages</li></ul>These plots will show data for all available cell lines if this box is checked."),
+                          size = "m",
+                          buttonLabel = "Okay", easyClose = TRUE, fade = FALSE
+                        ),
                     checkboxInput("Compound_Explorer_Show_Cell_Line_Filters", label = "Show cell line filters?", value = FALSE)
                   )
   
@@ -697,7 +705,7 @@
                       helper(type = "inline",
                         title = "Cell line filtering",
                         icon = "question-circle", colour = NULL,
-                        content = c("These options can be used to filter the cell line options displayed in the \"Select cell lines to plot data for\" menu. Note that, once any options have been selected for a given filtering criteria, any cell lines that are missing information for that criteria will be excluded."),
+                        content = c("These options can be used to filter the cell line options displayed in the \"Select cell lines to plot data for\" or \"Select cell lines to highlight\" menu. Note that, once any options have been selected for a given filtering criteria, any cell lines that are missing information for that criteria will be excluded."),
                         size = "m",
                         buttonLabel = "Okay", easyClose = TRUE, fade = FALSE
                       ),
@@ -857,19 +865,29 @@
             })
   
           #Updating selection menus based on Compound_Explorer_Currently_Available_Cell_Lines()
-            observeEvent(Compound_Explorer_Currently_Available_Cell_Lines(), {
+            observeEvent(list(Compound_Explorer_Currently_Available_Cell_Lines(), input$Compound_Explorer_Highlight_Cell_Lines), {
+              req(! length(input$Compound_Explorer_Highlight_Cell_Lines) == 0)
+              req(Compound_Explorer_Currently_Available_Cell_Lines())
               #Updating cell line selection menu
-                updatePickerInput(session, "Compound_Explorer_Cell_Lines", label = paste0("Select cell lines to plot data for (n = ", length(Compound_Explorer_Currently_Available_Cell_Lines()), ")"), choices = Compound_Explorer_Currently_Available_Cell_Lines(), selected = Compound_Explorer_Currently_Available_Cell_Lines())
+                if(input$Compound_Explorer_Highlight_Cell_Lines == FALSE){
+                  updatePickerInput(session, "Compound_Explorer_Cell_Lines", label = paste0("Select cell lines to plot data for (n = ", length(Compound_Explorer_Currently_Available_Cell_Lines()), ")"), choices = Compound_Explorer_Currently_Available_Cell_Lines(), selected = Compound_Explorer_Currently_Available_Cell_Lines())
+                } else {
+                  updatePickerInput(session, "Compound_Explorer_Cell_Lines", label = paste0("Select cell lines to highlight (n = ", length(Compound_Explorer_Currently_Available_Cell_Lines()), ")"), choices = Compound_Explorer_Currently_Available_Cell_Lines(), selected = Compound_Explorer_Currently_Available_Cell_Lines())
+                }
             })
             
           #Determining which datasets contain data for the selected compound
             cpdexplr_ccl_availability_data <- reactive({
               req(cpdexp_data())
-              req(input$Compound_Explorer_Cell_Lines)
+              req(! length(input$Compound_Explorer_Highlight_Cell_Lines) == 0)
               
-              temp_cpdexplr_ccl_availability_data <- lapply(cpdexp_data(), function(x){return(sort(unique(x$Cell_Line)))})
-              for(i in 1:length(temp_cpdexplr_ccl_availability_data)){
-                temp_cpdexplr_ccl_availability_data[[i]] <- temp_cpdexplr_ccl_availability_data[[i]][temp_cpdexplr_ccl_availability_data[[i]] %in% input$Compound_Explorer_Cell_Lines]
+              if(input$Compound_Explorer_Highlight_Cell_Lines == FALSE){
+                temp_cpdexplr_ccl_availability_data <- lapply(cpdexp_data(), function(x){return(sort(unique(x$Cell_Line)))})
+                for(i in 1:length(temp_cpdexplr_ccl_availability_data)){
+                  temp_cpdexplr_ccl_availability_data[[i]] <- temp_cpdexplr_ccl_availability_data[[i]][temp_cpdexplr_ccl_availability_data[[i]] %in% input$Compound_Explorer_Cell_Lines]
+                }
+              } else {
+                temp_cpdexplr_ccl_availability_data <- lapply(cpdexp_data(), function(x){return(sort(unique(x$Cell_Line)))})
               }
               return(temp_cpdexplr_ccl_availability_data)
             })
@@ -928,6 +946,7 @@
             req(Compound_Explorer_Datasets_with_Compound_Data())
             req(cpdexp_data())
             req(cpdexplr_ccl_availability_data())
+            req(! length(input$Compound_Explorer_Highlight_Cell_Lines) == 0)
 
             output$Compound_Explorer_Plots <- renderUI({
               #Rendering plot UI for dataset with data for this compound
@@ -965,6 +984,12 @@
                     plot_data$Concentration_Range_Exceeds_Max_Tested_Concentration[plot_data$max_dose_uM < plot_data$max_mode_ccl_CTRPv2_conc] <- "Max Tested Concentration < AUC Range"
                     plot_data$Concentration_Range_Exceeds_Max_Tested_Concentration <- factor(plot_data$Concentration_Range_Exceeds_Max_Tested_Concentration, levels = c("Max Tested Concentration Within AUC Range", "Max Tested Concentration < AUC Range"))
                     ylab <- paste0("AUC (", signif(as.numeric(unique(plot_data$min_mode_ccl_CTRPv2_conc)), 3), "-", signif(as.numeric(unique(plot_data$max_mode_ccl_CTRPv2_conc)), 3), " microMolar)")
+                    
+                    colors <- setNames(rep(colorRampPalette(c("blue", "red"))(2), 3),
+                                       c("Max Tested Concentration Within AUC Range", "Max Tested Concentration < AUC Range",
+                                         "selected: Max Tested Concentration Within AUC Range", "selected: Max Tested Concentration < AUC Range",
+                                         "unselected: Max Tested Concentration Within AUC Range", "unselected: Max Tested Concentration < AUC Range"))
+                    
                     if(all(plot_data$Concentration_Range_Exceeds_Max_Tested_Concentration %in% "Max Tested Concentration Within AUC Range")){
                       colors <- colorRampPalette(c("blue"))(1)
                     } else if(all(plot_data$Concentration_Range_Exceeds_Max_Tested_Concentration %in% "Max Tested Concentration < AUC Range")){
@@ -972,31 +997,126 @@
                     } else {
                       colors <- colorRampPalette(c("blue", "red"))(2)
                     }
-                    fig <- plot_ly(x = plot_data$Cell_Line,
+
+                    if(input$Compound_Explorer_Highlight_Cell_Lines == TRUE){
+                      plot_data$symbol <- ": not selected"
+                      plot_data$symbol[plot_data$Cell_Line %in% input$Compound_Explorer_Cell_Lines] <- ": selected"
+                      selected_plot_data <- plot_data[plot_data$symbol == ": selected",]
+                      unselected_plot_data <- plot_data[plot_data$symbol == ": not selected",]
+                      
+                      if(nrow(selected_plot_data) > 0){
+                        selected_plot_data$Concentration_Range_Exceeds_Max_Tested_Concentration <- "selected: Max Tested Concentration Within AUC Range"
+                        selected_plot_data$Concentration_Range_Exceeds_Max_Tested_Concentration[selected_plot_data$max_dose_uM < selected_plot_data$max_mode_ccl_CTRPv2_conc] <- "selected: Max Tested Concentration < AUC Range"
+                        selected_plot_data$Concentration_Range_Exceeds_Max_Tested_Concentration <- factor(selected_plot_data$Concentration_Range_Exceeds_Max_Tested_Concentration, levels = c("selected: Max Tested Concentration Within AUC Range", "selected: Max Tested Concentration < AUC Range"))
+                        fig <- plot_ly(x = selected_plot_data$Cell_Line,
+                                   y = selected_plot_data$AUC_mode_ccl_CTRPv2_conc,
+                                   color = selected_plot_data$Concentration_Range_Exceeds_Max_Tested_Concentration,
+                                   colors = colors,
+                                   type = "scatter",
+                                   mode = "markers")
+                        if(nrow(unselected_plot_data) > 0){
+                          unselected_plot_data$Concentration_Range_Exceeds_Max_Tested_Concentration <- "unselected: Max Tested Concentration Within AUC Range"
+                          unselected_plot_data$Concentration_Range_Exceeds_Max_Tested_Concentration[unselected_plot_data$max_dose_uM < unselected_plot_data$max_mode_ccl_CTRPv2_conc] <- "unselected: Max Tested Concentration < AUC Range"
+                          unselected_plot_data$Concentration_Range_Exceeds_Max_Tested_Concentration <- factor(unselected_plot_data$Concentration_Range_Exceeds_Max_Tested_Concentration, levels = c("unselected: Max Tested Concentration Within AUC Range", "unselected: Max Tested Concentration < AUC Range"))
+                          fig <- add_trace(fig, 
+                                    x = unselected_plot_data$Cell_Line,
+                                    y = unselected_plot_data$AUC_mode_ccl_CTRPv2_conc,
+                                    color = unselected_plot_data$Concentration_Range_Exceeds_Max_Tested_Concentration,
+                                    opacity = 0.2)
+                        }
+                      } else if(nrow(unselected_plot_data) > 0){
+                        unselected_plot_data$Concentration_Range_Exceeds_Max_Tested_Concentration <- "unselected: Max Tested Concentration Within AUC Range"
+                        unselected_plot_data$Concentration_Range_Exceeds_Max_Tested_Concentration[unselected_plot_data$max_dose_uM < unselected_plot_data$max_mode_ccl_CTRPv2_conc] <- "unselected: Max Tested Concentration < AUC Range"
+                        unselected_plot_data$Concentration_Range_Exceeds_Max_Tested_Concentration <- factor(unselected_plot_data$Concentration_Range_Exceeds_Max_Tested_Concentration, levels = c("unselected: Max Tested Concentration Within AUC Range", "unselected: Max Tested Concentration < AUC Range"))
+                        fig <- plot_ly(x = unselected_plot_data$Cell_Line,
+                                   y = unselected_plot_data$AUC_mode_ccl_CTRPv2_conc,
+                                   color = unselected_plot_data$Concentration_Range_Exceeds_Max_Tested_Concentration,
+                                   colors = colors,
+                                   opacity = 0.2,
+                                   type = "scatter",
+                                   mode = "markers")
+                      }
+                        
+                      fig <- layout(fig,
+                                    title = "CTRPv2 AUCs",
+                                    xaxis = list(title = paste0("CTRPv2 Cell Lines (n = ", nrow(plot_data), "; ", nrow(selected_plot_data), " selected)"), showticklabels = FALSE),
+                                    yaxis = list(title = ylab))
+                    } else {
+
+                      fig <- plot_ly(x = plot_data$Cell_Line,
                                    y = plot_data$AUC_mode_ccl_CTRPv2_conc,
                                    color = plot_data$Concentration_Range_Exceeds_Max_Tested_Concentration,
                                    colors = colors,
                                    type = "scatter",
                                    mode = "markers")
-                    fig <- layout(fig,
-                                  title = "CTRPv2 AUCs",
-                                  xaxis = list(title = paste0("CTRPv2 Cell Lines (n = ", nrow(plot_data), ")"), showticklabels = FALSE),
-                                  yaxis = list(title = ylab))
+                      fig <- layout(fig,
+                                    title = "CTRPv2 AUCs",
+                                    xaxis = list(title = paste0("CTRPv2 Cell Lines (n = ", nrow(plot_data), ")"), showticklabels = FALSE),
+                                    yaxis = list(title = ylab))
+                    }
+
                     fig
+                    
                   } else if(input$Compound_Explorer_to_Plot == "AUC values for concentration range available for all tested cell lines"){
                     plot_data <- CTRPv2_Results[! is.na(CTRPv2_Results$AUC_all_ccl_CTRPv2_conc),]
                     plot_data <- plot_data[order(plot_data$AUC_all_ccl_CTRPv2_conc, decreasing = FALSE),]
                     plot_data$Cell_Line <- factor(plot_data$Cell_Line, levels = plot_data$Cell_Line)
                     ylab <- paste0("AUC (", signif(as.numeric(unique(plot_data$min_all_ccl_CTRPv2_conc)), 3), "-", signif(as.numeric(unique(plot_data$max_all_ccl_CTRPv2_conc)), 3), " microMolar)")
-                    fig <- plot_ly(x = plot_data$Cell_Line,
+                    
+                    if(input$Compound_Explorer_Highlight_Cell_Lines == TRUE){
+                      plot_data$symbol <- ": not selected"
+                      plot_data$symbol[plot_data$Cell_Line %in% input$Compound_Explorer_Cell_Lines] <- ": selected"
+                      selected_plot_data <- plot_data[plot_data$symbol == ": selected",]
+                      unselected_plot_data <- plot_data[plot_data$symbol == ": not selected",]
+                      
+                      if(nrow(selected_plot_data) > 0){
+                        fig <- plot_ly(x = selected_plot_data$Cell_Line,
+                                     y = selected_plot_data$AUC_all_ccl_CTRPv2_conc,
+                                     type = "scatter",
+                                     color = factor(rep("A", nrow(selected_plot_data))),
+                                     colors = colorRampPalette(c("blue"))(1),
+                                     mode = "markers",
+                                     name = "selected")
+                        if(nrow(unselected_plot_data) > 0){
+                          fig <- add_trace(fig, x = unselected_plot_data$Cell_Line,
+                                       y = unselected_plot_data$AUC_all_ccl_CTRPv2_conc,
+                                       color = factor(rep("A", nrow(unselected_plot_data))),
+                                       name = "unselected",
+                                       opacity = 0.2)
+                        }
+                      } else {
+                        fig <- plot_ly(x = unselected_plot_data$Cell_Line,
+                                     y = unselected_plot_data$AUC_all_ccl_CTRPv2_conc,
+                                     type = "scatter",
+                                     color = factor(rep("A", nrow(unselected_plot_data))),
+                                     colors = colorRampPalette(c("blue"))(1),
+                                     opacity = 0.2,
+                                     mode = "markers",
+                                     name = "selected")
+                      }
+                      
+                      fig <- layout(fig,
+                                    title = "CTRPv2 AUCs",
+                                    xaxis = list(title = paste0("CTRPv2 Cell Lines (n = ", nrow(plot_data), ", ", nrow(selected_plot_data), " selected)"), showticklabels = FALSE),
+                                    yaxis = list(title = ylab))
+                      
+                    } else {
+                      fig <- plot_ly(x = plot_data$Cell_Line,
                                    y = plot_data$AUC_all_ccl_CTRPv2_conc,
+                                   color = factor(rep("A", nrow(plot_data))),
+                                   colors = colorRampPalette(c("blue"))(1),
                                    type = "scatter",
                                    mode = "markers")
-                    fig <- layout(fig,
-                                  title = "CTRPv2 AUCs",
-                                  xaxis = list(title = paste0("CTRPv2 Cell Lines (n = ", nrow(plot_data), ")"), showticklabels = FALSE),
-                                  yaxis = list(title = ylab))
+                      
+                      fig <- layout(fig,
+                                    title = "CTRPv2 AUCs",
+                                    xaxis = list(title = paste0("CTRPv2 Cell Lines (n = ", nrow(plot_data), ")"), showticklabels = FALSE),
+                                    yaxis = list(title = ylab))
+                    }
+                    
+                    
                     fig
+                    
                   } else if(input$Compound_Explorer_to_Plot == "IC50 values"){
                     plot_data <- CTRPv2_Results[! is.na(CTRPv2_Results$IC50),]
                     if(nrow(plot_data) > 0){
@@ -1010,33 +1130,70 @@
                         plot_data$IC50[plot_data$IC50 == Inf] <- max(plot_data$max_dose_uM)+1
                       }
                       
-                      if(all(c("IC50 <= max tested concentration", "IC50 > max tested concentration", "Infinite IC50") %in% plot_data$Group)){
-                        colors <- c("blue", "red", "lightgray")
-                      } else if(all(c("IC50 <= max tested concentration", "IC50 > max tested concentration") %in% plot_data$Group)){
-                        colors <- c("blue", "red")
-                      } else if(all(c("IC50 <= max tested concentration", "Infinite IC50") %in% plot_data$Group)){
-                        colors <- c("blue", "lightgray")
-                      } else if(all(c("IC50 > max tested concentration", "Infinite IC50") %in% plot_data$Group)){
-                        colors <- c("red", "lightgray")
-                      } else if("IC50 <= max tested concentration" %in% plot_data$Group){
-                        colors <- c("blue")
-                      } else if("IC50 > max tested concentration" %in% plot_data$Group){
-                        colors <- c("red")
-                      } else if("Infinite IC50" %in% plot_data$Group){
-                        colors <- c("lightgray")
-                      }
+                      colors <- setNames(rep(colorRampPalette(c("blue", "red", "lightgray"))(3), 3),
+                                         c("IC50 <= max tested concentration", "IC50 > max tested concentration", "Infinite IC50",
+                                           "selected: IC50 <= max tested concentration", "selected: IC50 > max tested concentration", "selected: Infinite IC50",
+                                           "unselected: IC50 <= max tested concentration", "unselected: IC50 > max tested concentration", "unselected: Infinite IC50"))
+
                       plot_data$Cell_Line <- factor(plot_data$Cell_Line, levels = plot_data$Cell_Line)
                       ylab <- "IC50 (microMolar)"
-                      fig <- plot_ly(x = plot_data$Cell_Line,
+                      
+                      if(input$Compound_Explorer_Highlight_Cell_Lines == TRUE){
+                        plot_data$symbol <- ": not selected"
+                        plot_data$symbol[plot_data$Cell_Line %in% input$Compound_Explorer_Cell_Lines] <- ": selected"
+                        selected_plot_data <- plot_data[plot_data$symbol == ": selected",]
+                        unselected_plot_data <- plot_data[plot_data$symbol == ": not selected",]
+                        
+                        if(nrow(selected_plot_data) > 0){
+                          selected_plot_data$Group <- paste0("selected: ", selected_plot_data$Group)
+                          selected_plot_data$Group <- factor(selected_plot_data$Group, levels = c("selected: IC50 <= max tested concentration", "selected: IC50 > max tested concentration", "selected: Infinite IC50"))
+                          fig <- plot_ly(x = selected_plot_data$Cell_Line,
+                                         y = selected_plot_data$IC50,
+                                         color = selected_plot_data$Group,
+                                         type = "scatter",
+                                         mode = "markers",
+                                         colors = colors)
+                          if(nrow(unselected_plot_data) > 0){
+                            unselected_plot_data$Group <- paste0("unselected: ", unselected_plot_data$Group)
+                            unselected_plot_data$Group <- factor(unselected_plot_data$Group, levels = c("unselected: IC50 <= max tested concentration", "unselected: IC50 > max tested concentration", "unselected: Infinite IC50"))
+                            fig <- add_trace(fig,
+                                             x = unselected_plot_data$Cell_Line,
+                                             y = unselected_plot_data$IC50,
+                                             color = unselected_plot_data$Group,
+                                             opacity = 0.2)
+                          }
+                        } else {
+                          unselected_plot_data$Group <- paste0("unselected: ", unselected_plot_data$Group)
+                          unselected_plot_data$Group <- factor(unselected_plot_data$Group, levels = c("unselected: IC50 <= max tested concentration", "unselected: IC50 > max tested concentration", "unselected: Infinite IC50"))
+                          fig <- plot_ly(x = unselected_plot_data$Cell_Line,
+                                         y = unselected_plot_data$IC50,
+                                         type = "scatter",
+                                         mode = "markers",
+                                         color = unselected_plot_data$Group,
+                                         colors = colors,
+                                         opacity = 0.2)
+                        }
+                        
+                        fig <- layout(fig,
+                                      title = "CTRPv2 IC50s",
+                                      xaxis = list(title = paste0("CTRPv2 Cell Lines (n = ", nrow(plot_data), ", ", nrow(selected_plot_data), " selected)"), showticklabels = FALSE),
+                                      yaxis = list(title = ylab, type = "log"))
+                        
+                      } else {
+                        plot_data$Group <- factor(plot_data$Group, levels = c("IC50 <= max tested concentration", "IC50 > max tested concentration", "Infinite IC50"))
+                        fig <- plot_ly(x = plot_data$Cell_Line,
                                      y = plot_data$IC50,
                                      type = "scatter",
                                      mode = "markers",
                                      color = plot_data$Group,
                                      colors = colors)
-                      fig <- layout(fig,
-                                    title = "CTRPv2 IC50s",
-                                    xaxis = list(paste0("CTRPv2 Cell Lines (n = ", nrow(plot_data), ")"), showticklabels = FALSE),
-                                    yaxis = list(title = ylab, type = "log"))
+                        
+                        fig <- layout(fig,
+                                      title = "CTRPv2 IC50s",
+                                      xaxis = list(title = paste0("CTRPv2 Cell Lines (n = ", nrow(plot_data), ")"), showticklabels = FALSE),
+                                      yaxis = list(title = ylab, type = "log"))
+                      }
+                      
                       fig
                     }
                   } else if(input$Compound_Explorer_to_Plot == "Tested Cell Line Cancer Types & Genders"){
@@ -1130,8 +1287,7 @@
                   }
                 }
             })
-  
-  
+            
             output$Compound_Explorer_GDSC1_Plot <- renderPlotly({
               #Loading raw data for this compound and any datasets with data for this compound
                 if("GDSC1" %in% Compound_Explorer_Datasets_with_Compound_Data()){
@@ -1150,6 +1306,12 @@
                     plot_data$Concentration_Range_Exceeds_Max_Tested_Concentration[plot_data$max_dose_uM < plot_data$max_mode_ccl_GDSC1_conc] <- "Max Tested Concentration < AUC Range"
                     plot_data$Concentration_Range_Exceeds_Max_Tested_Concentration <- factor(plot_data$Concentration_Range_Exceeds_Max_Tested_Concentration, levels = c("Max Tested Concentration Within AUC Range", "Max Tested Concentration < AUC Range"))
                     ylab <- paste0("AUC (", signif(as.numeric(unique(plot_data$min_mode_ccl_GDSC1_conc)), 3), "-", signif(as.numeric(unique(plot_data$max_mode_ccl_GDSC1_conc)), 3), " microMolar)")
+                    
+                    colors <- setNames(rep(colorRampPalette(c("blue", "red"))(2), 3),
+                                       c("Max Tested Concentration Within AUC Range", "Max Tested Concentration < AUC Range",
+                                         "selected: Max Tested Concentration Within AUC Range", "selected: Max Tested Concentration < AUC Range",
+                                         "unselected: Max Tested Concentration Within AUC Range", "unselected: Max Tested Concentration < AUC Range"))
+                    
                     if(all(plot_data$Concentration_Range_Exceeds_Max_Tested_Concentration %in% "Max Tested Concentration Within AUC Range")){
                       colors <- colorRampPalette(c("blue"))(1)
                     } else if(all(plot_data$Concentration_Range_Exceeds_Max_Tested_Concentration %in% "Max Tested Concentration < AUC Range")){
@@ -1157,31 +1319,126 @@
                     } else {
                       colors <- colorRampPalette(c("blue", "red"))(2)
                     }
-                    fig <- plot_ly(x = plot_data$Cell_Line,
+
+                    if(input$Compound_Explorer_Highlight_Cell_Lines == TRUE){
+                      plot_data$symbol <- ": not selected"
+                      plot_data$symbol[plot_data$Cell_Line %in% input$Compound_Explorer_Cell_Lines] <- ": selected"
+                      selected_plot_data <- plot_data[plot_data$symbol == ": selected",]
+                      unselected_plot_data <- plot_data[plot_data$symbol == ": not selected",]
+                      
+                      if(nrow(selected_plot_data) > 0){
+                        selected_plot_data$Concentration_Range_Exceeds_Max_Tested_Concentration <- "selected: Max Tested Concentration Within AUC Range"
+                        selected_plot_data$Concentration_Range_Exceeds_Max_Tested_Concentration[selected_plot_data$max_dose_uM < selected_plot_data$max_mode_ccl_GDSC1_conc] <- "selected: Max Tested Concentration < AUC Range"
+                        selected_plot_data$Concentration_Range_Exceeds_Max_Tested_Concentration <- factor(selected_plot_data$Concentration_Range_Exceeds_Max_Tested_Concentration, levels = c("selected: Max Tested Concentration Within AUC Range", "selected: Max Tested Concentration < AUC Range"))
+                        fig <- plot_ly(x = selected_plot_data$Cell_Line,
+                                   y = selected_plot_data$AUC_mode_ccl_GDSC1_conc,
+                                   color = selected_plot_data$Concentration_Range_Exceeds_Max_Tested_Concentration,
+                                   colors = colors,
+                                   type = "scatter",
+                                   mode = "markers")
+                        if(nrow(unselected_plot_data) > 0){
+                          unselected_plot_data$Concentration_Range_Exceeds_Max_Tested_Concentration <- "unselected: Max Tested Concentration Within AUC Range"
+                          unselected_plot_data$Concentration_Range_Exceeds_Max_Tested_Concentration[unselected_plot_data$max_dose_uM < unselected_plot_data$max_mode_ccl_GDSC1_conc] <- "unselected: Max Tested Concentration < AUC Range"
+                          unselected_plot_data$Concentration_Range_Exceeds_Max_Tested_Concentration <- factor(unselected_plot_data$Concentration_Range_Exceeds_Max_Tested_Concentration, levels = c("unselected: Max Tested Concentration Within AUC Range", "unselected: Max Tested Concentration < AUC Range"))
+                          fig <- add_trace(fig, 
+                                    x = unselected_plot_data$Cell_Line,
+                                    y = unselected_plot_data$AUC_mode_ccl_GDSC1_conc,
+                                    color = unselected_plot_data$Concentration_Range_Exceeds_Max_Tested_Concentration,
+                                    opacity = 0.2)
+                        }
+                      } else if(nrow(unselected_plot_data) > 0){
+                        unselected_plot_data$Concentration_Range_Exceeds_Max_Tested_Concentration <- "unselected: Max Tested Concentration Within AUC Range"
+                        unselected_plot_data$Concentration_Range_Exceeds_Max_Tested_Concentration[unselected_plot_data$max_dose_uM < unselected_plot_data$max_mode_ccl_GDSC1_conc] <- "unselected: Max Tested Concentration < AUC Range"
+                        unselected_plot_data$Concentration_Range_Exceeds_Max_Tested_Concentration <- factor(unselected_plot_data$Concentration_Range_Exceeds_Max_Tested_Concentration, levels = c("unselected: Max Tested Concentration Within AUC Range", "unselected: Max Tested Concentration < AUC Range"))
+                        fig <- plot_ly(x = unselected_plot_data$Cell_Line,
+                                   y = unselected_plot_data$AUC_mode_ccl_GDSC1_conc,
+                                   color = unselected_plot_data$Concentration_Range_Exceeds_Max_Tested_Concentration,
+                                   colors = colors,
+                                   opacity = 0.2,
+                                   type = "scatter",
+                                   mode = "markers")
+                      }
+                        
+                      fig <- layout(fig,
+                                    title = "GDSC1 AUCs",
+                                    xaxis = list(title = paste0("GDSC1 Cell Lines (n = ", nrow(plot_data), "; ", nrow(selected_plot_data), " selected)"), showticklabels = FALSE),
+                                    yaxis = list(title = ylab))
+                    } else {
+
+                      fig <- plot_ly(x = plot_data$Cell_Line,
                                    y = plot_data$AUC_mode_ccl_GDSC1_conc,
                                    color = plot_data$Concentration_Range_Exceeds_Max_Tested_Concentration,
                                    colors = colors,
                                    type = "scatter",
                                    mode = "markers")
-                    fig <- layout(fig,
-                                  title = "GDSC1 AUCs",
-                                  xaxis = list(title = paste0("GDSC1 Cell Lines (n = ", nrow(plot_data), ")"), showticklabels = FALSE),
-                                  yaxis = list(title = ylab))
+                      fig <- layout(fig,
+                                    title = "GDSC1 AUCs",
+                                    xaxis = list(title = paste0("GDSC1 Cell Lines (n = ", nrow(plot_data), ")"), showticklabels = FALSE),
+                                    yaxis = list(title = ylab))
+                    }
+
                     fig
+                    
                   } else if(input$Compound_Explorer_to_Plot == "AUC values for concentration range available for all tested cell lines"){
                     plot_data <- GDSC1_Results[! is.na(GDSC1_Results$AUC_all_ccl_GDSC1_conc),]
                     plot_data <- plot_data[order(plot_data$AUC_all_ccl_GDSC1_conc, decreasing = FALSE),]
                     plot_data$Cell_Line <- factor(plot_data$Cell_Line, levels = plot_data$Cell_Line)
                     ylab <- paste0("AUC (", signif(as.numeric(unique(plot_data$min_all_ccl_GDSC1_conc)), 3), "-", signif(as.numeric(unique(plot_data$max_all_ccl_GDSC1_conc)), 3), " microMolar)")
-                    fig <- plot_ly(x = plot_data$Cell_Line,
+                    
+                    if(input$Compound_Explorer_Highlight_Cell_Lines == TRUE){
+                      plot_data$symbol <- ": not selected"
+                      plot_data$symbol[plot_data$Cell_Line %in% input$Compound_Explorer_Cell_Lines] <- ": selected"
+                      selected_plot_data <- plot_data[plot_data$symbol == ": selected",]
+                      unselected_plot_data <- plot_data[plot_data$symbol == ": not selected",]
+                      
+                      if(nrow(selected_plot_data) > 0){
+                        fig <- plot_ly(x = selected_plot_data$Cell_Line,
+                                     y = selected_plot_data$AUC_all_ccl_GDSC1_conc,
+                                     type = "scatter",
+                                     color = factor(rep("A", nrow(selected_plot_data))),
+                                     colors = colorRampPalette(c("blue"))(1),
+                                     mode = "markers",
+                                     name = "selected")
+                        if(nrow(unselected_plot_data) > 0){
+                          fig <- add_trace(fig, x = unselected_plot_data$Cell_Line,
+                                       y = unselected_plot_data$AUC_all_ccl_GDSC1_conc,
+                                       color = factor(rep("A", nrow(unselected_plot_data))),
+                                       name = "unselected",
+                                       opacity = 0.2)
+                        }
+                      } else {
+                        fig <- plot_ly(x = unselected_plot_data$Cell_Line,
+                                     y = unselected_plot_data$AUC_all_ccl_GDSC1_conc,
+                                     type = "scatter",
+                                     color = factor(rep("A", nrow(unselected_plot_data))),
+                                     colors = colorRampPalette(c("blue"))(1),
+                                     opacity = 0.2,
+                                     mode = "markers",
+                                     name = "selected")
+                      }
+                      
+                      fig <- layout(fig,
+                                    title = "GDSC1 AUCs",
+                                    xaxis = list(title = paste0("GDSC1 Cell Lines (n = ", nrow(plot_data), ", ", nrow(selected_plot_data), " selected)"), showticklabels = FALSE),
+                                    yaxis = list(title = ylab))
+                      
+                    } else {
+                      fig <- plot_ly(x = plot_data$Cell_Line,
                                    y = plot_data$AUC_all_ccl_GDSC1_conc,
+                                   color = factor(rep("A", nrow(plot_data))),
+                                   colors = colorRampPalette(c("blue"))(1),
                                    type = "scatter",
                                    mode = "markers")
-                    fig <- layout(fig,
-                                  title = "GDSC1 AUCs",
-                                  xaxis = list(title = paste0("GDSC1 Cell Lines (n = ", nrow(plot_data), ")"), showticklabels = FALSE),
-                                  yaxis = list(title = ylab))
+                      
+                      fig <- layout(fig,
+                                    title = "GDSC1 AUCs",
+                                    xaxis = list(title = paste0("GDSC1 Cell Lines (n = ", nrow(plot_data), ")"), showticklabels = FALSE),
+                                    yaxis = list(title = ylab))
+                    }
+                    
+                    
                     fig
+                    
                   } else if(input$Compound_Explorer_to_Plot == "IC50 values"){
                     plot_data <- GDSC1_Results[! is.na(GDSC1_Results$IC50),]
                     if(nrow(plot_data) > 0){
@@ -1195,33 +1452,70 @@
                         plot_data$IC50[plot_data$IC50 == Inf] <- max(plot_data$max_dose_uM)+1
                       }
                       
-                      if(all(c("IC50 <= max tested concentration", "IC50 > max tested concentration", "Infinite IC50") %in% plot_data$Group)){
-                        colors <- c("blue", "red", "lightgray")
-                      } else if(all(c("IC50 <= max tested concentration", "IC50 > max tested concentration") %in% plot_data$Group)){
-                        colors <- c("blue", "red")
-                      } else if(all(c("IC50 <= max tested concentration", "Infinite IC50") %in% plot_data$Group)){
-                        colors <- c("blue", "lightgray")
-                      } else if(all(c("IC50 > max tested concentration", "Infinite IC50") %in% plot_data$Group)){
-                        colors <- c("red", "lightgray")
-                      } else if("IC50 <= max tested concentration" %in% plot_data$Group){
-                        colors <- c("blue")
-                      } else if("IC50 > max tested concentration" %in% plot_data$Group){
-                        colors <- c("red")
-                      } else if("Infinite IC50" %in% plot_data$Group){
-                        colors <- c("lightgray")
-                      }
+                      colors <- setNames(rep(colorRampPalette(c("blue", "red", "lightgray"))(3), 3),
+                                         c("IC50 <= max tested concentration", "IC50 > max tested concentration", "Infinite IC50",
+                                           "selected: IC50 <= max tested concentration", "selected: IC50 > max tested concentration", "selected: Infinite IC50",
+                                           "unselected: IC50 <= max tested concentration", "unselected: IC50 > max tested concentration", "unselected: Infinite IC50"))
+
                       plot_data$Cell_Line <- factor(plot_data$Cell_Line, levels = plot_data$Cell_Line)
                       ylab <- "IC50 (microMolar)"
-                      fig <- plot_ly(x = plot_data$Cell_Line,
+                      
+                      if(input$Compound_Explorer_Highlight_Cell_Lines == TRUE){
+                        plot_data$symbol <- ": not selected"
+                        plot_data$symbol[plot_data$Cell_Line %in% input$Compound_Explorer_Cell_Lines] <- ": selected"
+                        selected_plot_data <- plot_data[plot_data$symbol == ": selected",]
+                        unselected_plot_data <- plot_data[plot_data$symbol == ": not selected",]
+                        
+                        if(nrow(selected_plot_data) > 0){
+                          selected_plot_data$Group <- paste0("selected: ", selected_plot_data$Group)
+                          selected_plot_data$Group <- factor(selected_plot_data$Group, levels = c("selected: IC50 <= max tested concentration", "selected: IC50 > max tested concentration", "selected: Infinite IC50"))
+                          fig <- plot_ly(x = selected_plot_data$Cell_Line,
+                                         y = selected_plot_data$IC50,
+                                         color = selected_plot_data$Group,
+                                         type = "scatter",
+                                         mode = "markers",
+                                         colors = colors)
+                          if(nrow(unselected_plot_data) > 0){
+                            unselected_plot_data$Group <- paste0("unselected: ", unselected_plot_data$Group)
+                            unselected_plot_data$Group <- factor(unselected_plot_data$Group, levels = c("unselected: IC50 <= max tested concentration", "unselected: IC50 > max tested concentration", "unselected: Infinite IC50"))
+                            fig <- add_trace(fig,
+                                             x = unselected_plot_data$Cell_Line,
+                                             y = unselected_plot_data$IC50,
+                                             color = unselected_plot_data$Group,
+                                             opacity = 0.2)
+                          }
+                        } else {
+                          unselected_plot_data$Group <- paste0("unselected: ", unselected_plot_data$Group)
+                          unselected_plot_data$Group <- factor(unselected_plot_data$Group, levels = c("unselected: IC50 <= max tested concentration", "unselected: IC50 > max tested concentration", "unselected: Infinite IC50"))
+                          fig <- plot_ly(x = unselected_plot_data$Cell_Line,
+                                         y = unselected_plot_data$IC50,
+                                         type = "scatter",
+                                         mode = "markers",
+                                         color = unselected_plot_data$Group,
+                                         colors = colors,
+                                         opacity = 0.2)
+                        }
+                        
+                        fig <- layout(fig,
+                                      title = "GDSC1 IC50s",
+                                      xaxis = list(title = paste0("GDSC1 Cell Lines (n = ", nrow(plot_data), ", ", nrow(selected_plot_data), " selected)"), showticklabels = FALSE),
+                                      yaxis = list(title = ylab, type = "log"))
+                        
+                      } else {
+                        plot_data$Group <- factor(plot_data$Group, levels = c("IC50 <= max tested concentration", "IC50 > max tested concentration", "Infinite IC50"))
+                        fig <- plot_ly(x = plot_data$Cell_Line,
                                      y = plot_data$IC50,
                                      type = "scatter",
                                      mode = "markers",
                                      color = plot_data$Group,
                                      colors = colors)
-                      fig <- layout(fig,
-                                    title = "GDSC1 IC50s",
-                                    xaxis = list(paste0("GDSC1 Cell Lines (n = ", nrow(plot_data), ")"), showticklabels = FALSE),
-                                    yaxis = list(title = ylab, type = "log"))
+                        
+                        fig <- layout(fig,
+                                      title = "GDSC1 IC50s",
+                                      xaxis = list(title = paste0("GDSC1 Cell Lines (n = ", nrow(plot_data), ")"), showticklabels = FALSE),
+                                      yaxis = list(title = ylab, type = "log"))
+                      }
+                      
                       fig
                     }
                   } else if(input$Compound_Explorer_to_Plot == "Tested Cell Line Cancer Types & Genders"){
@@ -1334,6 +1628,12 @@
                     plot_data$Concentration_Range_Exceeds_Max_Tested_Concentration[plot_data$max_dose_uM < plot_data$max_mode_ccl_GDSC2_conc] <- "Max Tested Concentration < AUC Range"
                     plot_data$Concentration_Range_Exceeds_Max_Tested_Concentration <- factor(plot_data$Concentration_Range_Exceeds_Max_Tested_Concentration, levels = c("Max Tested Concentration Within AUC Range", "Max Tested Concentration < AUC Range"))
                     ylab <- paste0("AUC (", signif(as.numeric(unique(plot_data$min_mode_ccl_GDSC2_conc)), 3), "-", signif(as.numeric(unique(plot_data$max_mode_ccl_GDSC2_conc)), 3), " microMolar)")
+                    
+                    colors <- setNames(rep(colorRampPalette(c("blue", "red"))(2), 3),
+                                       c("Max Tested Concentration Within AUC Range", "Max Tested Concentration < AUC Range",
+                                         "selected: Max Tested Concentration Within AUC Range", "selected: Max Tested Concentration < AUC Range",
+                                         "unselected: Max Tested Concentration Within AUC Range", "unselected: Max Tested Concentration < AUC Range"))
+                    
                     if(all(plot_data$Concentration_Range_Exceeds_Max_Tested_Concentration %in% "Max Tested Concentration Within AUC Range")){
                       colors <- colorRampPalette(c("blue"))(1)
                     } else if(all(plot_data$Concentration_Range_Exceeds_Max_Tested_Concentration %in% "Max Tested Concentration < AUC Range")){
@@ -1341,31 +1641,126 @@
                     } else {
                       colors <- colorRampPalette(c("blue", "red"))(2)
                     }
-                    fig <- plot_ly(x = plot_data$Cell_Line,
+
+                    if(input$Compound_Explorer_Highlight_Cell_Lines == TRUE){
+                      plot_data$symbol <- ": not selected"
+                      plot_data$symbol[plot_data$Cell_Line %in% input$Compound_Explorer_Cell_Lines] <- ": selected"
+                      selected_plot_data <- plot_data[plot_data$symbol == ": selected",]
+                      unselected_plot_data <- plot_data[plot_data$symbol == ": not selected",]
+                      
+                      if(nrow(selected_plot_data) > 0){
+                        selected_plot_data$Concentration_Range_Exceeds_Max_Tested_Concentration <- "selected: Max Tested Concentration Within AUC Range"
+                        selected_plot_data$Concentration_Range_Exceeds_Max_Tested_Concentration[selected_plot_data$max_dose_uM < selected_plot_data$max_mode_ccl_GDSC2_conc] <- "selected: Max Tested Concentration < AUC Range"
+                        selected_plot_data$Concentration_Range_Exceeds_Max_Tested_Concentration <- factor(selected_plot_data$Concentration_Range_Exceeds_Max_Tested_Concentration, levels = c("selected: Max Tested Concentration Within AUC Range", "selected: Max Tested Concentration < AUC Range"))
+                        fig <- plot_ly(x = selected_plot_data$Cell_Line,
+                                   y = selected_plot_data$AUC_mode_ccl_GDSC2_conc,
+                                   color = selected_plot_data$Concentration_Range_Exceeds_Max_Tested_Concentration,
+                                   colors = colors,
+                                   type = "scatter",
+                                   mode = "markers")
+                        if(nrow(unselected_plot_data) > 0){
+                          unselected_plot_data$Concentration_Range_Exceeds_Max_Tested_Concentration <- "unselected: Max Tested Concentration Within AUC Range"
+                          unselected_plot_data$Concentration_Range_Exceeds_Max_Tested_Concentration[unselected_plot_data$max_dose_uM < unselected_plot_data$max_mode_ccl_GDSC2_conc] <- "unselected: Max Tested Concentration < AUC Range"
+                          unselected_plot_data$Concentration_Range_Exceeds_Max_Tested_Concentration <- factor(unselected_plot_data$Concentration_Range_Exceeds_Max_Tested_Concentration, levels = c("unselected: Max Tested Concentration Within AUC Range", "unselected: Max Tested Concentration < AUC Range"))
+                          fig <- add_trace(fig, 
+                                    x = unselected_plot_data$Cell_Line,
+                                    y = unselected_plot_data$AUC_mode_ccl_GDSC2_conc,
+                                    color = unselected_plot_data$Concentration_Range_Exceeds_Max_Tested_Concentration,
+                                    opacity = 0.2)
+                        }
+                      } else if(nrow(unselected_plot_data) > 0){
+                        unselected_plot_data$Concentration_Range_Exceeds_Max_Tested_Concentration <- "unselected: Max Tested Concentration Within AUC Range"
+                        unselected_plot_data$Concentration_Range_Exceeds_Max_Tested_Concentration[unselected_plot_data$max_dose_uM < unselected_plot_data$max_mode_ccl_GDSC2_conc] <- "unselected: Max Tested Concentration < AUC Range"
+                        unselected_plot_data$Concentration_Range_Exceeds_Max_Tested_Concentration <- factor(unselected_plot_data$Concentration_Range_Exceeds_Max_Tested_Concentration, levels = c("unselected: Max Tested Concentration Within AUC Range", "unselected: Max Tested Concentration < AUC Range"))
+                        fig <- plot_ly(x = unselected_plot_data$Cell_Line,
+                                   y = unselected_plot_data$AUC_mode_ccl_GDSC2_conc,
+                                   color = unselected_plot_data$Concentration_Range_Exceeds_Max_Tested_Concentration,
+                                   colors = colors,
+                                   opacity = 0.2,
+                                   type = "scatter",
+                                   mode = "markers")
+                      }
+                        
+                      fig <- layout(fig,
+                                    title = "GDSC2 AUCs",
+                                    xaxis = list(title = paste0("GDSC2 Cell Lines (n = ", nrow(plot_data), "; ", nrow(selected_plot_data), " selected)"), showticklabels = FALSE),
+                                    yaxis = list(title = ylab))
+                    } else {
+
+                      fig <- plot_ly(x = plot_data$Cell_Line,
                                    y = plot_data$AUC_mode_ccl_GDSC2_conc,
                                    color = plot_data$Concentration_Range_Exceeds_Max_Tested_Concentration,
                                    colors = colors,
                                    type = "scatter",
                                    mode = "markers")
-                    fig <- layout(fig,
-                                  title = "GDSC2 AUCs",
-                                  xaxis = list(title = paste0("GDSC2 Cell Lines (n = ", nrow(plot_data), ")"), showticklabels = FALSE),
-                                  yaxis = list(title = ylab))
+                      fig <- layout(fig,
+                                    title = "GDSC2 AUCs",
+                                    xaxis = list(title = paste0("GDSC2 Cell Lines (n = ", nrow(plot_data), ")"), showticklabels = FALSE),
+                                    yaxis = list(title = ylab))
+                    }
+
                     fig
+                    
                   } else if(input$Compound_Explorer_to_Plot == "AUC values for concentration range available for all tested cell lines"){
                     plot_data <- GDSC2_Results[! is.na(GDSC2_Results$AUC_all_ccl_GDSC2_conc),]
                     plot_data <- plot_data[order(plot_data$AUC_all_ccl_GDSC2_conc, decreasing = FALSE),]
                     plot_data$Cell_Line <- factor(plot_data$Cell_Line, levels = plot_data$Cell_Line)
                     ylab <- paste0("AUC (", signif(as.numeric(unique(plot_data$min_all_ccl_GDSC2_conc)), 3), "-", signif(as.numeric(unique(plot_data$max_all_ccl_GDSC2_conc)), 3), " microMolar)")
-                    fig <- plot_ly(x = plot_data$Cell_Line,
+                    
+                    if(input$Compound_Explorer_Highlight_Cell_Lines == TRUE){
+                      plot_data$symbol <- ": not selected"
+                      plot_data$symbol[plot_data$Cell_Line %in% input$Compound_Explorer_Cell_Lines] <- ": selected"
+                      selected_plot_data <- plot_data[plot_data$symbol == ": selected",]
+                      unselected_plot_data <- plot_data[plot_data$symbol == ": not selected",]
+                      
+                      if(nrow(selected_plot_data) > 0){
+                        fig <- plot_ly(x = selected_plot_data$Cell_Line,
+                                     y = selected_plot_data$AUC_all_ccl_GDSC2_conc,
+                                     type = "scatter",
+                                     color = factor(rep("A", nrow(selected_plot_data))),
+                                     colors = colorRampPalette(c("blue"))(1),
+                                     mode = "markers",
+                                     name = "selected")
+                        if(nrow(unselected_plot_data) > 0){
+                          fig <- add_trace(fig, x = unselected_plot_data$Cell_Line,
+                                       y = unselected_plot_data$AUC_all_ccl_GDSC2_conc,
+                                       color = factor(rep("A", nrow(unselected_plot_data))),
+                                       name = "unselected",
+                                       opacity = 0.2)
+                        }
+                      } else {
+                        fig <- plot_ly(x = unselected_plot_data$Cell_Line,
+                                     y = unselected_plot_data$AUC_all_ccl_GDSC2_conc,
+                                     type = "scatter",
+                                     color = factor(rep("A", nrow(unselected_plot_data))),
+                                     colors = colorRampPalette(c("blue"))(1),
+                                     opacity = 0.2,
+                                     mode = "markers",
+                                     name = "selected")
+                      }
+                      
+                      fig <- layout(fig,
+                                    title = "GDSC2 AUCs",
+                                    xaxis = list(title = paste0("GDSC2 Cell Lines (n = ", nrow(plot_data), ", ", nrow(selected_plot_data), " selected)"), showticklabels = FALSE),
+                                    yaxis = list(title = ylab))
+                      
+                    } else {
+                      fig <- plot_ly(x = plot_data$Cell_Line,
                                    y = plot_data$AUC_all_ccl_GDSC2_conc,
+                                   color = factor(rep("A", nrow(plot_data))),
+                                   colors = colorRampPalette(c("blue"))(1),
                                    type = "scatter",
                                    mode = "markers")
-                    fig <- layout(fig,
-                                  title = "GDSC2 AUCs",
-                                  xaxis = list(title = paste0("GDSC2 Cell Lines (n = ", nrow(plot_data), ")"), showticklabels = FALSE),
-                                  yaxis = list(title = ylab))
+                      
+                      fig <- layout(fig,
+                                    title = "GDSC2 AUCs",
+                                    xaxis = list(title = paste0("GDSC2 Cell Lines (n = ", nrow(plot_data), ")"), showticklabels = FALSE),
+                                    yaxis = list(title = ylab))
+                    }
+                    
+                    
                     fig
+                    
                   } else if(input$Compound_Explorer_to_Plot == "IC50 values"){
                     plot_data <- GDSC2_Results[! is.na(GDSC2_Results$IC50),]
                     if(nrow(plot_data) > 0){
@@ -1379,33 +1774,70 @@
                         plot_data$IC50[plot_data$IC50 == Inf] <- max(plot_data$max_dose_uM)+1
                       }
                       
-                      if(all(c("IC50 <= max tested concentration", "IC50 > max tested concentration", "Infinite IC50") %in% plot_data$Group)){
-                        colors <- c("blue", "red", "lightgray")
-                      } else if(all(c("IC50 <= max tested concentration", "IC50 > max tested concentration") %in% plot_data$Group)){
-                        colors <- c("blue", "red")
-                      } else if(all(c("IC50 <= max tested concentration", "Infinite IC50") %in% plot_data$Group)){
-                        colors <- c("blue", "lightgray")
-                      } else if(all(c("IC50 > max tested concentration", "Infinite IC50") %in% plot_data$Group)){
-                        colors <- c("red", "lightgray")
-                      } else if("IC50 <= max tested concentration" %in% plot_data$Group){
-                        colors <- c("blue")
-                      } else if("IC50 > max tested concentration" %in% plot_data$Group){
-                        colors <- c("red")
-                      } else if("Infinite IC50" %in% plot_data$Group){
-                        colors <- c("lightgray")
-                      }
+                      colors <- setNames(rep(colorRampPalette(c("blue", "red", "lightgray"))(3), 3),
+                                         c("IC50 <= max tested concentration", "IC50 > max tested concentration", "Infinite IC50",
+                                           "selected: IC50 <= max tested concentration", "selected: IC50 > max tested concentration", "selected: Infinite IC50",
+                                           "unselected: IC50 <= max tested concentration", "unselected: IC50 > max tested concentration", "unselected: Infinite IC50"))
+
                       plot_data$Cell_Line <- factor(plot_data$Cell_Line, levels = plot_data$Cell_Line)
                       ylab <- "IC50 (microMolar)"
-                      fig <- plot_ly(x = plot_data$Cell_Line,
+                      
+                      if(input$Compound_Explorer_Highlight_Cell_Lines == TRUE){
+                        plot_data$symbol <- ": not selected"
+                        plot_data$symbol[plot_data$Cell_Line %in% input$Compound_Explorer_Cell_Lines] <- ": selected"
+                        selected_plot_data <- plot_data[plot_data$symbol == ": selected",]
+                        unselected_plot_data <- plot_data[plot_data$symbol == ": not selected",]
+                        
+                        if(nrow(selected_plot_data) > 0){
+                          selected_plot_data$Group <- paste0("selected: ", selected_plot_data$Group)
+                          selected_plot_data$Group <- factor(selected_plot_data$Group, levels = c("selected: IC50 <= max tested concentration", "selected: IC50 > max tested concentration", "selected: Infinite IC50"))
+                          fig <- plot_ly(x = selected_plot_data$Cell_Line,
+                                         y = selected_plot_data$IC50,
+                                         color = selected_plot_data$Group,
+                                         type = "scatter",
+                                         mode = "markers",
+                                         colors = colors)
+                          if(nrow(unselected_plot_data) > 0){
+                            unselected_plot_data$Group <- paste0("unselected: ", unselected_plot_data$Group)
+                            unselected_plot_data$Group <- factor(unselected_plot_data$Group, levels = c("unselected: IC50 <= max tested concentration", "unselected: IC50 > max tested concentration", "unselected: Infinite IC50"))
+                            fig <- add_trace(fig,
+                                             x = unselected_plot_data$Cell_Line,
+                                             y = unselected_plot_data$IC50,
+                                             color = unselected_plot_data$Group,
+                                             opacity = 0.2)
+                          }
+                        } else {
+                          unselected_plot_data$Group <- paste0("unselected: ", unselected_plot_data$Group)
+                          unselected_plot_data$Group <- factor(unselected_plot_data$Group, levels = c("unselected: IC50 <= max tested concentration", "unselected: IC50 > max tested concentration", "unselected: Infinite IC50"))
+                          fig <- plot_ly(x = unselected_plot_data$Cell_Line,
+                                         y = unselected_plot_data$IC50,
+                                         type = "scatter",
+                                         mode = "markers",
+                                         color = unselected_plot_data$Group,
+                                         colors = colors,
+                                         opacity = 0.2)
+                        }
+                        
+                        fig <- layout(fig,
+                                      title = "GDSC2 IC50s",
+                                      xaxis = list(title = paste0("GDSC2 Cell Lines (n = ", nrow(plot_data), ", ", nrow(selected_plot_data), " selected)"), showticklabels = FALSE),
+                                      yaxis = list(title = ylab, type = "log"))
+                        
+                      } else {
+                        plot_data$Group <- factor(plot_data$Group, levels = c("IC50 <= max tested concentration", "IC50 > max tested concentration", "Infinite IC50"))
+                        fig <- plot_ly(x = plot_data$Cell_Line,
                                      y = plot_data$IC50,
                                      type = "scatter",
                                      mode = "markers",
                                      color = plot_data$Group,
                                      colors = colors)
-                      fig <- layout(fig,
-                                    title = "GDSC2 IC50s",
-                                    xaxis = list(paste0("GDSC2 Cell Lines (n = ", nrow(plot_data), ")"), showticklabels = FALSE),
-                                    yaxis = list(title = ylab, type = "log"))
+                        
+                        fig <- layout(fig,
+                                      title = "GDSC2 IC50s",
+                                      xaxis = list(title = paste0("GDSC2 Cell Lines (n = ", nrow(plot_data), ")"), showticklabels = FALSE),
+                                      yaxis = list(title = ylab, type = "log"))
+                      }
+                      
                       fig
                     }
                   } else if(input$Compound_Explorer_to_Plot == "Tested Cell Line Cancer Types & Genders"){
@@ -1499,7 +1931,7 @@
                   }
                 }
             })
-            
+  
             output$Compound_Explorer_PRISM_Repurposing_Plot <- renderPlotly({
               #Loading raw data for this compound and any datasets with data for this compound
                 if("PRISM_Repurposing" %in% Compound_Explorer_Datasets_with_Compound_Data()){
@@ -1518,6 +1950,12 @@
                     plot_data$Concentration_Range_Exceeds_Max_Tested_Concentration[plot_data$max_dose_uM < plot_data$max_mode_ccl_PRISM_Repurposing_conc] <- "Max Tested Concentration < AUC Range"
                     plot_data$Concentration_Range_Exceeds_Max_Tested_Concentration <- factor(plot_data$Concentration_Range_Exceeds_Max_Tested_Concentration, levels = c("Max Tested Concentration Within AUC Range", "Max Tested Concentration < AUC Range"))
                     ylab <- paste0("AUC (", signif(as.numeric(unique(plot_data$min_mode_ccl_PRISM_Repurposing_conc)), 3), "-", signif(as.numeric(unique(plot_data$max_mode_ccl_PRISM_Repurposing_conc)), 3), " microMolar)")
+                    
+                    colors <- setNames(rep(colorRampPalette(c("blue", "red"))(2), 3),
+                                       c("Max Tested Concentration Within AUC Range", "Max Tested Concentration < AUC Range",
+                                         "selected: Max Tested Concentration Within AUC Range", "selected: Max Tested Concentration < AUC Range",
+                                         "unselected: Max Tested Concentration Within AUC Range", "unselected: Max Tested Concentration < AUC Range"))
+                    
                     if(all(plot_data$Concentration_Range_Exceeds_Max_Tested_Concentration %in% "Max Tested Concentration Within AUC Range")){
                       colors <- colorRampPalette(c("blue"))(1)
                     } else if(all(plot_data$Concentration_Range_Exceeds_Max_Tested_Concentration %in% "Max Tested Concentration < AUC Range")){
@@ -1525,31 +1963,126 @@
                     } else {
                       colors <- colorRampPalette(c("blue", "red"))(2)
                     }
-                    fig <- plot_ly(x = plot_data$Cell_Line,
+
+                    if(input$Compound_Explorer_Highlight_Cell_Lines == TRUE){
+                      plot_data$symbol <- ": not selected"
+                      plot_data$symbol[plot_data$Cell_Line %in% input$Compound_Explorer_Cell_Lines] <- ": selected"
+                      selected_plot_data <- plot_data[plot_data$symbol == ": selected",]
+                      unselected_plot_data <- plot_data[plot_data$symbol == ": not selected",]
+                      
+                      if(nrow(selected_plot_data) > 0){
+                        selected_plot_data$Concentration_Range_Exceeds_Max_Tested_Concentration <- "selected: Max Tested Concentration Within AUC Range"
+                        selected_plot_data$Concentration_Range_Exceeds_Max_Tested_Concentration[selected_plot_data$max_dose_uM < selected_plot_data$max_mode_ccl_PRISM_Repurposing_conc] <- "selected: Max Tested Concentration < AUC Range"
+                        selected_plot_data$Concentration_Range_Exceeds_Max_Tested_Concentration <- factor(selected_plot_data$Concentration_Range_Exceeds_Max_Tested_Concentration, levels = c("selected: Max Tested Concentration Within AUC Range", "selected: Max Tested Concentration < AUC Range"))
+                        fig <- plot_ly(x = selected_plot_data$Cell_Line,
+                                   y = selected_plot_data$AUC_mode_ccl_PRISM_Repurposing_conc,
+                                   color = selected_plot_data$Concentration_Range_Exceeds_Max_Tested_Concentration,
+                                   colors = colors,
+                                   type = "scatter",
+                                   mode = "markers")
+                        if(nrow(unselected_plot_data) > 0){
+                          unselected_plot_data$Concentration_Range_Exceeds_Max_Tested_Concentration <- "unselected: Max Tested Concentration Within AUC Range"
+                          unselected_plot_data$Concentration_Range_Exceeds_Max_Tested_Concentration[unselected_plot_data$max_dose_uM < unselected_plot_data$max_mode_ccl_PRISM_Repurposing_conc] <- "unselected: Max Tested Concentration < AUC Range"
+                          unselected_plot_data$Concentration_Range_Exceeds_Max_Tested_Concentration <- factor(unselected_plot_data$Concentration_Range_Exceeds_Max_Tested_Concentration, levels = c("unselected: Max Tested Concentration Within AUC Range", "unselected: Max Tested Concentration < AUC Range"))
+                          fig <- add_trace(fig, 
+                                    x = unselected_plot_data$Cell_Line,
+                                    y = unselected_plot_data$AUC_mode_ccl_PRISM_Repurposing_conc,
+                                    color = unselected_plot_data$Concentration_Range_Exceeds_Max_Tested_Concentration,
+                                    opacity = 0.2)
+                        }
+                      } else if(nrow(unselected_plot_data) > 0){
+                        unselected_plot_data$Concentration_Range_Exceeds_Max_Tested_Concentration <- "unselected: Max Tested Concentration Within AUC Range"
+                        unselected_plot_data$Concentration_Range_Exceeds_Max_Tested_Concentration[unselected_plot_data$max_dose_uM < unselected_plot_data$max_mode_ccl_PRISM_Repurposing_conc] <- "unselected: Max Tested Concentration < AUC Range"
+                        unselected_plot_data$Concentration_Range_Exceeds_Max_Tested_Concentration <- factor(unselected_plot_data$Concentration_Range_Exceeds_Max_Tested_Concentration, levels = c("unselected: Max Tested Concentration Within AUC Range", "unselected: Max Tested Concentration < AUC Range"))
+                        fig <- plot_ly(x = unselected_plot_data$Cell_Line,
+                                   y = unselected_plot_data$AUC_mode_ccl_PRISM_Repurposing_conc,
+                                   color = unselected_plot_data$Concentration_Range_Exceeds_Max_Tested_Concentration,
+                                   colors = colors,
+                                   opacity = 0.2,
+                                   type = "scatter",
+                                   mode = "markers")
+                      }
+                        
+                      fig <- layout(fig,
+                                    title = "PRISM_Repurposing AUCs",
+                                    xaxis = list(title = paste0("PRISM_Repurposing Cell Lines (n = ", nrow(plot_data), "; ", nrow(selected_plot_data), " selected)"), showticklabels = FALSE),
+                                    yaxis = list(title = ylab))
+                    } else {
+
+                      fig <- plot_ly(x = plot_data$Cell_Line,
                                    y = plot_data$AUC_mode_ccl_PRISM_Repurposing_conc,
                                    color = plot_data$Concentration_Range_Exceeds_Max_Tested_Concentration,
                                    colors = colors,
                                    type = "scatter",
                                    mode = "markers")
-                    fig <- layout(fig,
-                                  title = "PRISM_Repurposing AUCs",
-                                  xaxis = list(title = paste0("PRISM_Repurposing Cell Lines (n = ", nrow(plot_data), ")"), showticklabels = FALSE),
-                                  yaxis = list(title = ylab))
+                      fig <- layout(fig,
+                                    title = "PRISM_Repurposing AUCs",
+                                    xaxis = list(title = paste0("PRISM_Repurposing Cell Lines (n = ", nrow(plot_data), ")"), showticklabels = FALSE),
+                                    yaxis = list(title = ylab))
+                    }
+
                     fig
+                    
                   } else if(input$Compound_Explorer_to_Plot == "AUC values for concentration range available for all tested cell lines"){
                     plot_data <- PRISM_Repurposing_Results[! is.na(PRISM_Repurposing_Results$AUC_all_ccl_PRISM_Repurposing_conc),]
                     plot_data <- plot_data[order(plot_data$AUC_all_ccl_PRISM_Repurposing_conc, decreasing = FALSE),]
                     plot_data$Cell_Line <- factor(plot_data$Cell_Line, levels = plot_data$Cell_Line)
                     ylab <- paste0("AUC (", signif(as.numeric(unique(plot_data$min_all_ccl_PRISM_Repurposing_conc)), 3), "-", signif(as.numeric(unique(plot_data$max_all_ccl_PRISM_Repurposing_conc)), 3), " microMolar)")
-                    fig <- plot_ly(x = plot_data$Cell_Line,
+                    
+                    if(input$Compound_Explorer_Highlight_Cell_Lines == TRUE){
+                      plot_data$symbol <- ": not selected"
+                      plot_data$symbol[plot_data$Cell_Line %in% input$Compound_Explorer_Cell_Lines] <- ": selected"
+                      selected_plot_data <- plot_data[plot_data$symbol == ": selected",]
+                      unselected_plot_data <- plot_data[plot_data$symbol == ": not selected",]
+                      
+                      if(nrow(selected_plot_data) > 0){
+                        fig <- plot_ly(x = selected_plot_data$Cell_Line,
+                                     y = selected_plot_data$AUC_all_ccl_PRISM_Repurposing_conc,
+                                     type = "scatter",
+                                     color = factor(rep("A", nrow(selected_plot_data))),
+                                     colors = colorRampPalette(c("blue"))(1),
+                                     mode = "markers",
+                                     name = "selected")
+                        if(nrow(unselected_plot_data) > 0){
+                          fig <- add_trace(fig, x = unselected_plot_data$Cell_Line,
+                                       y = unselected_plot_data$AUC_all_ccl_PRISM_Repurposing_conc,
+                                       color = factor(rep("A", nrow(unselected_plot_data))),
+                                       name = "unselected",
+                                       opacity = 0.2)
+                        }
+                      } else {
+                        fig <- plot_ly(x = unselected_plot_data$Cell_Line,
+                                     y = unselected_plot_data$AUC_all_ccl_PRISM_Repurposing_conc,
+                                     type = "scatter",
+                                     color = factor(rep("A", nrow(unselected_plot_data))),
+                                     colors = colorRampPalette(c("blue"))(1),
+                                     opacity = 0.2,
+                                     mode = "markers",
+                                     name = "selected")
+                      }
+                      
+                      fig <- layout(fig,
+                                    title = "PRISM_Repurposing AUCs",
+                                    xaxis = list(title = paste0("PRISM_Repurposing Cell Lines (n = ", nrow(plot_data), ", ", nrow(selected_plot_data), " selected)"), showticklabels = FALSE),
+                                    yaxis = list(title = ylab))
+                      
+                    } else {
+                      fig <- plot_ly(x = plot_data$Cell_Line,
                                    y = plot_data$AUC_all_ccl_PRISM_Repurposing_conc,
+                                   color = factor(rep("A", nrow(plot_data))),
+                                   colors = colorRampPalette(c("blue"))(1),
                                    type = "scatter",
                                    mode = "markers")
-                    fig <- layout(fig,
-                                  title = "PRISM_Repurposing AUCs",
-                                  xaxis = list(title = paste0("PRISM_Repurposing Cell Lines (n = ", nrow(plot_data), ")"), showticklabels = FALSE),
-                                  yaxis = list(title = ylab))
+                      
+                      fig <- layout(fig,
+                                    title = "PRISM_Repurposing AUCs",
+                                    xaxis = list(title = paste0("PRISM_Repurposing Cell Lines (n = ", nrow(plot_data), ")"), showticklabels = FALSE),
+                                    yaxis = list(title = ylab))
+                    }
+                    
+                    
                     fig
+                    
                   } else if(input$Compound_Explorer_to_Plot == "IC50 values"){
                     plot_data <- PRISM_Repurposing_Results[! is.na(PRISM_Repurposing_Results$IC50),]
                     if(nrow(plot_data) > 0){
@@ -1563,33 +2096,70 @@
                         plot_data$IC50[plot_data$IC50 == Inf] <- max(plot_data$max_dose_uM)+1
                       }
                       
-                      if(all(c("IC50 <= max tested concentration", "IC50 > max tested concentration", "Infinite IC50") %in% plot_data$Group)){
-                        colors <- c("blue", "red", "lightgray")
-                      } else if(all(c("IC50 <= max tested concentration", "IC50 > max tested concentration") %in% plot_data$Group)){
-                        colors <- c("blue", "red")
-                      } else if(all(c("IC50 <= max tested concentration", "Infinite IC50") %in% plot_data$Group)){
-                        colors <- c("blue", "lightgray")
-                      } else if(all(c("IC50 > max tested concentration", "Infinite IC50") %in% plot_data$Group)){
-                        colors <- c("red", "lightgray")
-                      } else if("IC50 <= max tested concentration" %in% plot_data$Group){
-                        colors <- c("blue")
-                      } else if("IC50 > max tested concentration" %in% plot_data$Group){
-                        colors <- c("red")
-                      } else if("Infinite IC50" %in% plot_data$Group){
-                        colors <- c("lightgray")
-                      }
+                      colors <- setNames(rep(colorRampPalette(c("blue", "red", "lightgray"))(3), 3),
+                                         c("IC50 <= max tested concentration", "IC50 > max tested concentration", "Infinite IC50",
+                                           "selected: IC50 <= max tested concentration", "selected: IC50 > max tested concentration", "selected: Infinite IC50",
+                                           "unselected: IC50 <= max tested concentration", "unselected: IC50 > max tested concentration", "unselected: Infinite IC50"))
+
                       plot_data$Cell_Line <- factor(plot_data$Cell_Line, levels = plot_data$Cell_Line)
                       ylab <- "IC50 (microMolar)"
-                      fig <- plot_ly(x = plot_data$Cell_Line,
+                      
+                      if(input$Compound_Explorer_Highlight_Cell_Lines == TRUE){
+                        plot_data$symbol <- ": not selected"
+                        plot_data$symbol[plot_data$Cell_Line %in% input$Compound_Explorer_Cell_Lines] <- ": selected"
+                        selected_plot_data <- plot_data[plot_data$symbol == ": selected",]
+                        unselected_plot_data <- plot_data[plot_data$symbol == ": not selected",]
+                        
+                        if(nrow(selected_plot_data) > 0){
+                          selected_plot_data$Group <- paste0("selected: ", selected_plot_data$Group)
+                          selected_plot_data$Group <- factor(selected_plot_data$Group, levels = c("selected: IC50 <= max tested concentration", "selected: IC50 > max tested concentration", "selected: Infinite IC50"))
+                          fig <- plot_ly(x = selected_plot_data$Cell_Line,
+                                         y = selected_plot_data$IC50,
+                                         color = selected_plot_data$Group,
+                                         type = "scatter",
+                                         mode = "markers",
+                                         colors = colors)
+                          if(nrow(unselected_plot_data) > 0){
+                            unselected_plot_data$Group <- paste0("unselected: ", unselected_plot_data$Group)
+                            unselected_plot_data$Group <- factor(unselected_plot_data$Group, levels = c("unselected: IC50 <= max tested concentration", "unselected: IC50 > max tested concentration", "unselected: Infinite IC50"))
+                            fig <- add_trace(fig,
+                                             x = unselected_plot_data$Cell_Line,
+                                             y = unselected_plot_data$IC50,
+                                             color = unselected_plot_data$Group,
+                                             opacity = 0.2)
+                          }
+                        } else {
+                          unselected_plot_data$Group <- paste0("unselected: ", unselected_plot_data$Group)
+                          unselected_plot_data$Group <- factor(unselected_plot_data$Group, levels = c("unselected: IC50 <= max tested concentration", "unselected: IC50 > max tested concentration", "unselected: Infinite IC50"))
+                          fig <- plot_ly(x = unselected_plot_data$Cell_Line,
+                                         y = unselected_plot_data$IC50,
+                                         type = "scatter",
+                                         mode = "markers",
+                                         color = unselected_plot_data$Group,
+                                         colors = colors,
+                                         opacity = 0.2)
+                        }
+                        
+                        fig <- layout(fig,
+                                      title = "PRISM_Repurposing IC50s",
+                                      xaxis = list(title = paste0("PRISM_Repurposing Cell Lines (n = ", nrow(plot_data), ", ", nrow(selected_plot_data), " selected)"), showticklabels = FALSE),
+                                      yaxis = list(title = ylab, type = "log"))
+                        
+                      } else {
+                        plot_data$Group <- factor(plot_data$Group, levels = c("IC50 <= max tested concentration", "IC50 > max tested concentration", "Infinite IC50"))
+                        fig <- plot_ly(x = plot_data$Cell_Line,
                                      y = plot_data$IC50,
                                      type = "scatter",
                                      mode = "markers",
                                      color = plot_data$Group,
                                      colors = colors)
-                      fig <- layout(fig,
-                                    title = "PRISM_Repurposing IC50s",
-                                    xaxis = list(paste0("PRISM_Repurposing Cell Lines (n = ", nrow(plot_data), ")"), showticklabels = FALSE),
-                                    yaxis = list(title = ylab, type = "log"))
+                        
+                        fig <- layout(fig,
+                                      title = "PRISM_Repurposing IC50s",
+                                      xaxis = list(title = paste0("PRISM_Repurposing Cell Lines (n = ", nrow(plot_data), ")"), showticklabels = FALSE),
+                                      yaxis = list(title = ylab, type = "log"))
+                      }
+                      
                       fig
                     }
                   } else if(input$Compound_Explorer_to_Plot == "Tested Cell Line Cancer Types & Genders"){
@@ -1683,7 +2253,6 @@
                   }
                 }
             })
-            
             
           }) #END: observe({
               
@@ -2033,6 +2602,14 @@
                           `live-Search-Normalize` = TRUE,
                           `selected-Text-Format` = "count"
                         )),
+                        checkboxInput("Cell_Line_Explorer_Highlight_Compounds", label = "Highlight compounds instead of filtering compounds?", value = FALSE) %>%
+                          helper(type = "inline",
+                            title = "Highlight or Filter Compounds?",
+                            icon = "question-circle", colour = NULL,
+                            content = HTML("If this box is left unchecked, only selected compounds will be shown in the plots. If this box is checked, all available compounds will be shown in the plots, but selected compounds will be highlighted."),
+                            size = "m",
+                            buttonLabel = "Okay", easyClose = TRUE, fade = FALSE
+                          ),
                         checkboxInput("Cell_Line_Explorer_Show_Compound_Filters", label = "Show compound filters?", value = FALSE)
                       )
 
@@ -2133,20 +2710,27 @@
               })
 
             #Updating compound input menu
-              observeEvent(Cell_Line_Explorer_Currently_Available_Compounds(), {
+              observeEvent(list(Cell_Line_Explorer_Currently_Available_Compounds(), input$Cell_Line_Explorer_Highlight_Compounds), {
+                req(! length(input$Cell_Line_Explorer_Highlight_Compounds) == 0)
                 isolate({
-                  updatePickerInput(session, "Cell_Line_Explorer_Compounds", label = paste0("Select compounds to plot data for (n = ", length(Cell_Line_Explorer_Currently_Available_Compounds()), ")"), choices = Cell_Line_Explorer_Currently_Available_Compounds(), selected = Cell_Line_Explorer_Currently_Available_Compounds())
+                  if(input$Cell_Line_Explorer_Highlight_Compounds == TRUE){
+                    updatePickerInput(session, "Cell_Line_Explorer_Compounds", label = paste0("Select compounds to highlight (n = ", length(Cell_Line_Explorer_Currently_Available_Compounds()), ")"), choices = Cell_Line_Explorer_Currently_Available_Compounds(), selected = Cell_Line_Explorer_Currently_Available_Compounds())
+                  } else {
+                    updatePickerInput(session, "Cell_Line_Explorer_Compounds", label = paste0("Select compounds to plot data for (n = ", length(Cell_Line_Explorer_Currently_Available_Compounds()), ")"), choices = Cell_Line_Explorer_Currently_Available_Compounds(), selected = Cell_Line_Explorer_Currently_Available_Compounds())
+                  }
                 })
               })
 
             #Creating filtered version of Cell_Line_Explorer_Data
-              Filtered_Cell_Line_Explorer_Data <- eventReactive(Cell_Line_Explorer_Currently_Available_Compounds(), {
+              Filtered_Cell_Line_Explorer_Data <- eventReactive(list(input$Cell_Line_Explorer_Compounds, input$Cell_Line_Explorer_Highlight_Compounds), {
                 isolate({
                   req(Cell_Line_Explorer_Data())
-                  req(Cell_Line_Explorer_Currently_Available_Compounds())
+                  req(! length(input$Cell_Line_Explorer_Highlight_Compounds) == 0)
                   data <- Cell_Line_Explorer_Data()
-                  for(i in 1:length(data)){
-                    data[[i]] <- data[[i]][data[[i]]$Compound %in% Cell_Line_Explorer_Currently_Available_Compounds(),]
+                  if(input$Cell_Line_Explorer_Highlight_Compounds == FALSE){
+                    for(i in 1:length(data)){
+                      data[[i]] <- data[[i]][data[[i]]$Compound %in% input$Cell_Line_Explorer_Compounds,]
+                    }
                   }
                   return(data)
                 })
@@ -2183,6 +2767,7 @@
 
               #Generating plots
                 output$Cell_Line_Explorer_CTRPv2_Plot <- renderPlotly({
+                  req(! length(input$Cell_Line_Explorer_Highlight_Compounds) == 0)
                     #Loading raw data for this cell_line and any datasets with data for this cell_line
                       if("CTRPv2" %in% Cell_Line_Explorer_datasets_with_cell_line_data()){
                         CTRPv2_Results <- Filtered_Cell_Line_Explorer_Data()$CTRPv2
@@ -2201,43 +2786,154 @@
                         plot_data$Concentration_Range_Exceeds_Max_Tested_Concentration <- factor(plot_data$Concentration_Range_Exceeds_Max_Tested_Concentration, levels = c("Max Tested Concentration Within AUC Range", "Max Tested Concentration < AUC Range"))
                         plot_data$hovertext <- paste0("(", plot_data$Compound, ", ", signif(plot_data$Percentile_AUC_Mode_CCL,3)*100, "%, AUC=", signif(plot_data$AUC_mode_ccl_CTRPv2_conc, 2), ")")
                         ylab <- "Percentile for AUC (most common range)"
-                        if(all(plot_data$Concentration_Range_Exceeds_Max_Tested_Concentration %in% "Max Tested Concentration Within AUC Range")){
-                          colors <- colorRampPalette(c("blue"))(1)
-                        } else if(all(plot_data$Concentration_Range_Exceeds_Max_Tested_Concentration %in% "Max Tested Concentration < AUC Range")){
-                          colors <- colorRampPalette(c("red"))(1)
-                        } else {
-                          colors <- colorRampPalette(c("blue", "red"))(2)
-                        }
-                        fig <- plot_ly(x = plot_data$Compound,
-                                       y = plot_data$Percentile_AUC_Mode_CCL*100,
-                                       color = plot_data$Concentration_Range_Exceeds_Max_Tested_Concentration,
+                        
+                        input$Cell_Line_Explorer_Compounds
+                        colors <- setNames(rep(colorRampPalette(c("blue", "red"))(2), 3),
+                                           c("Max Tested Concentration Within AUC Range", "Max Tested Concentration < AUC Range",
+                                             "selected: Max Tested Concentration Within AUC Range", "selected: Max Tested Concentration < AUC Range",
+                                             "unselected: Max Tested Concentration Within AUC Range", "unselected: Max Tested Concentration < AUC Range")
+                                           )
+                        if(input$Cell_Line_Explorer_Highlight_Compounds == TRUE){
+                          plot_data$Group <- ": unselected"
+                          plot_data$Group[plot_data$Compound %in% input$Cell_Line_Explorer_Compounds] <- ": selected"
+                          selected_plot_data <- plot_data[plot_data$Group == ": selected",]
+                          unselected_plot_data <- plot_data[plot_data$Group == ": unselected",]
+                          
+                          if(nrow(selected_plot_data) > 0){
+                            selected_plot_data$Concentration_Range_Exceeds_Max_Tested_Concentration <- paste0("selected: ", selected_plot_data$Concentration_Range_Exceeds_Max_Tested_Concentration)
+                            selected_plot_data$Concentration_Range_Exceeds_Max_Tested_Concentration <- factor(selected_plot_data$Concentration_Range_Exceeds_Max_Tested_Concentration, levels = c("selected: Max Tested Concentration Within AUC Range", "selected: Max Tested Concentration < AUC Range"))
+                            fig <- plot_ly(x = selected_plot_data$Compound,
+                                       y = selected_plot_data$Percentile_AUC_Mode_CCL*100,
+                                       color = selected_plot_data$Concentration_Range_Exceeds_Max_Tested_Concentration,
                                        colors = colors,
                                        type = "scatter",
                                        mode = "markers",
-                                       text = plot_data$hovertext,
+                                       text = selected_plot_data$hovertext,
                                        hoverinfo = "text")
-                        fig <- layout(fig,
-                                      title = "CTRPv2 AUC Percentiles",
-                                      xaxis = list(title = paste0("CTRPv2 Compounds (n = ", nrow(plot_data), ")"), showticklabels = FALSE),
-                                      yaxis = list(title = ylab))
+                            if(nrow(unselected_plot_data) > 0){
+                              unselected_plot_data$Concentration_Range_Exceeds_Max_Tested_Concentration <- paste0("unselected: ", unselected_plot_data$Concentration_Range_Exceeds_Max_Tested_Concentration)
+                              unselected_plot_data$Concentration_Range_Exceeds_Max_Tested_Concentration <- factor(unselected_plot_data$Concentration_Range_Exceeds_Max_Tested_Concentration, levels = c("unselected: Max Tested Concentration Within AUC Range", "unselected: Max Tested Concentration < AUC Range"))
+                              fig <- add_trace(fig,
+                                               x = unselected_plot_data$Compound,
+                                               y = unselected_plot_data$Percentile_AUC_Mode_CCL*100,
+                                               color = unselected_plot_data$Concentration_Range_Exceeds_Max_Tested_Concentration,
+                                               text = unselected_plot_data$hovertext,
+                                               hoverinfo = "text",
+                                               opacity = 0.2)
+                            }
+                            
+                            fig <- layout(fig,
+                                        title = "CTRPv2 AUC Percentiles",
+                                        xaxis = list(title = paste0("CTRPv2 Compounds (n = ", nrow(plot_data), ", ", nrow(selected_plot_data), " selected)"), showticklabels = FALSE),
+                                        yaxis = list(title = ylab))
+                            
+                          } else if(nrow(unselected_plot_data) > 0){
+                            unselected_plot_data$Concentration_Range_Exceeds_Max_Tested_Concentration <- paste0("unselected: ", unselected_plot_data$Concentration_Range_Exceeds_Max_Tested_Concentration)
+                            unselected_plot_data$Concentration_Range_Exceeds_Max_Tested_Concentration <- factor(unselected_plot_data$Concentration_Range_Exceeds_Max_Tested_Concentration, levels = c("unselected: Max Tested Concentration Within AUC Range", "unselected: Max Tested Concentration < AUC Range"))
+                            fig <- plot_ly(x = unselected_plot_data$Compound,
+                                       y = unselected_plot_data$Percentile_AUC_Mode_CCL*100,
+                                       color = unselected_plot_data$Concentration_Range_Exceeds_Max_Tested_Concentration,
+                                       colors = colors,
+                                       type = "scatter",
+                                       mode = "markers",
+                                       text = unselected_plot_data$hovertext,
+                                       hoverinfo = "text",
+                                       opacity = 0.2)
+                            
+                            fig <- layout(fig,
+                                        title = "CTRPv2 AUC Percentiles",
+                                        xaxis = list(title = paste0("CTRPv2 Compounds (n = ", nrow(plot_data), ", ", nrow(selected_plot_data), " selected)"), showticklabels = FALSE),
+                                        yaxis = list(title = ylab))
+                          }
+                        } else {
+                          fig <- plot_ly(x = plot_data$Compound,
+                                         y = plot_data$Percentile_AUC_Mode_CCL*100,
+                                         color = plot_data$Concentration_Range_Exceeds_Max_Tested_Concentration,
+                                         colors = colors,
+                                         type = "scatter",
+                                         mode = "markers",
+                                         text = plot_data$hovertext,
+                                         hoverinfo = "text")
+                          
+                          fig <- layout(fig,
+                                        title = "CTRPv2 AUC Percentiles",
+                                        xaxis = list(title = paste0("CTRPv2 Compounds (n = ", nrow(plot_data), ")"), showticklabels = FALSE),
+                                        yaxis = list(title = ylab))
+                        }
+                        
                         fig
+                        
                       } else if(input$Cell_Line_Explorer_to_Plot == "AUC percentiles for concentration range available for all tested cell lines"){
                         plot_data <- CTRPv2_Results[! is.na(CTRPv2_Results$Percentile_AUC_All_CCL),]
                         plot_data <- plot_data[order(plot_data$Percentile_AUC_All_CCL, decreasing = FALSE),]
                         plot_data$Compound <- factor(plot_data$Compound, levels = plot_data$Compound)
                         plot_data$hovertext <- paste0("(", plot_data$Compound, ", ", signif(plot_data$Percentile_AUC_All_CCL,3)*100, "%, AUC=", signif(plot_data$AUC_all_ccl_CTRPv2_conc, 2), ")")
                         ylab <- "Percentile for AUC (all cell line range)"
-                        fig <- plot_ly(x = plot_data$Compound,
-                                       y = plot_data$Percentile_AUC_All_CCL*100,
-                                       type = "scatter",
-                                       mode = "markers",
-                                       text = plot_data$hovertext,
-                                       hoverinfo = "text")
-                        fig <- layout(fig,
+                        
+                        if(input$Cell_Line_Explorer_Highlight_Compounds == TRUE){
+                          plot_data$Group <- ": unselected"
+                          plot_data$Group[plot_data$Compound %in% input$Cell_Line_Explorer_Compounds] <- ": selected"
+                          selected_plot_data <- plot_data[plot_data$Group == ": selected",]
+                          unselected_plot_data <- plot_data[plot_data$Group == ": unselected",]
+                          
+                          if(nrow(selected_plot_data) > 0){
+                            fig <- plot_ly(x = selected_plot_data$Compound,
+                                           y = selected_plot_data$Percentile_AUC_All_CCL*100,
+                                           type = "scatter",
+                                           mode = "markers",
+                                           color = factor(rep("A", nrow(selected_plot_data))),
+                                           colors = colorRampPalette(c("blue"))(1),
+                                           text = selected_plot_data$hovertext,
+                                           hoverinfo = "text",
+                                           name = "selected")
+                            if(nrow(unselected_plot_data) > 0){
+                              fig <- add_trace(fig,
+                                               x = unselected_plot_data$Compound,
+                                               y = unselected_plot_data$Percentile_AUC_All_CCL*100,
+                                               text = unselected_plot_data$hovertext,
+                                               color = factor(rep("A", nrow(unselected_plot_data))),
+                                               hoverinfo = "text",
+                                               name = "unselected",
+                                               opacity = 0.2)
+                            }
+                            
+                            fig <- layout(fig,
                                       title = "CTRPv2 AUC Percentiles",
-                                      xaxis = list(title = paste0("CTRPv2 Compounds (n = ", nrow(plot_data), ")"), showticklabels = FALSE),
+                                      xaxis = list(title = paste0("CTRPv2 Compounds (n = ", nrow(plot_data), ", ", nrow(selected_plot_data), " selected)"), showticklabels = FALSE),
                                       yaxis = list(title = ylab))
+                          } else {
+                            fig <- plot_ly(x = unselected_plot_data$Compound,
+                                           y = unselected_plot_data$Percentile_AUC_All_CCL*100,
+                                           type = "scatter",
+                                           mode = "markers",
+                                           color = factor(rep("A", nrow(unselected_plot_data))),
+                                           colors = colorRampPalette(c("blue"))(1),
+                                           text = unselected_plot_data$hovertext,
+                                           hoverinfo = "text",
+                                           name = "unselected",
+                                           opacity = 0.2)
+                            fig <- layout(fig,
+                                      title = "CTRPv2 AUC Percentiles",
+                                      xaxis = list(title = paste0("CTRPv2 Compounds (n = ", nrow(plot_data), ", ", nrow(selected_plot_data), " selected)"), showticklabels = FALSE),
+                                      yaxis = list(title = ylab))
+                          }
+                        } else {
+                          fig <- plot_ly(x = plot_data$Compound,
+                                         y = plot_data$Percentile_AUC_All_CCL*100,
+                                         type = "scatter",
+                                         mode = "markers",
+                                         color = factor(rep("A", nrow(plot_data))),
+                                         colors = colorRampPalette(c("blue"))(1),
+                                         text = plot_data$hovertext,
+                                         hoverinfo = "text")
+                          fig <- layout(fig,
+                                        title = "CTRPv2 AUC Percentiles",
+                                        xaxis = list(title = paste0("CTRPv2 Compounds (n = ", nrow(plot_data), ")"), showticklabels = FALSE),
+                                        yaxis = list(title = ylab))
+                        }
+                        
                         fig
+                        
                       } else if(input$Cell_Line_Explorer_to_Plot == "IC50 percentiles"){
                         plot_data <- CTRPv2_Results[! is.na(CTRPv2_Results$Percentile_IC50),]
                         if(nrow(plot_data) > 0){
@@ -2247,23 +2943,67 @@
                           plot_data$Group <- "IC50 <= max tested concentration"
                           plot_data$Group[plot_data$IC50 > plot_data$max_dose_uM] <- "IC50 > max tested concentration"
                           plot_data$Group[plot_data$IC50 == Inf] <- "Infinite IC50"
-                          if(all(c("IC50 <= max tested concentration", "IC50 > max tested concentration", "Infinite IC50") %in% plot_data$Group)){
-                            colors <- c("blue", "red", "lightgray")
-                          } else if(all(c("IC50 <= max tested concentration", "IC50 > max tested concentration") %in% plot_data$Group)){
-                            colors <- c("blue", "red")
-                          } else if(all(c("IC50 <= max tested concentration", "Infinite IC50") %in% plot_data$Group)){
-                            colors <- c("blue", "lightgray")
-                          } else if(all(c("IC50 > max tested concentration", "Infinite IC50") %in% plot_data$Group)){
-                            colors <- c("red", "lightgray")
-                          } else if("IC50 <= max tested concentration" %in% plot_data$Group){
-                            colors <- c("blue")
-                          } else if("IC50 > max tested concentration" %in% plot_data$Group){
-                            colors <- c("red")
-                          } else if("Infinite IC50" %in% plot_data$Group){
-                            colors <- c("lightgray")
-                          }
                           ylab <- "Percentile for IC50"
-                          fig <- plot_ly(x = plot_data$Compound,
+
+                          colors <- setNames(rep(colorRampPalette(c("blue", "red", "lightgray"))(3), 3),
+                                           c("IC50 <= max tested concentration", "IC50 > max tested concentration", "Infinite IC50",
+                                             "selected: IC50 <= max tested concentration", "selected: IC50 > max tested concentration", "selected: Infinite IC50",
+                                             "unselected: IC50 <= max tested concentration", "unselected: IC50 > max tested concentration", "unselected: Infinite IC50")
+                                           )
+                          
+                          if(input$Cell_Line_Explorer_Highlight_Compounds == TRUE){
+                            plot_data$Group_s <- ": unselected"
+                            plot_data$Group_s[plot_data$Compound %in% input$Cell_Line_Explorer_Compounds] <- ": selected"
+                            selected_plot_data <- plot_data[plot_data$Group_s == ": selected",]
+                            unselected_plot_data <- plot_data[plot_data$Group_s == ": unselected",]
+                            
+                            if(nrow(selected_plot_data) > 0){
+                              selected_plot_data$Group <- paste0("selected: ", selected_plot_data$Group)
+                              selected_plot_data$Group <- factor(selected_plot_data$Group, levels = c("selected: IC50 <= max tested concentration", "selected: IC50 > max tested concentration", "selected: Infinite IC50"))
+                              fig <- plot_ly(x = selected_plot_data$Compound,
+                                             y = selected_plot_data$Percentile_IC50*100,
+                                             type = "scatter",
+                                             mode = "markers",
+                                             color = selected_plot_data$Group,
+                                             colors = colors,
+                                             text = selected_plot_data$hovertext,
+                                             hoverinfo = "text")
+                              if(nrow(unselected_plot_data) > 0){
+                                unselected_plot_data$Group <- paste0("unselected: ", unselected_plot_data$Group)
+                                unselected_plot_data$Group <- factor(unselected_plot_data$Group, levels = c("unselected: IC50 <= max tested concentration", "unselected: IC50 > max tested concentration", "unselected: Infinite IC50"))
+                                fig <- add_trace(fig,
+                                                 x = unselected_plot_data$Compound,
+                                                 y = unselected_plot_data$Percentile_IC50*100,
+                                                 color = unselected_plot_data$Group,
+                                                 text = unselected_plot_data$hovertext,
+                                                 hoverinfo = "text",
+                                                 opacity = 0.2)
+                              }
+                              fig <- layout(fig,
+                                            title = "CTRPv2 IC50 Percentiles",
+                                            xaxis = list(title = paste0("CTRPv2 Compounds (n = ", nrow(plot_data), ", ", nrow(selected_plot_data), " selected)"), showticklabels = FALSE),
+                                            yaxis = list(title = ylab))
+                            } else {
+                              unselected_plot_data$Group <- paste0("unselected: ", unselected_plot_data$Group)
+                              unselected_plot_data$Group <- factor(unselected_plot_data$Group, levels = c("unselected: IC50 <= max tested concentration", "unselected: IC50 > max tested concentration", "unselected: Infinite IC50"))
+                              fig <- plot_ly(x = unselected_plot_data$Compound,
+                                             y = unselected_plot_data$Percentile_IC50*100,
+                                             type = "scatter",
+                                             mode = "markers",
+                                             color = unselected_plot_data$Group,
+                                             colors = colors,
+                                             text = unselected_plot_data$hovertext,
+                                             hoverinfo = "text",
+                                             opacity = 0.2)
+                              
+                              fig <- layout(fig,
+                                            title = "CTRPv2 IC50 Percentiles",
+                                            xaxis = list(title = paste0("CTRPv2 Compounds (n = ", nrow(plot_data), ", ", nrow(selected_plot_data), " selected)"), showticklabels = FALSE),
+                                            yaxis = list(title = ylab))
+                            }
+                            
+                          } else {
+                            fig <- plot_ly(x = plot_data$Compound,
                                          y = plot_data$Percentile_IC50*100,
                                          type = "scatter",
                                          mode = "markers",
@@ -2271,17 +3011,21 @@
                                          colors = colors,
                                          text = plot_data$hovertext,
                                          hoverinfo = "text")
-                          fig <- layout(fig,
-                                        title = "CTRPv2 IC50 Percentiles",
-                                        xaxis = list(title = paste0("CTRPv2 Compounds (n = ", nrow(plot_data), ")"), showticklabels = FALSE),
-                                        yaxis = list(title = ylab))
+                            fig <- layout(fig,
+                                          title = "CTRPv2 IC50 Percentiles",
+                                          xaxis = list(title = paste0("CTRPv2 Compounds (n = ", nrow(plot_data), ")"), showticklabels = FALSE),
+                                          yaxis = list(title = ylab))
+                          }
+                          
                           fig
+                          
                         }
                       }
                     }
                   })
 
                 output$Cell_Line_Explorer_GDSC1_Plot <- renderPlotly({
+                  req(! length(input$Cell_Line_Explorer_Highlight_Compounds) == 0)
                     #Loading raw data for this cell_line and any datasets with data for this cell_line
                       if("GDSC1" %in% Cell_Line_Explorer_datasets_with_cell_line_data()){
                         GDSC1_Results <- Filtered_Cell_Line_Explorer_Data()$GDSC1
@@ -2300,43 +3044,154 @@
                         plot_data$Concentration_Range_Exceeds_Max_Tested_Concentration <- factor(plot_data$Concentration_Range_Exceeds_Max_Tested_Concentration, levels = c("Max Tested Concentration Within AUC Range", "Max Tested Concentration < AUC Range"))
                         plot_data$hovertext <- paste0("(", plot_data$Compound, ", ", signif(plot_data$Percentile_AUC_Mode_CCL,3)*100, "%, AUC=", signif(plot_data$AUC_mode_ccl_GDSC1_conc, 2), ")")
                         ylab <- "Percentile for AUC (most common range)"
-                        if(all(plot_data$Concentration_Range_Exceeds_Max_Tested_Concentration %in% "Max Tested Concentration Within AUC Range")){
-                          colors <- colorRampPalette(c("blue"))(1)
-                        } else if(all(plot_data$Concentration_Range_Exceeds_Max_Tested_Concentration %in% "Max Tested Concentration < AUC Range")){
-                          colors <- colorRampPalette(c("red"))(1)
-                        } else {
-                          colors <- colorRampPalette(c("blue", "red"))(2)
-                        }
-                        fig <- plot_ly(x = plot_data$Compound,
-                                       y = plot_data$Percentile_AUC_Mode_CCL*100,
-                                       color = plot_data$Concentration_Range_Exceeds_Max_Tested_Concentration,
+                        
+                        input$Cell_Line_Explorer_Compounds
+                        colors <- setNames(rep(colorRampPalette(c("blue", "red"))(2), 3),
+                                           c("Max Tested Concentration Within AUC Range", "Max Tested Concentration < AUC Range",
+                                             "selected: Max Tested Concentration Within AUC Range", "selected: Max Tested Concentration < AUC Range",
+                                             "unselected: Max Tested Concentration Within AUC Range", "unselected: Max Tested Concentration < AUC Range")
+                                           )
+                        if(input$Cell_Line_Explorer_Highlight_Compounds == TRUE){
+                          plot_data$Group <- ": unselected"
+                          plot_data$Group[plot_data$Compound %in% input$Cell_Line_Explorer_Compounds] <- ": selected"
+                          selected_plot_data <- plot_data[plot_data$Group == ": selected",]
+                          unselected_plot_data <- plot_data[plot_data$Group == ": unselected",]
+                          
+                          if(nrow(selected_plot_data) > 0){
+                            selected_plot_data$Concentration_Range_Exceeds_Max_Tested_Concentration <- paste0("selected: ", selected_plot_data$Concentration_Range_Exceeds_Max_Tested_Concentration)
+                            selected_plot_data$Concentration_Range_Exceeds_Max_Tested_Concentration <- factor(selected_plot_data$Concentration_Range_Exceeds_Max_Tested_Concentration, levels = c("selected: Max Tested Concentration Within AUC Range", "selected: Max Tested Concentration < AUC Range"))
+                            fig <- plot_ly(x = selected_plot_data$Compound,
+                                       y = selected_plot_data$Percentile_AUC_Mode_CCL*100,
+                                       color = selected_plot_data$Concentration_Range_Exceeds_Max_Tested_Concentration,
                                        colors = colors,
                                        type = "scatter",
                                        mode = "markers",
-                                       text = plot_data$hovertext,
+                                       text = selected_plot_data$hovertext,
                                        hoverinfo = "text")
-                        fig <- layout(fig,
-                                      title = "GDSC1 AUC Percentiles",
-                                      xaxis = list(title = paste0("GDSC1 Compounds (n = ", nrow(plot_data), ")"), showticklabels = FALSE),
-                                      yaxis = list(title = ylab))
+                            if(nrow(unselected_plot_data) > 0){
+                              unselected_plot_data$Concentration_Range_Exceeds_Max_Tested_Concentration <- paste0("unselected: ", unselected_plot_data$Concentration_Range_Exceeds_Max_Tested_Concentration)
+                              unselected_plot_data$Concentration_Range_Exceeds_Max_Tested_Concentration <- factor(unselected_plot_data$Concentration_Range_Exceeds_Max_Tested_Concentration, levels = c("unselected: Max Tested Concentration Within AUC Range", "unselected: Max Tested Concentration < AUC Range"))
+                              fig <- add_trace(fig,
+                                               x = unselected_plot_data$Compound,
+                                               y = unselected_plot_data$Percentile_AUC_Mode_CCL*100,
+                                               color = unselected_plot_data$Concentration_Range_Exceeds_Max_Tested_Concentration,
+                                               text = unselected_plot_data$hovertext,
+                                               hoverinfo = "text",
+                                               opacity = 0.2)
+                            }
+                            
+                            fig <- layout(fig,
+                                        title = "GDSC1 AUC Percentiles",
+                                        xaxis = list(title = paste0("GDSC1 Compounds (n = ", nrow(plot_data), ", ", nrow(selected_plot_data), " selected)"), showticklabels = FALSE),
+                                        yaxis = list(title = ylab))
+                            
+                          } else if(nrow(unselected_plot_data) > 0){
+                            unselected_plot_data$Concentration_Range_Exceeds_Max_Tested_Concentration <- paste0("unselected: ", unselected_plot_data$Concentration_Range_Exceeds_Max_Tested_Concentration)
+                            unselected_plot_data$Concentration_Range_Exceeds_Max_Tested_Concentration <- factor(unselected_plot_data$Concentration_Range_Exceeds_Max_Tested_Concentration, levels = c("unselected: Max Tested Concentration Within AUC Range", "unselected: Max Tested Concentration < AUC Range"))
+                            fig <- plot_ly(x = unselected_plot_data$Compound,
+                                       y = unselected_plot_data$Percentile_AUC_Mode_CCL*100,
+                                       color = unselected_plot_data$Concentration_Range_Exceeds_Max_Tested_Concentration,
+                                       colors = colors,
+                                       type = "scatter",
+                                       mode = "markers",
+                                       text = unselected_plot_data$hovertext,
+                                       hoverinfo = "text",
+                                       opacity = 0.2)
+                            
+                            fig <- layout(fig,
+                                        title = "GDSC1 AUC Percentiles",
+                                        xaxis = list(title = paste0("GDSC1 Compounds (n = ", nrow(plot_data), ", ", nrow(selected_plot_data), " selected)"), showticklabels = FALSE),
+                                        yaxis = list(title = ylab))
+                          }
+                        } else {
+                          fig <- plot_ly(x = plot_data$Compound,
+                                         y = plot_data$Percentile_AUC_Mode_CCL*100,
+                                         color = plot_data$Concentration_Range_Exceeds_Max_Tested_Concentration,
+                                         colors = colors,
+                                         type = "scatter",
+                                         mode = "markers",
+                                         text = plot_data$hovertext,
+                                         hoverinfo = "text")
+                          
+                          fig <- layout(fig,
+                                        title = "GDSC1 AUC Percentiles",
+                                        xaxis = list(title = paste0("GDSC1 Compounds (n = ", nrow(plot_data), ")"), showticklabels = FALSE),
+                                        yaxis = list(title = ylab))
+                        }
+                        
                         fig
+                        
                       } else if(input$Cell_Line_Explorer_to_Plot == "AUC percentiles for concentration range available for all tested cell lines"){
                         plot_data <- GDSC1_Results[! is.na(GDSC1_Results$Percentile_AUC_All_CCL),]
                         plot_data <- plot_data[order(plot_data$Percentile_AUC_All_CCL, decreasing = FALSE),]
                         plot_data$Compound <- factor(plot_data$Compound, levels = plot_data$Compound)
                         plot_data$hovertext <- paste0("(", plot_data$Compound, ", ", signif(plot_data$Percentile_AUC_All_CCL,3)*100, "%, AUC=", signif(plot_data$AUC_all_ccl_GDSC1_conc, 2), ")")
                         ylab <- "Percentile for AUC (all cell line range)"
-                        fig <- plot_ly(x = plot_data$Compound,
-                                       y = plot_data$Percentile_AUC_All_CCL*100,
-                                       type = "scatter",
-                                       mode = "markers",
-                                       text = plot_data$hovertext,
-                                       hoverinfo = "text")
-                        fig <- layout(fig,
+                        
+                        if(input$Cell_Line_Explorer_Highlight_Compounds == TRUE){
+                          plot_data$Group <- ": unselected"
+                          plot_data$Group[plot_data$Compound %in% input$Cell_Line_Explorer_Compounds] <- ": selected"
+                          selected_plot_data <- plot_data[plot_data$Group == ": selected",]
+                          unselected_plot_data <- plot_data[plot_data$Group == ": unselected",]
+                          
+                          if(nrow(selected_plot_data) > 0){
+                            fig <- plot_ly(x = selected_plot_data$Compound,
+                                           y = selected_plot_data$Percentile_AUC_All_CCL*100,
+                                           type = "scatter",
+                                           mode = "markers",
+                                           color = factor(rep("A", nrow(selected_plot_data))),
+                                           colors = colorRampPalette(c("blue"))(1),
+                                           text = selected_plot_data$hovertext,
+                                           hoverinfo = "text",
+                                           name = "selected")
+                            if(nrow(unselected_plot_data) > 0){
+                              fig <- add_trace(fig,
+                                               x = unselected_plot_data$Compound,
+                                               y = unselected_plot_data$Percentile_AUC_All_CCL*100,
+                                               text = unselected_plot_data$hovertext,
+                                               color = factor(rep("A", nrow(unselected_plot_data))),
+                                               hoverinfo = "text",
+                                               name = "unselected",
+                                               opacity = 0.2)
+                            }
+                            
+                            fig <- layout(fig,
                                       title = "GDSC1 AUC Percentiles",
-                                      xaxis = list(title = paste0("GDSC1 Compounds (n = ", nrow(plot_data), ")"), showticklabels = FALSE),
+                                      xaxis = list(title = paste0("GDSC1 Compounds (n = ", nrow(plot_data), ", ", nrow(selected_plot_data), " selected)"), showticklabels = FALSE),
                                       yaxis = list(title = ylab))
+                          } else {
+                            fig <- plot_ly(x = unselected_plot_data$Compound,
+                                           y = unselected_plot_data$Percentile_AUC_All_CCL*100,
+                                           type = "scatter",
+                                           mode = "markers",
+                                           color = factor(rep("A", nrow(unselected_plot_data))),
+                                           colors = colorRampPalette(c("blue"))(1),
+                                           text = unselected_plot_data$hovertext,
+                                           hoverinfo = "text",
+                                           name = "unselected",
+                                           opacity = 0.2)
+                            fig <- layout(fig,
+                                      title = "GDSC1 AUC Percentiles",
+                                      xaxis = list(title = paste0("GDSC1 Compounds (n = ", nrow(plot_data), ", ", nrow(selected_plot_data), " selected)"), showticklabels = FALSE),
+                                      yaxis = list(title = ylab))
+                          }
+                        } else {
+                          fig <- plot_ly(x = plot_data$Compound,
+                                         y = plot_data$Percentile_AUC_All_CCL*100,
+                                         type = "scatter",
+                                         mode = "markers",
+                                         color = factor(rep("A", nrow(plot_data))),
+                                         colors = colorRampPalette(c("blue"))(1),
+                                         text = plot_data$hovertext,
+                                         hoverinfo = "text")
+                          fig <- layout(fig,
+                                        title = "GDSC1 AUC Percentiles",
+                                        xaxis = list(title = paste0("GDSC1 Compounds (n = ", nrow(plot_data), ")"), showticklabels = FALSE),
+                                        yaxis = list(title = ylab))
+                        }
+                        
                         fig
+                        
                       } else if(input$Cell_Line_Explorer_to_Plot == "IC50 percentiles"){
                         plot_data <- GDSC1_Results[! is.na(GDSC1_Results$Percentile_IC50),]
                         if(nrow(plot_data) > 0){
@@ -2346,23 +3201,67 @@
                           plot_data$Group <- "IC50 <= max tested concentration"
                           plot_data$Group[plot_data$IC50 > plot_data$max_dose_uM] <- "IC50 > max tested concentration"
                           plot_data$Group[plot_data$IC50 == Inf] <- "Infinite IC50"
-                          if(all(c("IC50 <= max tested concentration", "IC50 > max tested concentration", "Infinite IC50") %in% plot_data$Group)){
-                            colors <- c("blue", "red", "lightgray")
-                          } else if(all(c("IC50 <= max tested concentration", "IC50 > max tested concentration") %in% plot_data$Group)){
-                            colors <- c("blue", "red")
-                          } else if(all(c("IC50 <= max tested concentration", "Infinite IC50") %in% plot_data$Group)){
-                            colors <- c("blue", "lightgray")
-                          } else if(all(c("IC50 > max tested concentration", "Infinite IC50") %in% plot_data$Group)){
-                            colors <- c("red", "lightgray")
-                          } else if("IC50 <= max tested concentration" %in% plot_data$Group){
-                            colors <- c("blue")
-                          } else if("IC50 > max tested concentration" %in% plot_data$Group){
-                            colors <- c("red")
-                          } else if("Infinite IC50" %in% plot_data$Group){
-                            colors <- c("lightgray")
-                          }
                           ylab <- "Percentile for IC50"
-                          fig <- plot_ly(x = plot_data$Compound,
+
+                          colors <- setNames(rep(colorRampPalette(c("blue", "red", "lightgray"))(3), 3),
+                                           c("IC50 <= max tested concentration", "IC50 > max tested concentration", "Infinite IC50",
+                                             "selected: IC50 <= max tested concentration", "selected: IC50 > max tested concentration", "selected: Infinite IC50",
+                                             "unselected: IC50 <= max tested concentration", "unselected: IC50 > max tested concentration", "unselected: Infinite IC50")
+                                           )
+                          
+                          if(input$Cell_Line_Explorer_Highlight_Compounds == TRUE){
+                            plot_data$Group_s <- ": unselected"
+                            plot_data$Group_s[plot_data$Compound %in% input$Cell_Line_Explorer_Compounds] <- ": selected"
+                            selected_plot_data <- plot_data[plot_data$Group_s == ": selected",]
+                            unselected_plot_data <- plot_data[plot_data$Group_s == ": unselected",]
+                            
+                            if(nrow(selected_plot_data) > 0){
+                              selected_plot_data$Group <- paste0("selected: ", selected_plot_data$Group)
+                              selected_plot_data$Group <- factor(selected_plot_data$Group, levels = c("selected: IC50 <= max tested concentration", "selected: IC50 > max tested concentration", "selected: Infinite IC50"))
+                              fig <- plot_ly(x = selected_plot_data$Compound,
+                                             y = selected_plot_data$Percentile_IC50*100,
+                                             type = "scatter",
+                                             mode = "markers",
+                                             color = selected_plot_data$Group,
+                                             colors = colors,
+                                             text = selected_plot_data$hovertext,
+                                             hoverinfo = "text")
+                              if(nrow(unselected_plot_data) > 0){
+                                unselected_plot_data$Group <- paste0("unselected: ", unselected_plot_data$Group)
+                                unselected_plot_data$Group <- factor(unselected_plot_data$Group, levels = c("unselected: IC50 <= max tested concentration", "unselected: IC50 > max tested concentration", "unselected: Infinite IC50"))
+                                fig <- add_trace(fig,
+                                                 x = unselected_plot_data$Compound,
+                                                 y = unselected_plot_data$Percentile_IC50*100,
+                                                 color = unselected_plot_data$Group,
+                                                 text = unselected_plot_data$hovertext,
+                                                 hoverinfo = "text",
+                                                 opacity = 0.2)
+                              }
+                              fig <- layout(fig,
+                                            title = "GDSC1 IC50 Percentiles",
+                                            xaxis = list(title = paste0("GDSC1 Compounds (n = ", nrow(plot_data), ", ", nrow(selected_plot_data), " selected)"), showticklabels = FALSE),
+                                            yaxis = list(title = ylab))
+                            } else {
+                              unselected_plot_data$Group <- paste0("unselected: ", unselected_plot_data$Group)
+                              unselected_plot_data$Group <- factor(unselected_plot_data$Group, levels = c("unselected: IC50 <= max tested concentration", "unselected: IC50 > max tested concentration", "unselected: Infinite IC50"))
+                              fig <- plot_ly(x = unselected_plot_data$Compound,
+                                             y = unselected_plot_data$Percentile_IC50*100,
+                                             type = "scatter",
+                                             mode = "markers",
+                                             color = unselected_plot_data$Group,
+                                             colors = colors,
+                                             text = unselected_plot_data$hovertext,
+                                             hoverinfo = "text",
+                                             opacity = 0.2)
+                              
+                              fig <- layout(fig,
+                                            title = "GDSC1 IC50 Percentiles",
+                                            xaxis = list(title = paste0("GDSC1 Compounds (n = ", nrow(plot_data), ", ", nrow(selected_plot_data), " selected)"), showticklabels = FALSE),
+                                            yaxis = list(title = ylab))
+                            }
+                            
+                          } else {
+                            fig <- plot_ly(x = plot_data$Compound,
                                          y = plot_data$Percentile_IC50*100,
                                          type = "scatter",
                                          mode = "markers",
@@ -2370,17 +3269,21 @@
                                          colors = colors,
                                          text = plot_data$hovertext,
                                          hoverinfo = "text")
-                          fig <- layout(fig,
-                                        title = "GDSC1 IC50 Percentiles",
-                                        xaxis = list(title = paste0("GDSC1 Compounds (n = ", nrow(plot_data), ")"), showticklabels = FALSE),
-                                        yaxis = list(title = ylab))
+                            fig <- layout(fig,
+                                          title = "GDSC1 IC50 Percentiles",
+                                          xaxis = list(title = paste0("GDSC1 Compounds (n = ", nrow(plot_data), ")"), showticklabels = FALSE),
+                                          yaxis = list(title = ylab))
+                          }
+                          
                           fig
+                          
                         }
                       }
                     }
                   })
                 
                 output$Cell_Line_Explorer_GDSC2_Plot <- renderPlotly({
+                  req(! length(input$Cell_Line_Explorer_Highlight_Compounds) == 0)
                     #Loading raw data for this cell_line and any datasets with data for this cell_line
                       if("GDSC2" %in% Cell_Line_Explorer_datasets_with_cell_line_data()){
                         GDSC2_Results <- Filtered_Cell_Line_Explorer_Data()$GDSC2
@@ -2399,43 +3302,154 @@
                         plot_data$Concentration_Range_Exceeds_Max_Tested_Concentration <- factor(plot_data$Concentration_Range_Exceeds_Max_Tested_Concentration, levels = c("Max Tested Concentration Within AUC Range", "Max Tested Concentration < AUC Range"))
                         plot_data$hovertext <- paste0("(", plot_data$Compound, ", ", signif(plot_data$Percentile_AUC_Mode_CCL,3)*100, "%, AUC=", signif(plot_data$AUC_mode_ccl_GDSC2_conc, 2), ")")
                         ylab <- "Percentile for AUC (most common range)"
-                        if(all(plot_data$Concentration_Range_Exceeds_Max_Tested_Concentration %in% "Max Tested Concentration Within AUC Range")){
-                          colors <- colorRampPalette(c("blue"))(1)
-                        } else if(all(plot_data$Concentration_Range_Exceeds_Max_Tested_Concentration %in% "Max Tested Concentration < AUC Range")){
-                          colors <- colorRampPalette(c("red"))(1)
-                        } else {
-                          colors <- colorRampPalette(c("blue", "red"))(2)
-                        }
-                        fig <- plot_ly(x = plot_data$Compound,
-                                       y = plot_data$Percentile_AUC_Mode_CCL*100,
-                                       color = plot_data$Concentration_Range_Exceeds_Max_Tested_Concentration,
+                        
+                        input$Cell_Line_Explorer_Compounds
+                        colors <- setNames(rep(colorRampPalette(c("blue", "red"))(2), 3),
+                                           c("Max Tested Concentration Within AUC Range", "Max Tested Concentration < AUC Range",
+                                             "selected: Max Tested Concentration Within AUC Range", "selected: Max Tested Concentration < AUC Range",
+                                             "unselected: Max Tested Concentration Within AUC Range", "unselected: Max Tested Concentration < AUC Range")
+                                           )
+                        if(input$Cell_Line_Explorer_Highlight_Compounds == TRUE){
+                          plot_data$Group <- ": unselected"
+                          plot_data$Group[plot_data$Compound %in% input$Cell_Line_Explorer_Compounds] <- ": selected"
+                          selected_plot_data <- plot_data[plot_data$Group == ": selected",]
+                          unselected_plot_data <- plot_data[plot_data$Group == ": unselected",]
+                          
+                          if(nrow(selected_plot_data) > 0){
+                            selected_plot_data$Concentration_Range_Exceeds_Max_Tested_Concentration <- paste0("selected: ", selected_plot_data$Concentration_Range_Exceeds_Max_Tested_Concentration)
+                            selected_plot_data$Concentration_Range_Exceeds_Max_Tested_Concentration <- factor(selected_plot_data$Concentration_Range_Exceeds_Max_Tested_Concentration, levels = c("selected: Max Tested Concentration Within AUC Range", "selected: Max Tested Concentration < AUC Range"))
+                            fig <- plot_ly(x = selected_plot_data$Compound,
+                                       y = selected_plot_data$Percentile_AUC_Mode_CCL*100,
+                                       color = selected_plot_data$Concentration_Range_Exceeds_Max_Tested_Concentration,
                                        colors = colors,
                                        type = "scatter",
                                        mode = "markers",
-                                       text = plot_data$hovertext,
+                                       text = selected_plot_data$hovertext,
                                        hoverinfo = "text")
-                        fig <- layout(fig,
-                                      title = "GDSC2 AUC Percentiles",
-                                      xaxis = list(title = paste0("GDSC2 Compounds (n = ", nrow(plot_data), ")"), showticklabels = FALSE),
-                                      yaxis = list(title = ylab))
+                            if(nrow(unselected_plot_data) > 0){
+                              unselected_plot_data$Concentration_Range_Exceeds_Max_Tested_Concentration <- paste0("unselected: ", unselected_plot_data$Concentration_Range_Exceeds_Max_Tested_Concentration)
+                              unselected_plot_data$Concentration_Range_Exceeds_Max_Tested_Concentration <- factor(unselected_plot_data$Concentration_Range_Exceeds_Max_Tested_Concentration, levels = c("unselected: Max Tested Concentration Within AUC Range", "unselected: Max Tested Concentration < AUC Range"))
+                              fig <- add_trace(fig,
+                                               x = unselected_plot_data$Compound,
+                                               y = unselected_plot_data$Percentile_AUC_Mode_CCL*100,
+                                               color = unselected_plot_data$Concentration_Range_Exceeds_Max_Tested_Concentration,
+                                               text = unselected_plot_data$hovertext,
+                                               hoverinfo = "text",
+                                               opacity = 0.2)
+                            }
+                            
+                            fig <- layout(fig,
+                                        title = "GDSC2 AUC Percentiles",
+                                        xaxis = list(title = paste0("GDSC2 Compounds (n = ", nrow(plot_data), ", ", nrow(selected_plot_data), " selected)"), showticklabels = FALSE),
+                                        yaxis = list(title = ylab))
+                            
+                          } else if(nrow(unselected_plot_data) > 0){
+                            unselected_plot_data$Concentration_Range_Exceeds_Max_Tested_Concentration <- paste0("unselected: ", unselected_plot_data$Concentration_Range_Exceeds_Max_Tested_Concentration)
+                            unselected_plot_data$Concentration_Range_Exceeds_Max_Tested_Concentration <- factor(unselected_plot_data$Concentration_Range_Exceeds_Max_Tested_Concentration, levels = c("unselected: Max Tested Concentration Within AUC Range", "unselected: Max Tested Concentration < AUC Range"))
+                            fig <- plot_ly(x = unselected_plot_data$Compound,
+                                       y = unselected_plot_data$Percentile_AUC_Mode_CCL*100,
+                                       color = unselected_plot_data$Concentration_Range_Exceeds_Max_Tested_Concentration,
+                                       colors = colors,
+                                       type = "scatter",
+                                       mode = "markers",
+                                       text = unselected_plot_data$hovertext,
+                                       hoverinfo = "text",
+                                       opacity = 0.2)
+                            
+                            fig <- layout(fig,
+                                        title = "GDSC2 AUC Percentiles",
+                                        xaxis = list(title = paste0("GDSC2 Compounds (n = ", nrow(plot_data), ", ", nrow(selected_plot_data), " selected)"), showticklabels = FALSE),
+                                        yaxis = list(title = ylab))
+                          }
+                        } else {
+                          fig <- plot_ly(x = plot_data$Compound,
+                                         y = plot_data$Percentile_AUC_Mode_CCL*100,
+                                         color = plot_data$Concentration_Range_Exceeds_Max_Tested_Concentration,
+                                         colors = colors,
+                                         type = "scatter",
+                                         mode = "markers",
+                                         text = plot_data$hovertext,
+                                         hoverinfo = "text")
+                          
+                          fig <- layout(fig,
+                                        title = "GDSC2 AUC Percentiles",
+                                        xaxis = list(title = paste0("GDSC2 Compounds (n = ", nrow(plot_data), ")"), showticklabels = FALSE),
+                                        yaxis = list(title = ylab))
+                        }
+                        
                         fig
+                        
                       } else if(input$Cell_Line_Explorer_to_Plot == "AUC percentiles for concentration range available for all tested cell lines"){
                         plot_data <- GDSC2_Results[! is.na(GDSC2_Results$Percentile_AUC_All_CCL),]
                         plot_data <- plot_data[order(plot_data$Percentile_AUC_All_CCL, decreasing = FALSE),]
                         plot_data$Compound <- factor(plot_data$Compound, levels = plot_data$Compound)
                         plot_data$hovertext <- paste0("(", plot_data$Compound, ", ", signif(plot_data$Percentile_AUC_All_CCL,3)*100, "%, AUC=", signif(plot_data$AUC_all_ccl_GDSC2_conc, 2), ")")
                         ylab <- "Percentile for AUC (all cell line range)"
-                        fig <- plot_ly(x = plot_data$Compound,
-                                       y = plot_data$Percentile_AUC_All_CCL*100,
-                                       type = "scatter",
-                                       mode = "markers",
-                                       text = plot_data$hovertext,
-                                       hoverinfo = "text")
-                        fig <- layout(fig,
+                        
+                        if(input$Cell_Line_Explorer_Highlight_Compounds == TRUE){
+                          plot_data$Group <- ": unselected"
+                          plot_data$Group[plot_data$Compound %in% input$Cell_Line_Explorer_Compounds] <- ": selected"
+                          selected_plot_data <- plot_data[plot_data$Group == ": selected",]
+                          unselected_plot_data <- plot_data[plot_data$Group == ": unselected",]
+                          
+                          if(nrow(selected_plot_data) > 0){
+                            fig <- plot_ly(x = selected_plot_data$Compound,
+                                           y = selected_plot_data$Percentile_AUC_All_CCL*100,
+                                           type = "scatter",
+                                           mode = "markers",
+                                           color = factor(rep("A", nrow(selected_plot_data))),
+                                           colors = colorRampPalette(c("blue"))(1),
+                                           text = selected_plot_data$hovertext,
+                                           hoverinfo = "text",
+                                           name = "selected")
+                            if(nrow(unselected_plot_data) > 0){
+                              fig <- add_trace(fig,
+                                               x = unselected_plot_data$Compound,
+                                               y = unselected_plot_data$Percentile_AUC_All_CCL*100,
+                                               text = unselected_plot_data$hovertext,
+                                               color = factor(rep("A", nrow(unselected_plot_data))),
+                                               hoverinfo = "text",
+                                               name = "unselected",
+                                               opacity = 0.2)
+                            }
+                            
+                            fig <- layout(fig,
                                       title = "GDSC2 AUC Percentiles",
-                                      xaxis = list(title = paste0("GDSC2 Compounds (n = ", nrow(plot_data), ")"), showticklabels = FALSE),
+                                      xaxis = list(title = paste0("GDSC2 Compounds (n = ", nrow(plot_data), ", ", nrow(selected_plot_data), " selected)"), showticklabels = FALSE),
                                       yaxis = list(title = ylab))
+                          } else {
+                            fig <- plot_ly(x = unselected_plot_data$Compound,
+                                           y = unselected_plot_data$Percentile_AUC_All_CCL*100,
+                                           type = "scatter",
+                                           mode = "markers",
+                                           color = factor(rep("A", nrow(unselected_plot_data))),
+                                           colors = colorRampPalette(c("blue"))(1),
+                                           text = unselected_plot_data$hovertext,
+                                           hoverinfo = "text",
+                                           name = "unselected",
+                                           opacity = 0.2)
+                            fig <- layout(fig,
+                                      title = "GDSC2 AUC Percentiles",
+                                      xaxis = list(title = paste0("GDSC2 Compounds (n = ", nrow(plot_data), ", ", nrow(selected_plot_data), " selected)"), showticklabels = FALSE),
+                                      yaxis = list(title = ylab))
+                          }
+                        } else {
+                          fig <- plot_ly(x = plot_data$Compound,
+                                         y = plot_data$Percentile_AUC_All_CCL*100,
+                                         type = "scatter",
+                                         mode = "markers",
+                                         color = factor(rep("A", nrow(plot_data))),
+                                         colors = colorRampPalette(c("blue"))(1),
+                                         text = plot_data$hovertext,
+                                         hoverinfo = "text")
+                          fig <- layout(fig,
+                                        title = "GDSC2 AUC Percentiles",
+                                        xaxis = list(title = paste0("GDSC2 Compounds (n = ", nrow(plot_data), ")"), showticklabels = FALSE),
+                                        yaxis = list(title = ylab))
+                        }
+                        
                         fig
+                        
                       } else if(input$Cell_Line_Explorer_to_Plot == "IC50 percentiles"){
                         plot_data <- GDSC2_Results[! is.na(GDSC2_Results$Percentile_IC50),]
                         if(nrow(plot_data) > 0){
@@ -2445,23 +3459,67 @@
                           plot_data$Group <- "IC50 <= max tested concentration"
                           plot_data$Group[plot_data$IC50 > plot_data$max_dose_uM] <- "IC50 > max tested concentration"
                           plot_data$Group[plot_data$IC50 == Inf] <- "Infinite IC50"
-                          if(all(c("IC50 <= max tested concentration", "IC50 > max tested concentration", "Infinite IC50") %in% plot_data$Group)){
-                            colors <- c("blue", "red", "lightgray")
-                          } else if(all(c("IC50 <= max tested concentration", "IC50 > max tested concentration") %in% plot_data$Group)){
-                            colors <- c("blue", "red")
-                          } else if(all(c("IC50 <= max tested concentration", "Infinite IC50") %in% plot_data$Group)){
-                            colors <- c("blue", "lightgray")
-                          } else if(all(c("IC50 > max tested concentration", "Infinite IC50") %in% plot_data$Group)){
-                            colors <- c("red", "lightgray")
-                          } else if("IC50 <= max tested concentration" %in% plot_data$Group){
-                            colors <- c("blue")
-                          } else if("IC50 > max tested concentration" %in% plot_data$Group){
-                            colors <- c("red")
-                          } else if("Infinite IC50" %in% plot_data$Group){
-                            colors <- c("lightgray")
-                          }
                           ylab <- "Percentile for IC50"
-                          fig <- plot_ly(x = plot_data$Compound,
+
+                          colors <- setNames(rep(colorRampPalette(c("blue", "red", "lightgray"))(3), 3),
+                                           c("IC50 <= max tested concentration", "IC50 > max tested concentration", "Infinite IC50",
+                                             "selected: IC50 <= max tested concentration", "selected: IC50 > max tested concentration", "selected: Infinite IC50",
+                                             "unselected: IC50 <= max tested concentration", "unselected: IC50 > max tested concentration", "unselected: Infinite IC50")
+                                           )
+                          
+                          if(input$Cell_Line_Explorer_Highlight_Compounds == TRUE){
+                            plot_data$Group_s <- ": unselected"
+                            plot_data$Group_s[plot_data$Compound %in% input$Cell_Line_Explorer_Compounds] <- ": selected"
+                            selected_plot_data <- plot_data[plot_data$Group_s == ": selected",]
+                            unselected_plot_data <- plot_data[plot_data$Group_s == ": unselected",]
+                            
+                            if(nrow(selected_plot_data) > 0){
+                              selected_plot_data$Group <- paste0("selected: ", selected_plot_data$Group)
+                              selected_plot_data$Group <- factor(selected_plot_data$Group, levels = c("selected: IC50 <= max tested concentration", "selected: IC50 > max tested concentration", "selected: Infinite IC50"))
+                              fig <- plot_ly(x = selected_plot_data$Compound,
+                                             y = selected_plot_data$Percentile_IC50*100,
+                                             type = "scatter",
+                                             mode = "markers",
+                                             color = selected_plot_data$Group,
+                                             colors = colors,
+                                             text = selected_plot_data$hovertext,
+                                             hoverinfo = "text")
+                              if(nrow(unselected_plot_data) > 0){
+                                unselected_plot_data$Group <- paste0("unselected: ", unselected_plot_data$Group)
+                                unselected_plot_data$Group <- factor(unselected_plot_data$Group, levels = c("unselected: IC50 <= max tested concentration", "unselected: IC50 > max tested concentration", "unselected: Infinite IC50"))
+                                fig <- add_trace(fig,
+                                                 x = unselected_plot_data$Compound,
+                                                 y = unselected_plot_data$Percentile_IC50*100,
+                                                 color = unselected_plot_data$Group,
+                                                 text = unselected_plot_data$hovertext,
+                                                 hoverinfo = "text",
+                                                 opacity = 0.2)
+                              }
+                              fig <- layout(fig,
+                                            title = "GDSC2 IC50 Percentiles",
+                                            xaxis = list(title = paste0("GDSC2 Compounds (n = ", nrow(plot_data), ", ", nrow(selected_plot_data), " selected)"), showticklabels = FALSE),
+                                            yaxis = list(title = ylab))
+                            } else {
+                              unselected_plot_data$Group <- paste0("unselected: ", unselected_plot_data$Group)
+                              unselected_plot_data$Group <- factor(unselected_plot_data$Group, levels = c("unselected: IC50 <= max tested concentration", "unselected: IC50 > max tested concentration", "unselected: Infinite IC50"))
+                              fig <- plot_ly(x = unselected_plot_data$Compound,
+                                             y = unselected_plot_data$Percentile_IC50*100,
+                                             type = "scatter",
+                                             mode = "markers",
+                                             color = unselected_plot_data$Group,
+                                             colors = colors,
+                                             text = unselected_plot_data$hovertext,
+                                             hoverinfo = "text",
+                                             opacity = 0.2)
+                              
+                              fig <- layout(fig,
+                                            title = "GDSC2 IC50 Percentiles",
+                                            xaxis = list(title = paste0("GDSC2 Compounds (n = ", nrow(plot_data), ", ", nrow(selected_plot_data), " selected)"), showticklabels = FALSE),
+                                            yaxis = list(title = ylab))
+                            }
+                            
+                          } else {
+                            fig <- plot_ly(x = plot_data$Compound,
                                          y = plot_data$Percentile_IC50*100,
                                          type = "scatter",
                                          mode = "markers",
@@ -2469,17 +3527,21 @@
                                          colors = colors,
                                          text = plot_data$hovertext,
                                          hoverinfo = "text")
-                          fig <- layout(fig,
-                                        title = "GDSC2 IC50 Percentiles",
-                                        xaxis = list(title = paste0("GDSC2 Compounds (n = ", nrow(plot_data), ")"), showticklabels = FALSE),
-                                        yaxis = list(title = ylab))
+                            fig <- layout(fig,
+                                          title = "GDSC2 IC50 Percentiles",
+                                          xaxis = list(title = paste0("GDSC2 Compounds (n = ", nrow(plot_data), ")"), showticklabels = FALSE),
+                                          yaxis = list(title = ylab))
+                          }
+                          
                           fig
+                          
                         }
                       }
                     }
                   })
                 
                 output$Cell_Line_Explorer_PRISM_Repurposing_Plot <- renderPlotly({
+                  req(! length(input$Cell_Line_Explorer_Highlight_Compounds) == 0)
                     #Loading raw data for this cell_line and any datasets with data for this cell_line
                       if("PRISM_Repurposing" %in% Cell_Line_Explorer_datasets_with_cell_line_data()){
                         PRISM_Repurposing_Results <- Filtered_Cell_Line_Explorer_Data()$PRISM_Repurposing
@@ -2498,43 +3560,154 @@
                         plot_data$Concentration_Range_Exceeds_Max_Tested_Concentration <- factor(plot_data$Concentration_Range_Exceeds_Max_Tested_Concentration, levels = c("Max Tested Concentration Within AUC Range", "Max Tested Concentration < AUC Range"))
                         plot_data$hovertext <- paste0("(", plot_data$Compound, ", ", signif(plot_data$Percentile_AUC_Mode_CCL,3)*100, "%, AUC=", signif(plot_data$AUC_mode_ccl_PRISM_Repurposing_conc, 2), ")")
                         ylab <- "Percentile for AUC (most common range)"
-                        if(all(plot_data$Concentration_Range_Exceeds_Max_Tested_Concentration %in% "Max Tested Concentration Within AUC Range")){
-                          colors <- colorRampPalette(c("blue"))(1)
-                        } else if(all(plot_data$Concentration_Range_Exceeds_Max_Tested_Concentration %in% "Max Tested Concentration < AUC Range")){
-                          colors <- colorRampPalette(c("red"))(1)
-                        } else {
-                          colors <- colorRampPalette(c("blue", "red"))(2)
-                        }
-                        fig <- plot_ly(x = plot_data$Compound,
-                                       y = plot_data$Percentile_AUC_Mode_CCL*100,
-                                       color = plot_data$Concentration_Range_Exceeds_Max_Tested_Concentration,
+                        
+                        input$Cell_Line_Explorer_Compounds
+                        colors <- setNames(rep(colorRampPalette(c("blue", "red"))(2), 3),
+                                           c("Max Tested Concentration Within AUC Range", "Max Tested Concentration < AUC Range",
+                                             "selected: Max Tested Concentration Within AUC Range", "selected: Max Tested Concentration < AUC Range",
+                                             "unselected: Max Tested Concentration Within AUC Range", "unselected: Max Tested Concentration < AUC Range")
+                                           )
+                        if(input$Cell_Line_Explorer_Highlight_Compounds == TRUE){
+                          plot_data$Group <- ": unselected"
+                          plot_data$Group[plot_data$Compound %in% input$Cell_Line_Explorer_Compounds] <- ": selected"
+                          selected_plot_data <- plot_data[plot_data$Group == ": selected",]
+                          unselected_plot_data <- plot_data[plot_data$Group == ": unselected",]
+                          
+                          if(nrow(selected_plot_data) > 0){
+                            selected_plot_data$Concentration_Range_Exceeds_Max_Tested_Concentration <- paste0("selected: ", selected_plot_data$Concentration_Range_Exceeds_Max_Tested_Concentration)
+                            selected_plot_data$Concentration_Range_Exceeds_Max_Tested_Concentration <- factor(selected_plot_data$Concentration_Range_Exceeds_Max_Tested_Concentration, levels = c("selected: Max Tested Concentration Within AUC Range", "selected: Max Tested Concentration < AUC Range"))
+                            fig <- plot_ly(x = selected_plot_data$Compound,
+                                       y = selected_plot_data$Percentile_AUC_Mode_CCL*100,
+                                       color = selected_plot_data$Concentration_Range_Exceeds_Max_Tested_Concentration,
                                        colors = colors,
                                        type = "scatter",
                                        mode = "markers",
-                                       text = plot_data$hovertext,
+                                       text = selected_plot_data$hovertext,
                                        hoverinfo = "text")
-                        fig <- layout(fig,
-                                      title = "PRISM_Repurposing AUC Percentiles",
-                                      xaxis = list(title = paste0("PRISM_Repurposing Compounds (n = ", nrow(plot_data), ")"), showticklabels = FALSE),
-                                      yaxis = list(title = ylab))
+                            if(nrow(unselected_plot_data) > 0){
+                              unselected_plot_data$Concentration_Range_Exceeds_Max_Tested_Concentration <- paste0("unselected: ", unselected_plot_data$Concentration_Range_Exceeds_Max_Tested_Concentration)
+                              unselected_plot_data$Concentration_Range_Exceeds_Max_Tested_Concentration <- factor(unselected_plot_data$Concentration_Range_Exceeds_Max_Tested_Concentration, levels = c("unselected: Max Tested Concentration Within AUC Range", "unselected: Max Tested Concentration < AUC Range"))
+                              fig <- add_trace(fig,
+                                               x = unselected_plot_data$Compound,
+                                               y = unselected_plot_data$Percentile_AUC_Mode_CCL*100,
+                                               color = unselected_plot_data$Concentration_Range_Exceeds_Max_Tested_Concentration,
+                                               text = unselected_plot_data$hovertext,
+                                               hoverinfo = "text",
+                                               opacity = 0.2)
+                            }
+                            
+                            fig <- layout(fig,
+                                        title = "PRISM_Repurposing AUC Percentiles",
+                                        xaxis = list(title = paste0("PRISM_Repurposing Compounds (n = ", nrow(plot_data), ", ", nrow(selected_plot_data), " selected)"), showticklabels = FALSE),
+                                        yaxis = list(title = ylab))
+                            
+                          } else if(nrow(unselected_plot_data) > 0){
+                            unselected_plot_data$Concentration_Range_Exceeds_Max_Tested_Concentration <- paste0("unselected: ", unselected_plot_data$Concentration_Range_Exceeds_Max_Tested_Concentration)
+                            unselected_plot_data$Concentration_Range_Exceeds_Max_Tested_Concentration <- factor(unselected_plot_data$Concentration_Range_Exceeds_Max_Tested_Concentration, levels = c("unselected: Max Tested Concentration Within AUC Range", "unselected: Max Tested Concentration < AUC Range"))
+                            fig <- plot_ly(x = unselected_plot_data$Compound,
+                                       y = unselected_plot_data$Percentile_AUC_Mode_CCL*100,
+                                       color = unselected_plot_data$Concentration_Range_Exceeds_Max_Tested_Concentration,
+                                       colors = colors,
+                                       type = "scatter",
+                                       mode = "markers",
+                                       text = unselected_plot_data$hovertext,
+                                       hoverinfo = "text",
+                                       opacity = 0.2)
+                            
+                            fig <- layout(fig,
+                                        title = "PRISM_Repurposing AUC Percentiles",
+                                        xaxis = list(title = paste0("PRISM_Repurposing Compounds (n = ", nrow(plot_data), ", ", nrow(selected_plot_data), " selected)"), showticklabels = FALSE),
+                                        yaxis = list(title = ylab))
+                          }
+                        } else {
+                          fig <- plot_ly(x = plot_data$Compound,
+                                         y = plot_data$Percentile_AUC_Mode_CCL*100,
+                                         color = plot_data$Concentration_Range_Exceeds_Max_Tested_Concentration,
+                                         colors = colors,
+                                         type = "scatter",
+                                         mode = "markers",
+                                         text = plot_data$hovertext,
+                                         hoverinfo = "text")
+                          
+                          fig <- layout(fig,
+                                        title = "PRISM_Repurposing AUC Percentiles",
+                                        xaxis = list(title = paste0("PRISM_Repurposing Compounds (n = ", nrow(plot_data), ")"), showticklabels = FALSE),
+                                        yaxis = list(title = ylab))
+                        }
+                        
                         fig
+                        
                       } else if(input$Cell_Line_Explorer_to_Plot == "AUC percentiles for concentration range available for all tested cell lines"){
                         plot_data <- PRISM_Repurposing_Results[! is.na(PRISM_Repurposing_Results$Percentile_AUC_All_CCL),]
                         plot_data <- plot_data[order(plot_data$Percentile_AUC_All_CCL, decreasing = FALSE),]
                         plot_data$Compound <- factor(plot_data$Compound, levels = plot_data$Compound)
                         plot_data$hovertext <- paste0("(", plot_data$Compound, ", ", signif(plot_data$Percentile_AUC_All_CCL,3)*100, "%, AUC=", signif(plot_data$AUC_all_ccl_PRISM_Repurposing_conc, 2), ")")
                         ylab <- "Percentile for AUC (all cell line range)"
-                        fig <- plot_ly(x = plot_data$Compound,
-                                       y = plot_data$Percentile_AUC_All_CCL*100,
-                                       type = "scatter",
-                                       mode = "markers",
-                                       text = plot_data$hovertext,
-                                       hoverinfo = "text")
-                        fig <- layout(fig,
+                        
+                        if(input$Cell_Line_Explorer_Highlight_Compounds == TRUE){
+                          plot_data$Group <- ": unselected"
+                          plot_data$Group[plot_data$Compound %in% input$Cell_Line_Explorer_Compounds] <- ": selected"
+                          selected_plot_data <- plot_data[plot_data$Group == ": selected",]
+                          unselected_plot_data <- plot_data[plot_data$Group == ": unselected",]
+                          
+                          if(nrow(selected_plot_data) > 0){
+                            fig <- plot_ly(x = selected_plot_data$Compound,
+                                           y = selected_plot_data$Percentile_AUC_All_CCL*100,
+                                           type = "scatter",
+                                           mode = "markers",
+                                           color = factor(rep("A", nrow(selected_plot_data))),
+                                           colors = colorRampPalette(c("blue"))(1),
+                                           text = selected_plot_data$hovertext,
+                                           hoverinfo = "text",
+                                           name = "selected")
+                            if(nrow(unselected_plot_data) > 0){
+                              fig <- add_trace(fig,
+                                               x = unselected_plot_data$Compound,
+                                               y = unselected_plot_data$Percentile_AUC_All_CCL*100,
+                                               text = unselected_plot_data$hovertext,
+                                               color = factor(rep("A", nrow(unselected_plot_data))),
+                                               hoverinfo = "text",
+                                               name = "unselected",
+                                               opacity = 0.2)
+                            }
+                            
+                            fig <- layout(fig,
                                       title = "PRISM_Repurposing AUC Percentiles",
-                                      xaxis = list(title = paste0("PRISM_Repurposing Compounds (n = ", nrow(plot_data), ")"), showticklabels = FALSE),
+                                      xaxis = list(title = paste0("PRISM_Repurposing Compounds (n = ", nrow(plot_data), ", ", nrow(selected_plot_data), " selected)"), showticklabels = FALSE),
                                       yaxis = list(title = ylab))
+                          } else {
+                            fig <- plot_ly(x = unselected_plot_data$Compound,
+                                           y = unselected_plot_data$Percentile_AUC_All_CCL*100,
+                                           type = "scatter",
+                                           mode = "markers",
+                                           color = factor(rep("A", nrow(unselected_plot_data))),
+                                           colors = colorRampPalette(c("blue"))(1),
+                                           text = unselected_plot_data$hovertext,
+                                           hoverinfo = "text",
+                                           name = "unselected",
+                                           opacity = 0.2)
+                            fig <- layout(fig,
+                                      title = "PRISM_Repurposing AUC Percentiles",
+                                      xaxis = list(title = paste0("PRISM_Repurposing Compounds (n = ", nrow(plot_data), ", ", nrow(selected_plot_data), " selected)"), showticklabels = FALSE),
+                                      yaxis = list(title = ylab))
+                          }
+                        } else {
+                          fig <- plot_ly(x = plot_data$Compound,
+                                         y = plot_data$Percentile_AUC_All_CCL*100,
+                                         type = "scatter",
+                                         mode = "markers",
+                                         color = factor(rep("A", nrow(plot_data))),
+                                         colors = colorRampPalette(c("blue"))(1),
+                                         text = plot_data$hovertext,
+                                         hoverinfo = "text")
+                          fig <- layout(fig,
+                                        title = "PRISM_Repurposing AUC Percentiles",
+                                        xaxis = list(title = paste0("PRISM_Repurposing Compounds (n = ", nrow(plot_data), ")"), showticklabels = FALSE),
+                                        yaxis = list(title = ylab))
+                        }
+                        
                         fig
+                        
                       } else if(input$Cell_Line_Explorer_to_Plot == "IC50 percentiles"){
                         plot_data <- PRISM_Repurposing_Results[! is.na(PRISM_Repurposing_Results$Percentile_IC50),]
                         if(nrow(plot_data) > 0){
@@ -2544,23 +3717,67 @@
                           plot_data$Group <- "IC50 <= max tested concentration"
                           plot_data$Group[plot_data$IC50 > plot_data$max_dose_uM] <- "IC50 > max tested concentration"
                           plot_data$Group[plot_data$IC50 == Inf] <- "Infinite IC50"
-                          if(all(c("IC50 <= max tested concentration", "IC50 > max tested concentration", "Infinite IC50") %in% plot_data$Group)){
-                            colors <- c("blue", "red", "lightgray")
-                          } else if(all(c("IC50 <= max tested concentration", "IC50 > max tested concentration") %in% plot_data$Group)){
-                            colors <- c("blue", "red")
-                          } else if(all(c("IC50 <= max tested concentration", "Infinite IC50") %in% plot_data$Group)){
-                            colors <- c("blue", "lightgray")
-                          } else if(all(c("IC50 > max tested concentration", "Infinite IC50") %in% plot_data$Group)){
-                            colors <- c("red", "lightgray")
-                          } else if("IC50 <= max tested concentration" %in% plot_data$Group){
-                            colors <- c("blue")
-                          } else if("IC50 > max tested concentration" %in% plot_data$Group){
-                            colors <- c("red")
-                          } else if("Infinite IC50" %in% plot_data$Group){
-                            colors <- c("lightgray")
-                          }
                           ylab <- "Percentile for IC50"
-                          fig <- plot_ly(x = plot_data$Compound,
+
+                          colors <- setNames(rep(colorRampPalette(c("blue", "red", "lightgray"))(3), 3),
+                                           c("IC50 <= max tested concentration", "IC50 > max tested concentration", "Infinite IC50",
+                                             "selected: IC50 <= max tested concentration", "selected: IC50 > max tested concentration", "selected: Infinite IC50",
+                                             "unselected: IC50 <= max tested concentration", "unselected: IC50 > max tested concentration", "unselected: Infinite IC50")
+                                           )
+                          
+                          if(input$Cell_Line_Explorer_Highlight_Compounds == TRUE){
+                            plot_data$Group_s <- ": unselected"
+                            plot_data$Group_s[plot_data$Compound %in% input$Cell_Line_Explorer_Compounds] <- ": selected"
+                            selected_plot_data <- plot_data[plot_data$Group_s == ": selected",]
+                            unselected_plot_data <- plot_data[plot_data$Group_s == ": unselected",]
+                            
+                            if(nrow(selected_plot_data) > 0){
+                              selected_plot_data$Group <- paste0("selected: ", selected_plot_data$Group)
+                              selected_plot_data$Group <- factor(selected_plot_data$Group, levels = c("selected: IC50 <= max tested concentration", "selected: IC50 > max tested concentration", "selected: Infinite IC50"))
+                              fig <- plot_ly(x = selected_plot_data$Compound,
+                                             y = selected_plot_data$Percentile_IC50*100,
+                                             type = "scatter",
+                                             mode = "markers",
+                                             color = selected_plot_data$Group,
+                                             colors = colors,
+                                             text = selected_plot_data$hovertext,
+                                             hoverinfo = "text")
+                              if(nrow(unselected_plot_data) > 0){
+                                unselected_plot_data$Group <- paste0("unselected: ", unselected_plot_data$Group)
+                                unselected_plot_data$Group <- factor(unselected_plot_data$Group, levels = c("unselected: IC50 <= max tested concentration", "unselected: IC50 > max tested concentration", "unselected: Infinite IC50"))
+                                fig <- add_trace(fig,
+                                                 x = unselected_plot_data$Compound,
+                                                 y = unselected_plot_data$Percentile_IC50*100,
+                                                 color = unselected_plot_data$Group,
+                                                 text = unselected_plot_data$hovertext,
+                                                 hoverinfo = "text",
+                                                 opacity = 0.2)
+                              }
+                              fig <- layout(fig,
+                                            title = "PRISM_Repurposing IC50 Percentiles",
+                                            xaxis = list(title = paste0("PRISM_Repurposing Compounds (n = ", nrow(plot_data), ", ", nrow(selected_plot_data), " selected)"), showticklabels = FALSE),
+                                            yaxis = list(title = ylab))
+                            } else {
+                              unselected_plot_data$Group <- paste0("unselected: ", unselected_plot_data$Group)
+                              unselected_plot_data$Group <- factor(unselected_plot_data$Group, levels = c("unselected: IC50 <= max tested concentration", "unselected: IC50 > max tested concentration", "unselected: Infinite IC50"))
+                              fig <- plot_ly(x = unselected_plot_data$Compound,
+                                             y = unselected_plot_data$Percentile_IC50*100,
+                                             type = "scatter",
+                                             mode = "markers",
+                                             color = unselected_plot_data$Group,
+                                             colors = colors,
+                                             text = unselected_plot_data$hovertext,
+                                             hoverinfo = "text",
+                                             opacity = 0.2)
+                              
+                              fig <- layout(fig,
+                                            title = "PRISM_Repurposing IC50 Percentiles",
+                                            xaxis = list(title = paste0("PRISM_Repurposing Compounds (n = ", nrow(plot_data), ", ", nrow(selected_plot_data), " selected)"), showticklabels = FALSE),
+                                            yaxis = list(title = ylab))
+                            }
+                            
+                          } else {
+                            fig <- plot_ly(x = plot_data$Compound,
                                          y = plot_data$Percentile_IC50*100,
                                          type = "scatter",
                                          mode = "markers",
@@ -2568,15 +3785,19 @@
                                          colors = colors,
                                          text = plot_data$hovertext,
                                          hoverinfo = "text")
-                          fig <- layout(fig,
-                                        title = "PRISM_Repurposing IC50 Percentiles",
-                                        xaxis = list(title = paste0("PRISM_Repurposing Compounds (n = ", nrow(plot_data), ")"), showticklabels = FALSE),
-                                        yaxis = list(title = ylab))
+                            fig <- layout(fig,
+                                          title = "PRISM_Repurposing IC50 Percentiles",
+                                          xaxis = list(title = paste0("PRISM_Repurposing Compounds (n = ", nrow(plot_data), ")"), showticklabels = FALSE),
+                                          yaxis = list(title = ylab))
+                          }
+                          
                           fig
+                          
                         }
                       }
                     }
                   })
+                
               }) #END: Isolate
             }) #END: observeEvent(Cell_Line_Explorer_datasets_with_cell_line_data(), {
 

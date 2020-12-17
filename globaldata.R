@@ -33,7 +33,7 @@
       Dataset_Tested_Concentrations[,i] <- as.numeric(Dataset_Tested_Concentrations[,i])
     }
   #Csustained data
-    Csustained <- as.data.frame(read_xlsx("./www/Csustained.xlsx", na = "NA"))
+    Csustained <- as.data.frame(read_xlsx("./www/Csustained_v1.0.xlsx", na = "NA"))
   #Cell line and compound information
     Cell_Line_Harm <- as.data.frame(read_xlsx("./www/Harmonized_CCL_Data_v1.0.xlsx", na = "NA"))
       Cell_Line_Harm$Dataset[grepl("CTRPv2", Cell_Line_Harm$Dataset)] <- "CTRPv2"

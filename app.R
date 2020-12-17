@@ -21,7 +21,12 @@
 ######################################################## UI #          
 #############################################################
 #Creating user interface function
-  ui <- navbarPage(id = "tabs", title = "Simplicity v1.0",
+  ui <- tagList(
+    
+    tags$head(includeHTML(("google-analytics.html"))),
+    
+    navbarPage(id = "tabs", title = "Simplicity v1.0",
+        
         
                    
 ############################################################          
@@ -37,7 +42,7 @@
                       <ul>
                         <li><b>Explore Datasets:</b> Provides a birds-eye overview of the compounds, cell lines, screening methodologies, and data quality associated with each of the datasets included in Simplicity.</li>
                         <li><b>Explore Compounds:</b> Easily visualize the effectiveness of a compound across a custom set of cell lines in each dataset. Also allows you to see the characteristics (i.e. age, gender, ethnicity) of the cell lines tested with each compound in each dataset.</li>
-                        <li><b>Explore Datasets:</b> Easily visualize the response of a cell line to a custom set of compounds in each dataset.</li>
+                        <li><b>Explore Cell Lines:</b> Easily visualize the response of a cell line to a custom set of compounds in each dataset.</li>
                         <li><b>Plot Dose-Respone Curves:</b> A detailed look at single compound-cell line pairs. View raw data, fitted dose-response curves, and experimental details from each dataset for the selected pair.</li>
                       </ul>
                       <br/>
@@ -382,7 +387,7 @@
             list(
               h4("This will specify the license for using Simplicity and provide a link to the license terms...
                  once I bother to look it up. I believe it is GPL3 for the software itself. I don't know what
-                 the licenses will be for the reprocessed datasets. I still need to reach out to their creators.")
+                 the licenses will be for the reprocessed datasets. I still need to hear back from the CTRPv2 and PRISM_Repurposing teams.")
             )      
           )
         ),
@@ -392,29 +397,44 @@
         tabPanel(value = "Download Data", title = "Download Bulk Data",
           list(
             h3("Download the bulk data used by Simplicity."),
-            h5("Note: If clicking on a link promts you to download an html file instead of the intended file, wait a few seconds and try again.
-               It can take a few moments for the app to properly set up the download links after first being started."),
             wellPanel(
-              p(HTML("This page contains links to download the bulk data used by Simplicity. Please don't forget to visit the \"Cite This Resource\" tab
-              to find out how to cite Simplicity and the original creators of the data used by the app."))
+              p(HTML("This page contains links to download the bulk data used by Simplicity. Please don't forget to visit the \"About Simplicity/Cite This Resource\" tab
+              to find out how to cite Simplicity and the original creators of the data used by the app.")),
+              p(HTML("By downloading this data, you agree to abide by the usage guidelines posted in the \"About Simplicity/Usage License\" tab."))
             ),
             wellPanel(
               p(HTML("<b>Harmonization Tables:</b>")),
-              downloadLink("Cell_Line_Harmonization_Download", label = "Cell_Line_Harmonizer.xlsx") %>%
-              p(HTML(" An excel spreadsheet containing information about each of the cell lines used by each dataset, along with harmonized identifiers for each cell line and the names originally used by each dataset.")),
-              downloadLink("Compound_Harmonization_Download", label = "Compound_Harmonizer.xlsx") %>%
-              p(HTML("An excel spreadsheet containing information about each of the compounds used by each dataset, along with harmonized identifiers for each compound and the names originally used by each dataset."))
+              p(HTML("<a href=\"https://osf.io/9q4zs/download\">Harmonized_CCL_Data_v1.0.xlsx</a>: An excel spreadsheet containing information about each of the cell lines used by each dataset, along with harmonized identifiers for each cell line and the names originally used by each dataset.")),
+              p(HTML("<a href=\"https://osf.io/w9h76/download\">Harmonized_Compound_Data_v1.0.xlsx</a>: An excel spreadsheet containing information about each of the compounds used by each dataset, along with harmonized identifiers for each compound and the names originally used by each dataset."))
+            ),
+            wellPanel(
+              p(HTML("<b>Csustained Values:</b>")),
+              p(HTML("<a href=\"https://osf.io/q5p8x/download\">Csustained_v1.0.xlsx</a>: An excel spreadsheet containing information about the clinically sustainable plasma concentrations (Csustained) for clinical compounds included in Simplicity. Please see the \"About Simplicity/Methods\" tab for details about how Csustained values are determined.")),
             ),
             wellPanel(
               p(HTML("<b>Dataset Summary Results:</b>")),
-              p(HTML("Once I get the okay from all of the dataset creators, I'll include links here for bulk summary results from each dataset as well as raw data files and the drc curve fit objects that have the full statistical information for each curve fit."))
+              p(HTML("<a href=\"https://osf.io/wm5jq/download\">CTRPv2_Results_v1.0.tsv</a>: A tab-separated value text file containing curve parameters, tested concentrations, AUC values, and IC50 values for the compound-cell line pairs tested in CTRPv2.")),
+              p(HTML("<a href=\"https://osf.io/aub4p/download\">GDSC1_Results_v1.0.tsv</a>: A tab-separated value text file containing curve parameters, tested concentrations, AUC values, and IC50 values for the compound-cell line pairs tested in GDSC1.")),
+              p(HTML("<a href=\"https://osf.io/tzkd2/download\">GDSC2_Results_v1.0.tsv</a>: A tab-separated value text file containing curve parameters, tested concentrations, AUC values, and IC50 values for the compound-cell line pairs tested in GDSC2.")),
+              p(HTML("<a href=\"https://osf.io/awydb/download\">PRISM_Repurposing_Results_v1.0.tsv</a>: A tab-separated value text file containing curve parameters, tested concentrations, AUC values, and IC50 values for the compound-cell line pairs tested in PRISM_Repurposing."))
+            ),
+            wellPanel(
+              p(HTML("<b>Dataset Raw Data:</b>")),
+              p(HTML("<a href=\"https://osf.io/6ezmg/download\">CTRPv2_Results_v1.0.tsv.7z</a>: A 7-zip compressed, tab-separated value text file containing the raw data from CTRPv2 after compound and cell line name harmonization.")),
+              p(HTML("<a href=\"https://osf.io/qmp7y/download\">GDSC1_Results_v1.0.tsv.7z</a>: A 7-zip compressed, tab-separated value text file containing the raw data from GDSC1 after compound and cell line name harmonization.")),
+              p(HTML("<a href=\"https://osf.io/we7ry/download\">GDSC2_Results_v1.0.tsv.7z</a>: A 7-zip compressed, tab-separated value text file containing the raw data from GDSC2 after compound and cell line name harmonization.")),
+              p(HTML("<a href=\"https://osf.io/nbjdu/download\">PRISM_Repurposing_Results_v1.0.tsv.7z</a>: A 7-zip compressed, tab-separated value text file containing the raw data from PRISM_Repurposing after compound and cell line name harmonization.")),
+            ),
+            wellPanel(
+              p(HTML("<b>Dataset Full Curves:</b>")),
+              p(HTML("The drc fit objects with full statistical information for each of the fitted curves in Simplicity can be downloaded from the <a href=\"https://osf.io/a9w5r/\">OSF repository for this project</a>."))
             )
             
           )      
         )
         
         
-  )
+  ))
   
 #############################################################  
 #################################################### server #          
@@ -429,22 +449,6 @@
       )
     #Observing help menu objects
       observe_helpers()
-    
-#############################################################          
-#################################################### server #          
-    #Code for "Download Data" Tab
-        
-      #Defining download link handlers early so data can be downloaded as soon as people open the app and click on the download tab
-        
-        output$Cell_Line_Harmonization_Download <- downloadHandler(
-          filename = "Cell_Line_Harmonizer_v1.0.xlsx",
-          content = function(file){file.copy("./www/Harmonized_CCL_Data_v1.0.xlsx", file)}
-        )
-        
-        output$Compound_Harmonization_Download <- downloadHandler(
-          filename = "Compound_Harmonizer_v1.0.xlsx",
-          content = function(file){file.copy("./www/Harmonized_Compound_Data_v1.0.xlsx", file)}
-        )
         
 #############################################################          
 #################################################### server #          
@@ -454,6 +458,7 @@
         output$Dataset_Summary_Text <- renderUI({
           selected_data_summary <- Dataset_Summaries[Dataset_Summaries$Dataset %in% input$Summary_Dataset,]
           list(
+            p(tags$b("Full Name: "), tags$em(selected_data_summary$Dataset_Full_Name)),
             p(tags$b("Version: "), tags$em(selected_data_summary$Dataset_Version)),
             p(tags$b("Location: "), tags$em(selected_data_summary$Testing_Location)),
             p(tags$b("Dates: "), tags$em(selected_data_summary$Experiment_Dates)),
@@ -462,7 +467,8 @@
             p(tags$b("Treatment Duration: "), tags$em(selected_data_summary$Treatment_Duration)),
             p(tags$b("# of Compounds: "), tags$em(selected_data_summary$n_Compounds)),
             p(tags$b("# of Cell Lines: "), tags$em(selected_data_summary$n_Cell_Lines)),
-            p(tags$b("# of Experiments: "), tags$em(selected_data_summary$n_Experiments)) 
+            p(tags$b("# of Experiments: "), tags$em(selected_data_summary$n_Experiments)),
+            p(tags$b("Dataset Website: "), tags$a(href = selected_data_summary$Dataset_Website, selected_data_summary$Dataset_Website))
           )
         })
       #Plot of cancer type distribution
@@ -725,7 +731,7 @@
                         helper(type = "inline",
                           title = "Patient age filtering",
                           icon = "question-circle", colour = NULL,
-                          content = c("Sets minimum and maximum age allowed for displayed cell line options. Note that setting the slider to anything other than its maximum range will exclude cell lines for which a numeric age could not be determined for the patient who the cell line was derived from at the time of sample collection. This both includes cases where the age is unspecified and cases where the specified age is ambiguous (i.e. such as \"Adult\"). You may download the cell line harmonization file in the \"Download Data\" tab for free-text descriptions of each cell line's patient age."),
+                          content = c("Sets minimum and maximum age allowed for displayed cell line options. Note that setting the slider to anything other than its maximum range will exclude cell lines for which a numeric age could not be determined for the patient who the cell line was derived from at the time of sample collection. This both includes cases where the age is unspecified and cases where the specified age is ambiguous (i.e. such as \"Adult\"). You may download the cell line harmonization file in the \"Download Bulk Data\" tab for free-text descriptions of each cell line's patient age."),
                           size = "m",
                           buttonLabel = "Okay", easyClose = TRUE, fade = FALSE
                         ),
@@ -1731,7 +1737,7 @@
                     helper(type = "inline",
                       title = "Patient age filtering",
                       icon = "question-circle", colour = NULL,
-                      content = c("Sets minimum and maximum age allowed for displayed cell line options. Note that setting the slider to anything other than its maximum range will exclude cell lines for which a numeric age could not be determined for the patient who the cell line was derived from at the time of sample collection. This both includes cases where the age is unspecified and cases where the specified age is ambiguous (i.e. such as \"Adult\"). You may download the cell line harmonization file in the \"Download Data\" tab for free-text descriptions of each cell line's patient age."),
+                      content = c("Sets minimum and maximum age allowed for displayed cell line options. Note that setting the slider to anything other than its maximum range will exclude cell lines for which a numeric age could not be determined for the patient who the cell line was derived from at the time of sample collection. This both includes cases where the age is unspecified and cases where the specified age is ambiguous (i.e. such as \"Adult\"). You may download the cell line harmonization file in the \"Download Bulk Data\" tab for free-text descriptions of each cell line's patient age."),
                       size = "m",
                       buttonLabel = "Okay", easyClose = TRUE, fade = FALSE
                     ),
@@ -2805,7 +2811,7 @@
                     helper(type = "inline",
                       title = "Patient age filtering",
                       icon = "question-circle", colour = NULL,
-                      content = c("Sets minimum and maximum age allowed for displayed cell line options. Note that setting the slider to anything other than its maximum range will exclude cell lines for which a numeric age could not be determined for the patient who the cell line was derived from at the time of sample collection. This both includes cases where the age is unspecified and cases where the specified age is ambiguous (i.e. such as \"Adult\"). You may download the cell line harmonization file in the \"Download Data\" tab for free-text descriptions of each cell line's patient age."),
+                      content = c("Sets minimum and maximum age allowed for displayed cell line options. Note that setting the slider to anything other than its maximum range will exclude cell lines for which a numeric age could not be determined for the patient who the cell line was derived from at the time of sample collection. This both includes cases where the age is unspecified and cases where the specified age is ambiguous (i.e. such as \"Adult\"). You may download the cell line harmonization file in the \"Download Bulk Data\" tab for free-text descriptions of each cell line's patient age."),
                       size = "m",
                       buttonLabel = "Okay", easyClose = TRUE, fade = FALSE
                     ),
@@ -3197,12 +3203,12 @@
                                 helper(type = "inline",
                                   title = "Using Csustained Concentrations",
                                   icon = "question-circle", colour = NULL,
-                                  content = c("Selecting this option will cause the template instruction file to use Csustained concentrations for the Upper_Conc_Limit_uM column as long as the Csustained concentration is greater than the most common minimum concentration tested for that compound in the selected dataset. Csustained concentrations are the estimated maximum drug plasma concentrations in patients occurring at least 6 hours after drug administration, and are currently available for some, but not all, clinically advanced drugs. Details about these concentrations and how they were determined can be found by downloading the \"Csustained.xlsx\" table from the \"Download Data\" tab.", "", "If this option is not selected, the Upper_Conc_Limit_uM column will be populated with the most commonly used maximum concentration tested for each compound in the selected dataset."),
+                                  content = c("Selecting this option will cause the template instruction file to use Csustained concentrations for the Upper_Conc_Limit_uM column as long as the Csustained concentration is greater than the most common minimum concentration tested for that compound in the selected dataset. Csustained concentrations are the estimated maximum drug plasma concentrations in patients occurring at least 6 hours after drug administration, and are currently available for some, but not all, clinically advanced drugs. Details about these concentrations and how they were determined can be found by downloading the \"Csustained.xlsx\" table from the \"Download Bulk Data\" tab.", "", "If this option is not selected, the Upper_Conc_Limit_uM column will be populated with the most commonly used maximum concentration tested for each compound in the selected dataset."),
                                   size = "m",
                                   buttonLabel = "Okay", easyClose = TRUE, fade = FALSE
                                 ),
                               #Generating button to create and download template file
-                                downloadButton(outputId = "AUC_Create_Template", label = "Download Instruction Template") %>%
+                                downloadButton(outputId = "AUC_Create_Template", label = "Download Template Instruction File") %>%
                                 helper(type = "inline",
                                   title = "Create Template",
                                   icon = "question-circle", colour = NULL,
@@ -3214,7 +3220,7 @@
                                               HTML("<b>Max_Tested_Conc_uM:</b>"), "The maximum tested concentration (in microMolar) of this compound in the selected dataset in any cell line.", "",
                                               HTML("<b>Most_Commonly_Used_Min_Tested_Conc_uM:</b>"), "The most commonly used minimum tested concentration (in microMolar) of this compound in the selected dataset.", "",
                                               HTML("<b>Most_Commonly_Used_Max_Tested_Conc_uM:</b>"), "The most commonly used maximum tested concentration (in microMolar) of this compound in the selected dataset.", "",
-                                              HTML("<b>Csustained_uM:</b>"), "The maximum plasma concentation of this compound achieved at least 6 hours after drug administration in a patient at a clinically usable dose. These values were obtained from: Ling, A. & Huang, R. S. Computationally predicting clinical drug combination efficacy with cancer cell line screens and independent drug action. Nat. Commun. 11, 1–13 (2020). Details about these concentrations and how they were determined can be found by downloading the \"Csustained.xlsx\" table from the \"Download Data\" tab."),
+                                              HTML("<b>Csustained_uM:</b>"), "The maximum plasma concentation of this compound achieved at least 6 hours after drug administration in a patient at a clinically usable dose. These values were obtained from: Ling, A. & Huang, R. S. Computationally predicting clinical drug combination efficacy with cancer cell line screens and independent drug action. Nat. Commun. 11, 1–13 (2020). Details about these concentrations and how they were determined can be found by downloading the \"Csustained.xlsx\" table from the \"Download Bulk Data\" tab."),
                                   size = "m",
                                   buttonLabel = "Okay", easyClose = TRUE, fade = FALSE
                                 )
@@ -3631,7 +3637,7 @@
                           helper(type = "inline",
                             title = "Patient age filtering",
                             icon = "question-circle", colour = NULL,
-                            content = c("Sets minimum and maximum age allowed for displayed cell line options. Note that setting the slider to anything other than its maximum range will exclude cell lines for which a numeric age could not be determined for the patient who the cell line was derived from at the time of sample collection. This both includes cases where the age is unspecified and cases where the specified age is ambiguous (i.e. such as \"Adult\"). You may download the cell line harmonization file in the \"Download Data\" tab for free-text descriptions of each cell line's patient age."),
+                            content = c("Sets minimum and maximum age allowed for displayed cell line options. Note that setting the slider to anything other than its maximum range will exclude cell lines for which a numeric age could not be determined for the patient who the cell line was derived from at the time of sample collection. This both includes cases where the age is unspecified and cases where the specified age is ambiguous (i.e. such as \"Adult\"). You may download the cell line harmonization file in the \"Download Bulk Data\" tab for free-text descriptions of each cell line's patient age."),
                             size = "m",
                             buttonLabel = "Okay", easyClose = TRUE, fade = FALSE
                           ),
@@ -3925,14 +3931,14 @@
                                 helper(type = "inline",
                                   title = "Using Csustained Concentrations",
                                   icon = "question-circle", colour = NULL,
-                                  content = c("Selecting this option will cause the template instruction file to use Csustained concentrations for the Upper_Conc_Limit_uM column whenever Csustained is available. Csustained concentrations are the estimated maximum drug plasma concentrations in patients occurring at least 6 hours after drug administration, and are currently available for some, but not all, clinically advanced drugs. Details about these concentrations and how they were determined can be found by downloading the \"Csustained.xlsx\" table from the \"Download Data\" tab.", "", "If this option is not selected, the Upper_Conc_Limit_uM column will be populated with the most commonly used maximum concentration tested for each compound in the selected dataset."),
+                                  content = c("Selecting this option will cause the template instruction file to use Csustained concentrations for the Upper_Conc_Limit_uM column whenever Csustained is available. Csustained concentrations are the estimated maximum drug plasma concentrations in patients occurring at least 6 hours after drug administration, and are currently available for some, but not all, clinically advanced drugs. Details about these concentrations and how they were determined can be found by downloading the \"Csustained.xlsx\" table from the \"Download Bulk Data\" tab.", "", "If this option is not selected, the Upper_Conc_Limit_uM column will be populated with the most commonly used maximum concentration tested for each compound in the selected dataset."),
                                   size = "m",
                                   buttonLabel = "Okay", easyClose = TRUE, fade = FALSE
                                 ),
                               #Generating numeric slider input to specify how many concentrations to use for each compound when calculating viabilities
                                 sliderInput("Viability_n_Conc", label = "How many concentrations should viabilities be calculated at for each compound?", value = 11, min = 2, max = 20, step = 1),
                               #Generating button to create and download template file
-                                downloadButton(outputId = "Viability_Create_Template", label = "Download Instruction Template") %>%
+                                downloadButton(outputId = "Viability_Create_Template", label = "Download Template Instruction File") %>%
                                 helper(type = "inline",
                                   title = "Create Template",
                                   icon = "question-circle", colour = NULL,
@@ -3945,7 +3951,7 @@
                                               HTML("<b>Max_Tested_Conc_uM:</b>"), "The maximum tested concentration (in microMolar) of this compound in the selected dataset in any cell line.", "",
                                               HTML("<b>Most_Commonly_Used_Min_Tested_Conc_uM:</b>"), "The most commonly used minimum tested concentration (in microMolar) of this compound in the selected dataset.", "",
                                               HTML("<b>Most_Commonly_Used_Max_Tested_Conc_uM:</b>"), "The most commonly used maximum tested concentration (in microMolar) of this compound in the selected dataset.", "",
-                                              HTML("<b>Csustained_uM:</b>"), "The maximum plasma concentation of this compound achieved at least 6 hours after drug administration in a patient at a clinically usable dose. These values were obtained from: Ling, A. & Huang, R. S. Computationally predicting clinical drug combination efficacy with cancer cell line screens and independent drug action. Nat. Commun. 11, 1–13 (2020). Details about these concentrations and how they were determined can be found by downloading the \"Csustained.xlsx\" table from the \"Download Data\" tab."),
+                                              HTML("<b>Csustained_uM:</b>"), "The maximum plasma concentation of this compound achieved at least 6 hours after drug administration in a patient at a clinically usable dose. These values were obtained from: Ling, A. & Huang, R. S. Computationally predicting clinical drug combination efficacy with cancer cell line screens and independent drug action. Nat. Commun. 11, 1–13 (2020). Details about these concentrations and how they were determined can be found by downloading the \"Csustained.xlsx\" table from the \"Download Bulk Data\" tab."),
                                   size = "m",
                                   buttonLabel = "Okay", easyClose = TRUE, fade = FALSE
                                 )
@@ -4395,7 +4401,7 @@
                           helper(type = "inline",
                             title = "Patient age filtering",
                             icon = "question-circle", colour = NULL,
-                            content = c("Sets minimum and maximum age allowed for displayed cell line options. Note that setting the slider to anything other than its maximum range will exclude cell lines for which a numeric age could not be determined for the patient who the cell line was derived from at the time of sample collection. This both includes cases where the age is unspecified and cases where the specified age is ambiguous (i.e. such as \"Adult\"). You may download the cell line harmonization file in the \"Download Data\" tab for free-text descriptions of each cell line's patient age."),
+                            content = c("Sets minimum and maximum age allowed for displayed cell line options. Note that setting the slider to anything other than its maximum range will exclude cell lines for which a numeric age could not be determined for the patient who the cell line was derived from at the time of sample collection. This both includes cases where the age is unspecified and cases where the specified age is ambiguous (i.e. such as \"Adult\"). You may download the cell line harmonization file in the \"Download Bulk Data\" tab for free-text descriptions of each cell line's patient age."),
                             size = "m",
                             buttonLabel = "Okay", easyClose = TRUE, fade = FALSE
                           ),

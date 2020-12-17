@@ -1,5 +1,5 @@
-Dataset	n_Cell_Lines	n_Compounds	n_Experiments	Testing_Location	Experiment_Dates	Treatment_Duration	Assay_Type	Plate_Format	Dataset_Version
-CTRPv2	887	544	386861	Broad Institute	2012 to 2013	72 hours	CellTiter-Glo	1536 well	v2.0
-GDSC1	987	343	292676	MGH or Sanger	2010 to 2015	72 hours	Resazurin or Syto60	96 well or 384 well	v8.2
-GDSC2	809	192	131302	Sanger	2015 to 2017	72 hours? 96 hours?	CellTiter-Glo	1536 well	v8.2
-PRISM_Repurposing	481	1446	695526	Broad Institute	Published in 2020	120 hours	HTS-PRISM or MTS-PRISM	384 well	accessed 4/6/2020
+Dataset	n_Cell_Lines	n_Compounds	n_Experiments	Testing_Location	Experiment_Dates	Treatment_Duration	Assay_Type	Plate_Format	Dataset_Version	Dataset_Full_Name	Dataset_Website
+CTRPv2	887	544	386861	Broad Institute	2012 to 2013	72 hours	CellTiter-Glo	1536 well	v2.0	Cancer Therapeutics Response Portal	https://portals.broadinstitute.org/ctrp/
+GDSC1	987	343	292676	MGH or Sanger	2010 to 2015	72 hours	Resazurin or Syto60	96 well or 384 well	v8.2	Genomics of Drug Sensitivity in Cancer 1	https://www.cancerrxgene.org/
+GDSC2	809	192	131302	Sanger	2015 to 2017	72 hours? 96 hours?	CellTiter-Glo	1536 well	v8.2	Genomics of Drug Sensitivity in Cancer 2	https://www.cancerrxgene.org/
+PRISM_Repurposing	481	1446	695526	Broad Institute	Published in 2020	120 hours	HTS-PRISM or MTS-PRISM	384 well	accessed 4/6/2020	PRISM Drug Repurposing Resource	https://depmap.org/repurposing/

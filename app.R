@@ -5031,6 +5031,8 @@
                                                         )
                             #Storing result
                               Calculated_AUCs[[i]] <- temp_Return
+                              rm(temp_Return, temp_AUCs, temp_results)
+                              gc()
                           } else {
                             #Constructing empty result data frame
                               temp_Return <- data.frame("Compound" = temp_results$Compound,
@@ -5824,6 +5826,8 @@
                                                                   )
                                       #Storing result
                                         Calculated_Viabilities[[i]] <- temp_Return
+                                        rm(temp_Return, temp_Viabilities, temp_Concentrations, temp_results)
+                                        gc()
                                     } else {
                                       #Constructing empty result data frame
                                         temp_Return <- data.frame("Compound" = character(0),
@@ -5896,6 +5900,8 @@
                                         }
                                       #Storing result
                                         Calculated_Viabilities[[i]] <- temp_Return
+                                        rm(temp_Return, temp_Viabilities, temp_Concentrations, temp_results)
+                                        gc()
                                     } else {
                                       #Constructing empty result data frame
                                         temp_Return <- data.frame("Compound" = character(0),

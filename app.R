@@ -234,10 +234,6 @@
           
 ######################################################## UI #           
           tabPanel(value = "Plot Dose-Response Curves", title = "Plot Dose-Response Curves",
-          #CSS formatting for button
-            tags$head(
-              tags$style(HTML('#Create_Compound_CCL_Plot{background-color:#6495ED;color:#FFFFFF;font-weight:bold;border-style:solid;border-color:black;border-width:medium}'))
-            ),
           #Creating searchbars to select compound and cell line to plot
             wellPanel(
                fluidRow(
@@ -449,6 +445,15 @@
       )
     #Observing help menu objects
       observe_helpers()
+    #Creating reactiveTimer to check RAM usage every 10 seconds
+      RAM_timer <- reactiveTimer(check_RAM_frequency*1000)
+    
+    #Checking RAM usage
+      RAM_Free_Ratio <- eventReactive(RAM_timer(), {
+        gc()
+        ram <- memuse::Sys.meminfo()
+        ram$freeram/ram$totalram
+      })
         
 #############################################################          
 #################################################### server #          
@@ -4758,7 +4763,7 @@
                           #         ),
                         #Button to do AUC calculation
                           h4("Step 5: Calculate AUCs"),
-                          actionButton(inputId = "AUC_Calc", label = "Calculate AUC Values"),
+                          uiOutput("AUC_Calc_Action_Button_UI"),
                         #Button to generate and download AUC values
                           uiOutput("AUC_Download_UI")
                       )
@@ -4768,6 +4773,17 @@
                     
                     return(return_list)
                   })})
+                  
+                #Rendering Action button to do viability calculations (disabled if RAM usage too high)
+                  output$AUC_Calc_Action_Button_UI <- renderUI({
+                    if(RAM_Free_Ratio() <  min_RAM_free_ratio_to_start_future){
+                      wellPanel(
+                       p(HTML("<b>Due to high server usage, no further AUC calculations can be initiated at this time. Please try again later. We apologize for the inconvenience.</b>"), style = "color:red") 
+                      )
+                    } else {
+                      actionButton(inputId = "AUC_Calc", label = "Calculate AUC Values")
+                    }
+                  })
                   
                 #Determining which compounds have been selected
                   AUC_Instruction_Compounds <- reactive({
@@ -5003,56 +5019,115 @@
                               )
                       progress <- AsyncProgress$new(session, min = 0, max = nrow(temp_Instruction), message = "Initializing Calculation...")
                       future_data <- future(
-                        global = c("progress", "temp_Instruction", "temp_Cell_Lines", "temp_dataset", "wd", "Compound_Filenames", "AUC", "ll.4.AUC"),
+                        global = c("progress", "min_RAM_free_ratio_within_future", "temp_Instruction", "temp_Cell_Lines", "temp_dataset", "wd", "Compound_Filenames", "AUC", "ll.4.AUC"),
                         packages = c("drc"),
                         expr = {
-                      Calculated_AUCs <- vector(mode = "list", length = 0)
-                        for(i in 1:nrow(temp_Instruction)){
-                          if(i == 1){
-                            progress$set(value = 0, message = paste0(0, " of ", nrow(temp_Instruction), " Rows Complete..."))
-                          }
-                          #Loading results for this cell line
-                            filename <- Compound_Filenames$drug_file_names[Compound_Filenames$drugs %in% temp_Instruction$Compound[i]]
-                            temp_results <- readRDS(paste0("./www/Results/", filename, ".rds"))[[temp_dataset]]
-                          #Subsetting to selected cell lines
-                            temp_results <- temp_results[temp_results$Cell_Line %in% temp_Cell_Lines & ! is.na(temp_results$b_c_d_e),]
-                          if(nrow(temp_results) > 0){
-                            #Calculating AUC Values
-                              temp_AUCs <- AUC(temp_results$b_c_d_e, lower = temp_Instruction$Lower_Conc_Limit_uM[i], upper = temp_Instruction$Upper_Conc_Limit_uM[i])
-                            #Constructing return values
-                              temp_Return <- data.frame("Compound" = temp_results$Compound,
-                                                        "Cell_Line" = temp_results$Cell_Line,
-                                                        "normalized_AUC" = temp_AUCs,
-                                                        "Lower_Conc_Limit_uM" = temp_Instruction$Lower_Conc_Limit_uM[i],
-                                                        "Upper_Conc_Limit_uM" = temp_Instruction$Upper_Conc_Limit_uM[i],
-                                                        "Min_Tested_Conc_uM" = temp_results$min_dose_uM,
-                                                        "Max_Tested_Conc_uM" = temp_results$max_dose_uM,
-                                                        stringsAsFactors = FALSE
-                                                        )
-                            #Storing result
-                              Calculated_AUCs[[i]] <- temp_Return
-                              rm(temp_Return, temp_AUCs, temp_results)
-                              gc()
-                          } else {
-                            #Constructing empty result data frame
-                              temp_Return <- data.frame("Compound" = temp_results$Compound,
-                                                          "Cell_Line" = character(0),
-                                                          "normalized_AUC" = numeric(0),
-                                                          "Lower_Conc_Limit_uM" = numeric(0),
-                                                          "Upper_Conc_Limit_uM" = numeric(0),
-                                                          "Min_Tested_Conc_uM" = numeric(0),
-                                                          "Max_Tested_Conc_uM" = numeric(0),
-                                                        )
-                            #Storing empty data frame
-                              Calculated_AUCs[[i]] <- temp_Return
-                          }
-                          progress$set(value = i, message = paste0(i, " of ", nrow(temp_Instruction), " Rows Complete..."))
-                        }
-                    #Organizing calculated AUC values
-                      Returnable_AUCs <- as.data.frame(do.call(rbind, Calculated_AUCs))
-                      progress$close()
-                      return(Returnable_AUCs)
-                    }) #END: future
+                          #Setting working directory
+                            setwd(wd)
+                          #Calculating AUCs
+                            temp_Result <- try({
+                              #Loading fitted curves and calculating AUC Values
+                                Calculated_AUCs <- vector(mode = "list", length = 0)
+                                Aborted <- FALSE
+                                for(i in 1:nrow(temp_Instruction)){
+                                  #Checking if sufficient RAM exists to continue calculation
+                                    temp_ram <- memuse::Sys.meminfo()
+                                    temp_free_ram_ratio <- temp_ram$freeram/temp_ram$totalram
+                                    if(temp_free_ram_ratio <= min_RAM_free_ratio_within_future){
+                                      attempt <- 1
+                                      while(temp_free_ram_ratio <= min_RAM_free_ratio_within_future & attempt <= 10){
+                                        progress$set(value = i-1, message = paste0("WARNING: Server RAM low. Trying to continue...(Attempt ", attempt, " of 10)"))
+                                        Sys.sleep(10)
+                                        temp_ram <- memuse::Sys.meminfo()
+                                        temp_free_ram_ratio <- temp_ram$freeram/temp_ram$totalram
+                                        attempt <- attempt + 1
+                                      }
+                                      if(temp_free_ram_ratio > min_RAM_free_ratio_within_future){
+                                        progress$set(value = i-1, message = paste0(i-1, " of ", nrow(temp_Instruction), " Rows Complete..."))
+                                      } else {
+                                        Aborted <- i-1
+                                        progress$set(value = i-1, message = "Aborting calculation...")
+                                        break
+                                      }
+                                    }
+                                  #Initializing progress bar message for first compound
+                                    if(i == 1){
+                                      progress$set(value = 0, message = paste0(0, " of ", nrow(temp_Instruction), " Rows Complete..."))
+                                    }
+                                  #Loading results for this cell line
+                                    filename <- Compound_Filenames$drug_file_names[Compound_Filenames$drugs %in% temp_Instruction$Compound[i]]
+                                    temp_results <- readRDS(paste0("./www/Results/", filename, ".rds"))[[temp_dataset]]
+                                  #Subsetting to selected cell lines
+                                    temp_results <- temp_results[temp_results$Cell_Line %in% temp_Cell_Lines & ! is.na(temp_results$b_c_d_e),]
+                                  if(nrow(temp_results) > 0){
+                                    #Calculating AUC Values
+                                      temp_AUCs <- AUC(temp_results$b_c_d_e, lower = temp_Instruction$Lower_Conc_Limit_uM[i], upper = temp_Instruction$Upper_Conc_Limit_uM[i])
+                                    #Constructing return values
+                                      temp_Return <- data.frame("Compound" = temp_results$Compound,
+                                                                "Cell_Line" = temp_results$Cell_Line,
+                                                                "normalized_AUC" = temp_AUCs,
+                                                                "Lower_Conc_Limit_uM" = temp_Instruction$Lower_Conc_Limit_uM[i],
+                                                                "Upper_Conc_Limit_uM" = temp_Instruction$Upper_Conc_Limit_uM[i],
+                                                                "Min_Tested_Conc_uM" = temp_results$min_dose_uM,
+                                                                "Max_Tested_Conc_uM" = temp_results$max_dose_uM,
+                                                                stringsAsFactors = FALSE
+                                                                )
+                                    #Storing result
+                                      Calculated_AUCs[[i]] <- temp_Return
+                                      rm(temp_Return, temp_AUCs, temp_results)
+                                      gc()
+                                  } else {
+                                    #Constructing empty result data frame
+                                      temp_Return <- data.frame("Compound" = temp_results$Compound,
+                                                                "Cell_Line" = character(0),
+                                                                "normalized_AUC" = numeric(0),
+                                                                "Lower_Conc_Limit_uM" = numeric(0),
+                                                                "Upper_Conc_Limit_uM" = numeric(0),
+                                                                "Min_Tested_Conc_uM" = numeric(0),
+                                                                "Max_Tested_Conc_uM" = numeric(0),
+                                                                stringsAsFactors = FALSE
+                                                                )
+                                    #Storing empty data frame
+                                      Calculated_AUCs[[i]] <- temp_Return
+                                  }
+                                  progress$set(value = i, message = paste0(i, " of ", nrow(temp_Instruction), " Rows Complete..."))
+                                }
+                              #Organizing calculated AUC values
+                                if(length(Calculated_AUCs) > 0){
+                                  Returnable_AUCs <- as.data.frame(do.call(rbind, Calculated_AUCs))
+                                } else {
+                                  Returnable_AUCs <- data.frame("Compound" = temp_results$Compound,
+                                                                "Cell_Line" = character(0),
+                                                                "normalized_AUC" = numeric(0),
+                                                                "Lower_Conc_Limit_uM" = numeric(0),
+                                                                "Upper_Conc_Limit_uM" = numeric(0),
+                                                                "Min_Tested_Conc_uM" = numeric(0),
+                                                                "Max_Tested_Conc_uM" = numeric(0),
+                                                                stringsAsFactors = FALSE
+                                                                )
+                                }
+                              #Throwing warning if aborted
+                                if(Aborted != FALSE){
+                                    Warning <- paste0("WARNING: Calculation aborted after ", Aborted, " of ", nrow(temp_Instruction)," rows complete. Please reload the web page and try again. Contact us if this problem persists.")
+                                  } else {
+                                    Warning <- FALSE
+                                  }
+                              #Returning output
+                                list(AUCs = Returnable_AUCs, Warning = Warning)
+                            }) #END: temp_Result <- try({
+                            
+                          #Closing progress bar
+                            progress$close()
+                          
+                          #Checking if calculation failed
+                            if(class(temp_Result) == "try-error"){
+                              temp_Result <- list(AUCs = NULL, Warning = paste0("WARNING: Calculation failed. WARNING: Calculation failed. Please reload the web page and try again. Contact us if this problem persists. -- ", temp_Result[1]))
+                            }
+                            
+                          #Returning calculated AUCs from future call
+                            return(temp_Result)
+                            
+                      }) #END: future
                   }) #END: isolate
                   promise_race(future_data) %...>% {remove_modal_spinner()}
                   future_data
@@ -5066,7 +5141,7 @@
                     isolate({
                     #Creating Download Button
                       output$AUC_Download_UI <- renderUI({
-                        if(is.data.frame(data)){
+                        if(is.data.frame(data$AUCs) & data$Warning == FALSE){
                           downloadButton(outputId = "AUC_Download_AUC_Values", label = "Download Calculated AUC Values") %>%
                                   helper(type = "inline",
                                     title = "Download AUC Values",
@@ -5084,6 +5159,29 @@
                                     size = "m",
                                     buttonLabel = "Okay", easyClose = TRUE, fade = FALSE
                                   )
+                        } else if(is.data.frame(data$AUCs) & data$Warning != FALSE){
+                          list(
+                            p(tags$b(data$Warning), style = "color:red"),
+                            downloadButton(outputId = "AUC_Download_AUC_Values", label = "Download Calculated AUC Values") %>%
+                                    helper(type = "inline",
+                                      title = "Download AUC Values",
+                                      icon = "question-circle", colour = NULL,
+                                      content = HTML("Pressing this button will download a tab separated value (.tsv) text file containing the calculated normalized AUC values, where each row reports a calculated AUC value for a single set of compound, cell line, and concentration range. This file will have the following columns:
+                                                     <ol>
+                                                      <li><b>Compound:</b> Compound name.</li>
+                                                      <li><b>Cell_Line:</b> Cell line name.</li>
+                                                      <li><b>normalized_AUC:</b> The area under the curve (AUC) for this compound-cell line pair from the Lower_Conc_Limit_uM to the Upper_Conc_Limit_uM, normalized by dividing the AUC by the concentration range used to calculate it. As such the normalized AUC value will range from ~0 to ~1, with a normalized AUC of 1 indicating 100% viability across the entire concentration range and a normalized AUC of 0 indicating 0% viability across the entire concentration range.</li>
+                                                      <li><b>Lower_Conc_Limit_uM:</b> The lower concentration boundary, in microMolar, from which to calculate AUC values.</li>
+                                                      <li><b>Upper_Conc_Limit_uM:</b> The upper concentration boundary, in microMolar, to which to calculate AUC values.</li>
+                                                      <li><b>Min_Tested_Conc_uM:</b> The minimum tested concentration, in microMolar, for this compound with this cell line in this dataset.</li>
+                                                      <li><b>Max_Tested_Conc_uM:</b> The maximum tested concentration, in microMolar, for this compound with this cell line in this dataset.</li>
+                                                    </ol>"),
+                                      size = "m",
+                                      buttonLabel = "Okay", easyClose = TRUE, fade = FALSE
+                                    )
+                          )
+                        } else if(! is.data.frame(data$AUCs) & data$Warning != FALSE){
+                          p(tags$b(data$Warning), style = "color:red")
                         } else {
                           
                         }
@@ -5100,16 +5198,16 @@
                                 text = "Preparing Results for Download..."
                               )
                               
-                              success.check <- try(write_delim(data, file, delim = "\t"))
+                              success.check <- try(write_delim(data$AUCs, file, delim = "\t"))
                               
                               if(class(success.check) == "try-error"){
                                 warning("Download unsuccessful: ", Sys.time())
-                                temp_class <- class(data)
+                                temp_class <- class(data$AUCs)
                                 warning("File class = ", temp_class)
                                 if(temp_class == "data.frame"){
                                   temp_type <- NA
-                                  for(i in 1:ncol(data)){
-                                    temp_type[i] <- typeof(data[,i])
+                                  for(i in 1:ncol(data$AUCs)){
+                                    temp_type[i] <- typeof(data$AUCs[,i])
                                   }
                                   warning(paste0("Column Types: ", paste(temp_type, collapse = ", ")))
                                 }
@@ -5524,7 +5622,7 @@
                                     buttonLabel = "Okay", easyClose = TRUE, fade = FALSE
                                   ),
                         #Button to do Viability calculation
-                          actionButton(inputId = "Viability_Calc", label = "Calculate Viability Values"),
+                          uiOutput("Viability_Calc_Action_Button_UI"),
                         #Button to generate and download Viability values
                           uiOutput("Viability_Download_UI")
                       )
@@ -5534,6 +5632,20 @@
                     
                     return(return_list)
                   })})
+                  
+                #Rendering Action button to do viability calculations
+                  #Rendering UI
+                    output$Viability_Calc_Action_Button_UI <- renderUI({
+                      if(RAM_Free_Ratio() <  min_RAM_free_ratio_to_start_future){
+                        wellPanel(
+                         p(HTML("<b>Due to high server usage, no further viability calculations can be initiated at this time. Please try again later. We apologize for the inconvenience.</b>"), style = "color:red") 
+                        )
+                      } else {
+                        actionButton(inputId = "Viability_Calc", label = "Calculate_Viability_Values")
+                      }
+                    })
+                  
+                #Disabling Viability_Calc action button if insufficient RAM exists to perform the calculation
                   
                 #Determining which compounds have been selected
                   Viability_Instruction_Compounds <- reactive({
@@ -5790,147 +5902,250 @@
                               )
                       progress <- AsyncProgress$new(session, min = 0, max = length(temp_conc_list), message = "Initializing Calculation...")
                       future_data <- future(
-                        global = c("progress", "temp_conc_list", "Compound_Filenames", "temp_Instruction", "temp_Cell_Lines", "temp_dataset", "temp_via_calc_uncertainty", "temp_via_format_IDACombo", "wd", "ll.4", "predict.handle.errors.drc", "estfun.drc", "bread.drc", "meat.drc", "sandwich", "predict.drc", "Simple_Cell_Line_Harm"),
+                        global = c("progress", "min_RAM_free_ratio_within_future", "temp_conc_list", "Compound_Filenames", "temp_Instruction", "temp_Cell_Lines", "temp_dataset", "temp_via_calc_uncertainty", "temp_via_format_IDACombo", "wd", "ll.4", "predict.handle.errors.drc", "estfun.drc", "bread.drc", "meat.drc", "sandwich", "predict.drc", "Simple_Cell_Line_Harm"),
                         packages = c("drc"),
                         expr = {
                           #Setting working directory
                             setwd(wd)
                           #Calculating viabilities    
                           if(temp_via_calc_uncertainty == FALSE){
-                            #Performing calculations when standard errors are not needed
-                              #Loading fitted curves and calculating Viability values
-                                Calculated_Viabilities <- vector(mode = "list", length = 0)
-                                  for(i in 1:length(temp_conc_list)){
-                                    if(i == 1){
-                                      progress$set(value = 0, message = paste0(0, " of ", length(temp_conc_list), " Compounds Complete..."))
-                                    }
-                                    #Loading results for this cell line
-                                      filename <- Compound_Filenames$drug_file_names[Compound_Filenames$drugs %in% names(temp_conc_list)[i]]
-                                      temp_results <- readRDS(paste0("./www/Results/", filename, ".rds"))[[temp_dataset]]
-                                    #Subsetting to selected cell lines
-                                      temp_results <- temp_results[temp_results$Cell_Line %in% temp_Cell_Lines & ! is.na(temp_results$b_c_d_e),]
-                                    if(nrow(temp_results) > 0){
-                                      #Determining which concentrations to calculate viability values at
-                                        temp_Concentrations <- temp_conc_list[[i]]
-                                        temp_n_conc <- length(temp_Concentrations)
-                                      #Calculating Viability Values
-                                        temp_Viabilities <- ll.4(x = rep(temp_Concentrations, times = nrow(temp_results)), b_c_d_e = rep(temp_results$b_c_d_e, each = temp_n_conc))
-                                      #Constructing return values
-                                        temp_Return <- data.frame("Compound" = rep(temp_results$Compound, each = temp_n_conc),
-                                                                  "Cell_Line" = rep(temp_results$Cell_Line, each = temp_n_conc),
-                                                                  "Viability" = temp_Viabilities,
-                                                                  "Concentration_uM" = rep(temp_Concentrations, times = nrow(temp_results)),
-                                                                  "Min_Tested_Conc_uM" = rep(temp_results$min_dose_uM, each = temp_n_conc),
-                                                                  "Max_Tested_Conc_uM" = rep(temp_results$max_dose_uM, each = temp_n_conc),
-                                                                  stringsAsFactors = FALSE
-                                                                  )
-                                      #Storing result
-                                        Calculated_Viabilities[[i]] <- temp_Return
-                                        rm(temp_Return, temp_Viabilities, temp_Concentrations, temp_results)
-                                        gc()
-                                    } else {
-                                      #Constructing empty result data frame
-                                        temp_Return <- data.frame("Compound" = character(0),
-                                                                  "Cell_Line" = character(0),
-                                                                  "Viability" = numeric(0),
-                                                                  "Concentration_uM" = numeric(0),
-                                                                  "Min_Tested_Conc_uM" = numeric(0),
-                                                                  "Max_Tested_Conc_uM" = numeric(0),
-                                                                  stringsAsFactors = FALSE
-                                                                  )
-                                      #Storing empty data frame
-                                        Calculated_Viabilities[[i]] <- temp_Return
-                                    }
-                                    progress$set(value = i, message = paste0(i, " of ", length(temp_conc_list), " Compounds Complete..."))
-                                  }
-                              #Organizing calculated Viability values
-                                Returnable_Viabilities <- as.data.frame(do.call(rbind, Calculated_Viabilities))
-                              if(temp_via_format_IDACombo == TRUE){
-                                 #If option is selected, formatting for IDACombo app
-                                    Returnable_Viabilities <- Returnable_Viabilities[,c("Compound", "Cell_Line", "Viability", "Concentration_uM")]
-                                  #Renaming columns
-                                    colnames(Returnable_Viabilities) <- c("Drug", "Cell_Line", "Efficacy", "Drug_Dose")
-                                  #Adding cell line cancer types
-                                    Returnable_Viabilities$Cell_Line_Subgroup <- NA
-                                    Returnable_Viabilities$Cell_Line_Subgroup <- Simple_Cell_Line_Harm$Simple_Cancer_Type[match(Returnable_Viabilities$Cell_Line, Simple_Cell_Line_Harm$Harmonized_Cell_Line_ID)] 
-                              }
-                                progress$close()
-                                return(Returnable_Viabilities)
-                          } else if(temp_via_calc_uncertainty == TRUE){ #END: if(temp_via_calc_uncertainty == FALSE){
-                            #Performing calculations when standard errors are needed
-                              #Loading fitted curves and calculating Viability values
-                                Calculated_Viabilities <- vector(mode = "list", length = 0)
-                                  for(i in 1:length(temp_conc_list)){
-                                    if(i == 1){
-                                      progress$set(value = 0, message = paste0(0, " of ", length(temp_conc_list), " Compounds Complete..."))
-                                    }
-                                    #Loading results for this cell line
-                                      filename <- Compound_Filenames$drug_file_names[Compound_Filenames$drugs %in% names(temp_conc_list)[i]]
-                                      temp_results <- readRDS(paste0("./www/Curve_Fits/", temp_dataset, "/", filename, ".rds"))
-                                    #Removing drug from result list names
-                                      names(temp_results) <- gsub(":\\|:.*$", "", names(temp_results))
-                                    #Subsetting to selected cell lines with successful fits
-                                      temp_results <- temp_results[names(temp_results) %in% temp_Cell_Lines & ! sapply(temp_results, length) == 1]
-                                    if(length(temp_results) > 0){
-                                      #Determining which concentrations to calculate viability values at
-                                        temp_Concentrations <- data.frame(dose = temp_conc_list[[i]])
-                                      #Calculating Viability Values
-                                        temp_Viabilities <- as.data.frame(do.call(rbind, lapply(temp_results, predict.handle.errors.drc, newdata = temp_Concentrations, se.fit = T, vcov. = sandwich)))
-                                        temp_n_conc <- nrow(temp_Concentrations)
-                                      #Constructing return values
-                                        temp_Return <- data.frame("Compound" = names(temp_conc_list)[i],
-                                                                  "Cell_Line" = rep(names(temp_results), each = temp_n_conc),
-                                                                  "Viability" = temp_Viabilities$Prediction,
-                                                                  "Viability_SE" = temp_Viabilities$SE,
-                                                                  "Concentration_uM" = rep(temp_Concentrations[,1], times = length(temp_results)),
-                                                                  "Min_Tested_Conc_uM" = rep(sapply(temp_results, function(x){return(min(x$dataList$dose))}), each = temp_n_conc),
-                                                                  "Max_Tested_Conc_uM" = rep(sapply(temp_results, function(x){return(max(x$dataList$dose))}), each = temp_n_conc),
-                                                                  stringsAsFactors = FALSE
-                                                                  )
-                                      #Repairing missing viability values at 0 concentration
-                                        temp_Params <- sapply(temp_results[temp_Return$Cell_Line], function(x){return(paste(x$coefficients, collapse = "_"))})
-                                        if(any(is.na(temp_Return$Viability))){
-                                          temp_Return$Viability[is.na(temp_Return$Viability)] <- ll.4(x = temp_Return$Concentration_uM[is.na(temp_Return$Viability)], b_c_d_e = temp_Params[is.na(temp_Return$Viability)])
-                                        }
-                                      #If SE values could not be estimated (usually happens when slope == 0), assigning unknown SE as median SE from other cell lines at that concentration with this drug
-                                        if(any(is.na(temp_Return$Viability_SE))){
-                                          for(j in 1:nrow(temp_Concentrations)){
-                                            temp_Return$Viability_SE[is.na(temp_Return$Viability_SE) & temp_Return$Concentration_uM == temp_Concentrations$dose[j]] <- median(temp_Return$Viability_SE[! is.na(temp_Return$Viability_SE) & temp_Return$Concentration_uM == temp_Concentrations$dose[j]])
+                            temp_Result <- try({
+                              #Performing calculations when standard errors are not needed
+                                #Loading fitted curves and calculating Viability values
+                                  Calculated_Viabilities <- vector(mode = "list", length = 0)
+                                  Aborted <- FALSE
+                                    for(i in 1:length(temp_conc_list)){
+                                      #Checking if sufficient RAM exists to continue calculation
+                                        temp_ram <- memuse::Sys.meminfo()
+                                        temp_free_ram_ratio <- temp_ram$freeram/temp_ram$totalram
+                                        if(temp_free_ram_ratio <= min_RAM_free_ratio_within_future){
+                                          attempt <- 1
+                                          while(temp_free_ram_ratio <= min_RAM_free_ratio_within_future & attempt <= 10){
+                                            progress$set(value = i-1, message = paste0("WARNING: Server RAM low. Trying to continue...(Attempt ", attempt, " of 10)"))
+                                            Sys.sleep(10)
+                                            temp_ram <- memuse::Sys.meminfo()
+                                            temp_free_ram_ratio <- temp_ram$freeram/temp_ram$totalram
+                                            attempt <- attempt + 1
+                                          }
+                                          if(temp_free_ram_ratio > min_RAM_free_ratio_within_future){
+                                            progress$set(value = i-1, message = paste0(i-1, " of ", length(temp_conc_list), " Compounds Complete..."))
+                                          } else {
+                                            Aborted <- i-1
+                                            progress$set(value = i-1, message = "Aborting calculation...")
+                                            break
                                           }
                                         }
-                                      #Storing result
-                                        Calculated_Viabilities[[i]] <- temp_Return
-                                        rm(temp_Return, temp_Viabilities, temp_Concentrations, temp_results)
-                                        gc()
-                                    } else {
-                                      #Constructing empty result data frame
-                                        temp_Return <- data.frame("Compound" = character(0),
-                                                                  "Cell_Line" = character(0),
-                                                                  "Viability" = numeric(0),
-                                                                  "Viability_SE" = numeric(0),
-                                                                  "Concentration_uM" = numeric(0),
-                                                                  "Min_Tested_Conc_uM" = numeric(0),
-                                                                  "Max_Tested_Conc_uM" = numeric(0),
-                                                                  stringsAsFactors = FALSE
-                                                                  )
-                                      #Storing empty data frame
-                                        Calculated_Viabilities[[i]] <- temp_Return
+                                      #Initializing progress bar message for first compound
+                                        if(i == 1){
+                                          progress$set(value = 0, message = paste0(0, " of ", length(temp_conc_list), " Compounds Complete..."))
+                                        }
+                                      #Loading results for this cell line
+                                        filename <- Compound_Filenames$drug_file_names[Compound_Filenames$drugs %in% names(temp_conc_list)[i]]
+                                        temp_results <- readRDS(paste0("./www/Results/", filename, ".rds"))[[temp_dataset]]
+                                      #Subsetting to selected cell lines
+                                        temp_results <- temp_results[temp_results$Cell_Line %in% temp_Cell_Lines & ! is.na(temp_results$b_c_d_e),]
+                                      if(nrow(temp_results) > 0){
+                                        #Determining which concentrations to calculate viability values at
+                                          temp_Concentrations <- temp_conc_list[[i]]
+                                          temp_n_conc <- length(temp_Concentrations)
+                                        #Calculating Viability Values
+                                          temp_Viabilities <- ll.4(x = rep(temp_Concentrations, times = nrow(temp_results)), b_c_d_e = rep(temp_results$b_c_d_e, each = temp_n_conc))
+                                        #Constructing return values
+                                          temp_Return <- data.frame("Compound" = rep(temp_results$Compound, each = temp_n_conc),
+                                                                    "Cell_Line" = rep(temp_results$Cell_Line, each = temp_n_conc),
+                                                                    "Viability" = temp_Viabilities,
+                                                                    "Concentration_uM" = rep(temp_Concentrations, times = nrow(temp_results)),
+                                                                    "Min_Tested_Conc_uM" = rep(temp_results$min_dose_uM, each = temp_n_conc),
+                                                                    "Max_Tested_Conc_uM" = rep(temp_results$max_dose_uM, each = temp_n_conc),
+                                                                    stringsAsFactors = FALSE
+                                                                    )
+                                        #Storing result
+                                          Calculated_Viabilities[[i]] <- temp_Return
+                                          rm(temp_Return, temp_Viabilities, temp_Concentrations, temp_results)
+                                          gc()
+                                      } else {
+                                        #Constructing empty result data frame
+                                          temp_Return <- data.frame("Compound" = character(0),
+                                                                    "Cell_Line" = character(0),
+                                                                    "Viability" = numeric(0),
+                                                                    "Concentration_uM" = numeric(0),
+                                                                    "Min_Tested_Conc_uM" = numeric(0),
+                                                                    "Max_Tested_Conc_uM" = numeric(0),
+                                                                    stringsAsFactors = FALSE
+                                                                    )
+                                        #Storing empty data frame
+                                          Calculated_Viabilities[[i]] <- temp_Return
+                                      }
+                                      progress$set(value = i, message = paste0(i, " of ", length(temp_conc_list), " Compounds Complete..."))
                                     }
-                                    progress$set(value = i, message = paste0(i, " of ", length(temp_conc_list), " Compounds Complete..."))
+                                #Organizing calculated Viability values
+                                  if(length(Calculated_Viabilities) > 0){
+                                    Returnable_Viabilities <- as.data.frame(do.call(rbind, Calculated_Viabilities))
+                                  } else {
+                                    Returnable_Viabilities <- data.frame("Compound" = character(0),
+                                                                    "Cell_Line" = character(0),
+                                                                    "Viability" = numeric(0),
+                                                                    "Concentration_uM" = numeric(0),
+                                                                    "Min_Tested_Conc_uM" = numeric(0),
+                                                                    "Max_Tested_Conc_uM" = numeric(0),
+                                                                    stringsAsFactors = FALSE
+                                                                    )
                                   }
-                              #Organizing calculated Viability values
-                                Returnable_Viabilities <- as.data.frame(do.call(rbind, Calculated_Viabilities))
-                              if(temp_via_format_IDACombo == TRUE){
-                                 #If option is selected, formatting for IDACombo app
-                                    Returnable_Viabilities <- Returnable_Viabilities[,c("Compound", "Cell_Line", "Viability", "Viability_SE", "Concentration_uM")]
-                                  #Renaming columns
-                                    colnames(Returnable_Viabilities) <- c("Drug", "Cell_Line", "Efficacy", "Efficacy_SE", "Drug_Dose")
-                                  #Adding cell line cancer types
-                                    Returnable_Viabilities$Cell_Line_Subgroup <- NA
-                                    Returnable_Viabilities$Cell_Line_Subgroup <- Simple_Cell_Line_Harm$Simple_Cancer_Type[match(Returnable_Viabilities$Cell_Line, Simple_Cell_Line_Harm$Harmonized_Cell_Line_ID)]
-                              }
-                                progress$close()
-                                return(Returnable_Viabilities)
+                                #Formatting columns if requested
+                                  if(temp_via_format_IDACombo == TRUE){
+                                     #If option is selected, formatting for IDACombo app
+                                        Returnable_Viabilities <- Returnable_Viabilities[,c("Compound", "Cell_Line", "Viability", "Concentration_uM")]
+                                      #Renaming columns
+                                        colnames(Returnable_Viabilities) <- c("Drug", "Cell_Line", "Efficacy", "Drug_Dose")
+                                      #Adding cell line cancer types
+                                        if(nrow(Returnable_Viabilities) > 0){
+                                          Returnable_Viabilities$Cell_Line_Subgroup <- NA
+                                          Returnable_Viabilities$Cell_Line_Subgroup <- Simple_Cell_Line_Harm$Simple_Cancer_Type[match(Returnable_Viabilities$Cell_Line, Simple_Cell_Line_Harm$Harmonized_Cell_Line_ID)]
+                                        }
+                                  }
+                                #Finishing computation
+                                  progress$close()
+                                  if(Aborted != FALSE){
+                                    Warning <- paste0("WARNING: Calculation aborted after ", Aborted, " of ", length(temp_conc_list)," compounds complete. WARNING: Calculation failed. Please reload the web page and try again. Contact us if this problem persists.")
+                                  } else {
+                                    Warning <- FALSE
+                                  }
+                                  list(Viabilities = Returnable_Viabilities, Warning = Warning)
+                            }) #END: temp_Result <- try({
+                            
+                            if(class(temp_Result) == "try-error"){
+                              temp_Result <- list(Viabilities = NULL, Warning = paste0("WARNING: Calculation failed. Please reload the web page and try again. Contact us if this problem persists. -- ", temp_Result[1]))
+                            }
+                            
+                            return(temp_Result)
+                            
+                          } else if(temp_via_calc_uncertainty == TRUE){ #END: if(temp_via_calc_uncertainty == FALSE){
+                            temp_Result <- try({
+                              #Performing calculations when standard errors are needed
+                                #Loading fitted curves and calculating Viability values
+                                  Calculated_Viabilities <- vector(mode = "list", length = 0)
+                                  Aborted <- FALSE
+                                    for(i in 1:length(temp_conc_list)){
+                                      #Checking if sufficient RAM exists to continue calculation
+                                        temp_ram <- memuse::Sys.meminfo()
+                                        temp_free_ram_ratio <- temp_ram$freeram/temp_ram$totalram
+                                        if(temp_free_ram_ratio <= min_RAM_free_ratio_within_future){
+                                          attempt <- 1
+                                          while(temp_free_ram_ratio <= min_RAM_free_ratio_within_future & attempt <= 10){
+                                            progress$set(value = i-1, message = paste0("WARNING: Server RAM low. Trying to continue...(Attempt ", attempt, " of 10)"))
+                                            Sys.sleep(10)
+                                            temp_ram <- memuse::Sys.meminfo()
+                                            temp_free_ram_ratio <- temp_ram$freeram/temp_ram$totalram
+                                            attempt <- attempt + 1
+                                          }
+                                          if(temp_free_ram_ratio > min_RAM_free_ratio_within_future){
+                                            progress$set(value = i-1, message = paste0(i-1, " of ", length(temp_conc_list), " Compounds Complete..."))
+                                          } else {
+                                            Aborted <- i-1
+                                            progress$set(value = i-1, message = "Aborting calculation...")
+                                            break
+                                          }
+                                        }
+                                      #Initializing count for progress bar
+                                        if(i == 1){
+                                          progress$set(value = 0, message = paste0(0, " of ", length(temp_conc_list), " Compounds Complete..."))
+                                        }
+                                      #Loading results for this cell line
+                                        filename <- Compound_Filenames$drug_file_names[Compound_Filenames$drugs %in% names(temp_conc_list)[i]]
+                                        temp_results <- readRDS(paste0("./www/Curve_Fits/", temp_dataset, "/", filename, ".rds"))
+                                      #Removing drug from result list names
+                                        names(temp_results) <- gsub(":\\|:.*$", "", names(temp_results))
+                                      #Subsetting to selected cell lines with successful fits
+                                        temp_results <- temp_results[names(temp_results) %in% temp_Cell_Lines & ! sapply(temp_results, length) == 1]
+                                      if(length(temp_results) > 0){
+                                        #Determining which concentrations to calculate viability values at
+                                          temp_Concentrations <- data.frame(dose = temp_conc_list[[i]])
+                                        #Calculating Viability Values
+                                          temp_Viabilities <- as.data.frame(do.call(rbind, lapply(temp_results, predict.handle.errors.drc, newdata = temp_Concentrations, se.fit = T, vcov. = sandwich)))
+                                          temp_n_conc <- nrow(temp_Concentrations)
+                                        #Constructing return values
+                                          temp_Return <- data.frame("Compound" = names(temp_conc_list)[i],
+                                                                    "Cell_Line" = rep(names(temp_results), each = temp_n_conc),
+                                                                    "Viability" = temp_Viabilities$Prediction,
+                                                                    "Viability_SE" = temp_Viabilities$SE,
+                                                                    "Concentration_uM" = rep(temp_Concentrations[,1], times = length(temp_results)),
+                                                                    "Min_Tested_Conc_uM" = rep(sapply(temp_results, function(x){return(min(x$dataList$dose))}), each = temp_n_conc),
+                                                                    "Max_Tested_Conc_uM" = rep(sapply(temp_results, function(x){return(max(x$dataList$dose))}), each = temp_n_conc),
+                                                                    stringsAsFactors = FALSE
+                                                                    )
+                                        #Repairing missing viability values at 0 concentration
+                                          temp_Params <- sapply(temp_results[temp_Return$Cell_Line], function(x){return(paste(x$coefficients, collapse = "_"))})
+                                          if(any(is.na(temp_Return$Viability))){
+                                            temp_Return$Viability[is.na(temp_Return$Viability)] <- ll.4(x = temp_Return$Concentration_uM[is.na(temp_Return$Viability)], b_c_d_e = temp_Params[is.na(temp_Return$Viability)])
+                                          }
+                                        #If SE values could not be estimated (usually happens when slope == 0), assigning unknown SE as median SE from other cell lines at that concentration with this drug
+                                          if(any(is.na(temp_Return$Viability_SE))){
+                                            for(j in 1:nrow(temp_Concentrations)){
+                                              temp_Return$Viability_SE[is.na(temp_Return$Viability_SE) & temp_Return$Concentration_uM == temp_Concentrations$dose[j]] <- median(temp_Return$Viability_SE[! is.na(temp_Return$Viability_SE) & temp_Return$Concentration_uM == temp_Concentrations$dose[j]])
+                                            }
+                                          }
+                                        #Storing result
+                                          Calculated_Viabilities[[i]] <- temp_Return
+                                          rm(temp_Return, temp_Viabilities, temp_Concentrations, temp_results)
+                                          gc()
+                                      } else {
+                                        #Constructing empty result data frame
+                                          temp_Return <- data.frame("Compound" = character(0),
+                                                                    "Cell_Line" = character(0),
+                                                                    "Viability" = numeric(0),
+                                                                    "Viability_SE" = numeric(0),
+                                                                    "Concentration_uM" = numeric(0),
+                                                                    "Min_Tested_Conc_uM" = numeric(0),
+                                                                    "Max_Tested_Conc_uM" = numeric(0),
+                                                                    stringsAsFactors = FALSE
+                                                                    )
+                                        #Storing empty data frame
+                                          Calculated_Viabilities[[i]] <- temp_Return
+                                      }
+                                      progress$set(value = i, message = paste0(i, " of ", length(temp_conc_list), " Compounds Complete..."))
+                                    }
+                                #Organizing calculated Viability values
+                                    if(length(Calculated_Viabilities) > 0){
+                                      Returnable_Viabilities <- as.data.frame(do.call(rbind, Calculated_Viabilities))
+                                    } else {
+                                      Returnable_Viabilities <- data.frame("Compound" = character(0),
+                                                                           "Cell_Line" = character(0),
+                                                                           "Viability" = numeric(0),
+                                                                           "Viability_SE" = numeric(0),
+                                                                           "Concentration_uM" = numeric(0),
+                                                                           "Min_Tested_Conc_uM" = numeric(0),
+                                                                           "Max_Tested_Conc_uM" = numeric(0),
+                                                                           stringsAsFactors = FALSE
+                                                                           )
+                                    }
+                                  #Formatting columns if requested
+                                    if(temp_via_format_IDACombo == TRUE){
+                                       #If option is selected, formatting for IDACombo app
+                                          Returnable_Viabilities <- Returnable_Viabilities[,c("Compound", "Cell_Line", "Viability", "Viability_SE", "Concentration_uM")]
+                                        #Renaming columns
+                                          colnames(Returnable_Viabilities) <- c("Drug", "Cell_Line", "Efficacy", "Efficacy_SE", "Drug_Dose")
+                                        #Adding cell line cancer types
+                                          if(nrow(Returnable_Viabilities) > 0){
+                                            Returnable_Viabilities$Cell_Line_Subgroup <- NA
+                                            Returnable_Viabilities$Cell_Line_Subgroup <- Simple_Cell_Line_Harm$Simple_Cancer_Type[match(Returnable_Viabilities$Cell_Line, Simple_Cell_Line_Harm$Harmonized_Cell_Line_ID)]
+                                          }
+                                    }
+                                  #Finishing computation
+                                    progress$close()
+                                    if(Aborted != FALSE){
+                                      Warning <- paste0("WARNING: Calculation aborted after ", Aborted, " of ", length(temp_conc_list)," compounds complete. WARNING: Calculation failed. Please reload the web page and try again. Contact us if this problem persists.")
+                                    } else {
+                                      Warning <- FALSE
+                                    }
+                                    list(Viabilities = Returnable_Viabilities, Warning = Warning)
+                            }) #END: temp_Result <- try({
+                            
+                            if(class(temp_Result) == "try-error"){
+                              temp_Result <- list(Viabilities = NULL, Warning = paste0("WARNING: Calculation failed. WARNING: Calculation failed. Please reload the web page and try again. Contact us if this problem persists. -- ", temp_Result[1]))
+                            }
+                            
+                            return(temp_Result)
+                            
                           } #END: else if(temp_via_calc_uncertainty == TRUE){
                         }) #END: future_data <- future(...
                   }) #END: isolate
@@ -5946,7 +6161,7 @@
                     isolate({
                     #Creating Download Button
                       output$Viability_Download_UI <- renderUI({
-                        if(is.data.frame(data)){
+                        if(is.data.frame(data$Viabilities) & data$Warning == FALSE){
                           downloadButton(outputId = "Viability_Download_Viability_Values", label = "Download Calculated Viability Values") %>%
                                   helper(type = "inline",
                                     title = "Download Viabilities",
@@ -5966,6 +6181,31 @@
                                     size = "m",
                                     buttonLabel = "Okay", easyClose = TRUE, fade = FALSE
                                   )
+                        } else if(is.data.frame(data$Viabilities) & data$Warning != FALSE){
+                          list(
+                          p(tags$b(data$Warning), style = "color:red"),
+                          downloadButton(outputId = "Viability_Download_Viability_Values", label = "Download Partially Calculated Viability Values") %>%
+                                  helper(type = "inline",
+                                    title = "Download Viabilities",
+                                    icon = "question-circle", colour = NULL,
+                                    content = HTML("Pressing this button will download a tab separated value (.tsv) text file containing the partially calculated viability values, where each row reports a calculated viability value for a single set of compound, cell line, and concentration. This file will have the following columns:
+                                                   <ol>
+                                                    <li><b>Compound:</b> Compound name.</li>
+                                                    <li><b>Cell_Line:</b> Cell line name.</li>
+                                                    <li><b>Viability:</b> The calculated viability value for this compound, cell line, and concentration. These values range from ~0 to ~1, with 0 indicating 0% viability and 1 indicating 100% viability. Viability is definined in the \"About Simplicity/Methods\" tab.</li>
+                                                    <li><b>Viability_SE:</b> Reports estimated standard error values for the calculated viability values, and only appears if the \"Calculate viability standard errors?\" option was selected prior to calculating the viability values.</li>
+                                                    <li><b>Concentration_uM:</b> The concentration, in microMolar, for which this viability is being reported.</li>
+                                                    <li><b>Min_Tested_Conc_uM:</b> The minimum tested concentration, in microMolar, for this compound with this cell line in this dataset.</li>
+                                                    <li><b>Max_Tested_Conc_uM:</b> The maximum tested concentration, in microMolar, for this compound with this cell line in this dataset.</li>
+                                                  </ol>
+                                                  <br/>
+                                                   Note that, if the \"Format ouput for use with IDACombo shiny app?\" option was selected prior to calculating the viabilites, the Compound, Cell_Line, Viability, Viability_SE, and Concentration_uM columns will be named Drug, Cell_Line, Efficacy, Efficacy_SE, and Drug_Dose respectively, and a Cell_Line_Subgroup column will be added containing the general cancer type corresponding with each row's cell line."),
+                                    size = "m",
+                                    buttonLabel = "Okay", easyClose = TRUE, fade = FALSE
+                                  )
+                          )
+                        } else if(! is.data.frame(data$Viabilities) & data$Warning != FALSE){
+                          p(tags$b(data$Warning), style = "color:red")
                         } else {
                           
                         }
@@ -5982,16 +6222,16 @@
                                 text = "Preparing Results for Download..."
                               )
                               
-                              success.check <- try(write_delim(data, file, delim = "\t"))
+                              success.check <- try(write_delim(data$Viabilities, file, delim = "\t"))
                               
                               if(class(success.check) == "try-error"){
                                 warning("Download unsuccessful: ", Sys.time())
-                                temp_class <- class(data)
+                                temp_class <- class(data$Viabilities)
                                 warning("File class = ", temp_class)
                                 if(temp_class == "data.frame"){
                                   temp_type <- NA
-                                  for(i in 1:ncol(data)){
-                                    temp_type[i] <- typeof(data[,i])
+                                  for(i in 1:ncol(data$Viabilities)){
+                                    temp_type[i] <- typeof(data$Viabilities[,i])
                                   }
                                   warning(paste0("Column Types: ", paste(temp_type, collapse = ", ")))
                                 }

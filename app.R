@@ -872,7 +872,6 @@
           #Updating selection menus based on Compound_Explorer_Currently_Available_Cell_Lines()
             observeEvent(list(Compound_Explorer_Currently_Available_Cell_Lines(), input$Compound_Explorer_Highlight_Cell_Lines), {
               req(! length(input$Compound_Explorer_Highlight_Cell_Lines) == 0)
-              req(Compound_Explorer_Currently_Available_Cell_Lines())
               #Updating cell line selection menu
                 if(input$Compound_Explorer_Highlight_Cell_Lines == FALSE){
                   updatePickerInput(session, "Compound_Explorer_Cell_Lines", label = paste0("Select cell lines to plot data for (n = ", length(Compound_Explorer_Currently_Available_Cell_Lines()), ")"), choices = Compound_Explorer_Currently_Available_Cell_Lines(), selected = Compound_Explorer_Currently_Available_Cell_Lines())

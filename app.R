@@ -952,195 +952,130 @@
             req(cpdexplr_ccl_availability_data())
             req(! length(input$Compound_Explorer_Highlight_Cell_Lines) == 0)
 
-            output$Compound_Explorer_Plots <- renderUI({
-              #Rendering plot UI for dataset with data for this compound
+            #Rendering plot UI for dataset with data for this compound
+              output$Compound_Explorer_Plots <- renderUI({
+                
                 Compound_Explorer_Plot_UI <- vector(mode = "list")
+                
                 if("CTRPv2" %in% Compound_Explorer_Datasets_with_Compound_Data()){
-                  Compound_Explorer_Plot_UI <- c(Compound_Explorer_Plot_UI, plotlyOutput(outputId = "Compound_Explorer_CTRPv2_Plot"), HTML("---"))
+                  Compound_Explorer_Plot_UI <- c(Compound_Explorer_Plot_UI, plotlyOutput(outputId = "Compound_Explorer_CTRPv2_Plot"),
+                                                 list(downloadButton(outputId = "Compound_Explorer_Download_CTRPv2_Data", label = "Download CTRPv2 Plot Data")))
                 }
                 if("GDSC1" %in% Compound_Explorer_Datasets_with_Compound_Data()){
-                  Compound_Explorer_Plot_UI <- c(Compound_Explorer_Plot_UI, plotlyOutput(outputId = "Compound_Explorer_GDSC1_Plot"), HTML("---"))
+                  Compound_Explorer_Plot_UI <- c(Compound_Explorer_Plot_UI, plotlyOutput(outputId = "Compound_Explorer_GDSC1_Plot"),
+                                                 list(downloadButton(outputId = "Compound_Explorer_Download_GDSC1_Data", label = "Download GDSC1 Plot Data")))
                 }
                 if("GDSC2" %in% Compound_Explorer_Datasets_with_Compound_Data()){
-                  Compound_Explorer_Plot_UI <- c(Compound_Explorer_Plot_UI, plotlyOutput(outputId = "Compound_Explorer_GDSC2_Plot"), HTML("---"))
+                  Compound_Explorer_Plot_UI <- c(Compound_Explorer_Plot_UI, plotlyOutput(outputId = "Compound_Explorer_GDSC2_Plot"),
+                                                 list(downloadButton(outputId = "Compound_Explorer_Download_GDSC2_Data", label = "Download GDSC2 Plot Data")))
                 }
                 if("PRISM_Repurposing" %in% Compound_Explorer_Datasets_with_Compound_Data()){
-                  Compound_Explorer_Plot_UI <- c(Compound_Explorer_Plot_UI, plotlyOutput(outputId = "Compound_Explorer_PRISM_Repurposing_Plot"))
+                  Compound_Explorer_Plot_UI <- c(Compound_Explorer_Plot_UI, plotlyOutput(outputId = "Compound_Explorer_PRISM_Repurposing_Plot"),
+                                                 list(downloadButton(outputId = "Compound_Explorer_Download_PRISM_Repurposing_Data", label = "Download PRISM_Repurposing Plot Data")))
                 }
-              Compound_Explorer_Plot_UI
-            })
-  
-            output$Compound_Explorer_CTRPv2_Plot <- renderPlotly({
-              #Loading raw data for this compound and any datasets with data for this compound
-                if("CTRPv2" %in% Compound_Explorer_Datasets_with_Compound_Data()){
-                  CTRPv2_Results <- cpdexp_data()$CTRPv2
-                  CTRPv2_Results <- CTRPv2_Results[! is.na(CTRPv2_Results$b_c_d_e) & CTRPv2_Results$Cell_Line %in% cpdexplr_ccl_availability_data()$CTRPv2,]
-                } else {
-                  CTRPv2_Results <- data.frame(NULL)
-                }
-              #Making compound explorer CTRPv2 plot
-                if(nrow(CTRPv2_Results) > 0){
-                  if(input$Compound_Explorer_to_Plot == "AUC values for most commonly used concentration range"){
-                    plot_data <- CTRPv2_Results[! is.na(CTRPv2_Results$AUC_mode_ccl_CTRPv2_conc),]
-                    plot_data <- plot_data[order(plot_data$AUC_mode_ccl_CTRPv2_conc, decreasing = FALSE),]
-                    plot_data$Cell_Line <- factor(plot_data$Cell_Line, levels = plot_data$Cell_Line)
-                    plot_data$Concentration_Range_Exceeds_Max_Tested_Concentration <- "Max Tested Concentration Within AUC Range"
-                    plot_data$Concentration_Range_Exceeds_Max_Tested_Concentration[plot_data$max_dose_uM < plot_data$max_mode_ccl_CTRPv2_conc] <- "Max Tested Concentration < AUC Range"
-                    plot_data$Concentration_Range_Exceeds_Max_Tested_Concentration <- factor(plot_data$Concentration_Range_Exceeds_Max_Tested_Concentration, levels = c("Max Tested Concentration Within AUC Range", "Max Tested Concentration < AUC Range"))
-                    ylab <- paste0("AUC (", signif(as.numeric(unique(plot_data$min_mode_ccl_CTRPv2_conc)), 3), "-", signif(as.numeric(unique(plot_data$max_mode_ccl_CTRPv2_conc)), 3), " microMolar)")
-                    
-                    colors <- setNames(rep(colorRampPalette(c("blue", "red"))(2), 3),
-                                       c("Max Tested Concentration Within AUC Range", "Max Tested Concentration < AUC Range",
-                                         "selected: Max Tested Concentration Within AUC Range", "selected: Max Tested Concentration < AUC Range",
-                                         "unselected: Max Tested Concentration Within AUC Range", "unselected: Max Tested Concentration < AUC Range"))
-                    
-                    if(all(plot_data$Concentration_Range_Exceeds_Max_Tested_Concentration %in% "Max Tested Concentration Within AUC Range")){
-                      colors <- colorRampPalette(c("blue"))(1)
-                    } else if(all(plot_data$Concentration_Range_Exceeds_Max_Tested_Concentration %in% "Max Tested Concentration < AUC Range")){
-                      colors <- colorRampPalette(c("red"))(1)
-                    } else {
-                      colors <- colorRampPalette(c("blue", "red"))(2)
-                    }
-
-                    if(input$Compound_Explorer_Highlight_Cell_Lines == TRUE){
-                      plot_data$symbol <- ": not selected"
-                      plot_data$symbol[plot_data$Cell_Line %in% input$Compound_Explorer_Cell_Lines] <- ": selected"
-                      selected_plot_data <- plot_data[plot_data$symbol == ": selected",]
-                      unselected_plot_data <- plot_data[plot_data$symbol == ": not selected",]
+                
+                Compound_Explorer_Plot_UI
+                
+              })
+          
+            #Creating Plot for CTRPv2
+              output$Compound_Explorer_CTRPv2_Plot <- renderPlotly({
+                #Loading raw data for this compound and any datasets with data for this compound
+                  if("CTRPv2" %in% Compound_Explorer_Datasets_with_Compound_Data()){
+                    CTRPv2_Results <- cpdexp_data()$CTRPv2
+                    CTRPv2_Results <- CTRPv2_Results[! is.na(CTRPv2_Results$b_c_d_e) & CTRPv2_Results$Cell_Line %in% cpdexplr_ccl_availability_data()$CTRPv2,]
+                  } else {
+                    CTRPv2_Results <- data.frame(NULL)
+                  }
+                #Making compound explorer CTRPv2 plot
+                  if(nrow(CTRPv2_Results) > 0){
+                    if(input$Compound_Explorer_to_Plot == "AUC values for most commonly used concentration range"){
+                      plot_data <- CTRPv2_Results[! is.na(CTRPv2_Results$AUC_mode_ccl_CTRPv2_conc),]
+                      plot_data <- plot_data[order(plot_data$AUC_mode_ccl_CTRPv2_conc, decreasing = FALSE),]
+                      plot_data$Cell_Line <- factor(plot_data$Cell_Line, levels = plot_data$Cell_Line)
+                      plot_data$Concentration_Range_Exceeds_Max_Tested_Concentration <- "Max Tested Concentration Within AUC Range"
+                      plot_data$Concentration_Range_Exceeds_Max_Tested_Concentration[plot_data$max_dose_uM < plot_data$max_mode_ccl_CTRPv2_conc] <- "Max Tested Concentration < AUC Range"
+                      plot_data$Concentration_Range_Exceeds_Max_Tested_Concentration <- factor(plot_data$Concentration_Range_Exceeds_Max_Tested_Concentration, levels = c("Max Tested Concentration Within AUC Range", "Max Tested Concentration < AUC Range"))
+                      ylab <- paste0("AUC (", signif(as.numeric(unique(plot_data$min_mode_ccl_CTRPv2_conc)), 3), "-", signif(as.numeric(unique(plot_data$max_mode_ccl_CTRPv2_conc)), 3), " microMolar)")
                       
-                      if(nrow(selected_plot_data) > 0){
-                        selected_plot_data$Concentration_Range_Exceeds_Max_Tested_Concentration <- "selected: Max Tested Concentration Within AUC Range"
-                        selected_plot_data$Concentration_Range_Exceeds_Max_Tested_Concentration[selected_plot_data$max_dose_uM < selected_plot_data$max_mode_ccl_CTRPv2_conc] <- "selected: Max Tested Concentration < AUC Range"
-                        selected_plot_data$Concentration_Range_Exceeds_Max_Tested_Concentration <- factor(selected_plot_data$Concentration_Range_Exceeds_Max_Tested_Concentration, levels = c("selected: Max Tested Concentration Within AUC Range", "selected: Max Tested Concentration < AUC Range"))
-                        fig <- plot_ly(x = selected_plot_data$Cell_Line,
-                                   y = selected_plot_data$AUC_mode_ccl_CTRPv2_conc,
-                                   color = selected_plot_data$Concentration_Range_Exceeds_Max_Tested_Concentration,
-                                   colors = colors,
-                                   type = "scatter",
-                                   mode = "markers")
-                        if(nrow(unselected_plot_data) > 0){
+                      colors <- setNames(rep(colorRampPalette(c("blue", "red"))(2), 3),
+                                         c("Max Tested Concentration Within AUC Range", "Max Tested Concentration < AUC Range",
+                                           "selected: Max Tested Concentration Within AUC Range", "selected: Max Tested Concentration < AUC Range",
+                                           "unselected: Max Tested Concentration Within AUC Range", "unselected: Max Tested Concentration < AUC Range"))
+                      
+                      if(all(plot_data$Concentration_Range_Exceeds_Max_Tested_Concentration %in% "Max Tested Concentration Within AUC Range")){
+                        colors <- colorRampPalette(c("blue"))(1)
+                      } else if(all(plot_data$Concentration_Range_Exceeds_Max_Tested_Concentration %in% "Max Tested Concentration < AUC Range")){
+                        colors <- colorRampPalette(c("red"))(1)
+                      } else {
+                        colors <- colorRampPalette(c("blue", "red"))(2)
+                      }
+    
+                      if(input$Compound_Explorer_Highlight_Cell_Lines == TRUE){
+                        plot_data$symbol <- ": not selected"
+                        plot_data$symbol[plot_data$Cell_Line %in% input$Compound_Explorer_Cell_Lines] <- ": selected"
+                        selected_plot_data <- plot_data[plot_data$symbol == ": selected",]
+                        unselected_plot_data <- plot_data[plot_data$symbol == ": not selected",]
+                        
+                        if(nrow(selected_plot_data) > 0){
+                          selected_plot_data$Concentration_Range_Exceeds_Max_Tested_Concentration <- "selected: Max Tested Concentration Within AUC Range"
+                          selected_plot_data$Concentration_Range_Exceeds_Max_Tested_Concentration[selected_plot_data$max_dose_uM < selected_plot_data$max_mode_ccl_CTRPv2_conc] <- "selected: Max Tested Concentration < AUC Range"
+                          selected_plot_data$Concentration_Range_Exceeds_Max_Tested_Concentration <- factor(selected_plot_data$Concentration_Range_Exceeds_Max_Tested_Concentration, levels = c("selected: Max Tested Concentration Within AUC Range", "selected: Max Tested Concentration < AUC Range"))
+                          fig <- plot_ly(x = selected_plot_data$Cell_Line,
+                                     y = selected_plot_data$AUC_mode_ccl_CTRPv2_conc,
+                                     color = selected_plot_data$Concentration_Range_Exceeds_Max_Tested_Concentration,
+                                     colors = colors,
+                                     type = "scatter",
+                                     mode = "markers")
+                          if(nrow(unselected_plot_data) > 0){
+                            unselected_plot_data$Concentration_Range_Exceeds_Max_Tested_Concentration <- "unselected: Max Tested Concentration Within AUC Range"
+                            unselected_plot_data$Concentration_Range_Exceeds_Max_Tested_Concentration[unselected_plot_data$max_dose_uM < unselected_plot_data$max_mode_ccl_CTRPv2_conc] <- "unselected: Max Tested Concentration < AUC Range"
+                            unselected_plot_data$Concentration_Range_Exceeds_Max_Tested_Concentration <- factor(unselected_plot_data$Concentration_Range_Exceeds_Max_Tested_Concentration, levels = c("unselected: Max Tested Concentration Within AUC Range", "unselected: Max Tested Concentration < AUC Range"))
+                            fig <- add_trace(fig, 
+                                      x = unselected_plot_data$Cell_Line,
+                                      y = unselected_plot_data$AUC_mode_ccl_CTRPv2_conc,
+                                      color = unselected_plot_data$Concentration_Range_Exceeds_Max_Tested_Concentration,
+                                      opacity = 0.2)
+                          }
+                        } else if(nrow(unselected_plot_data) > 0){
                           unselected_plot_data$Concentration_Range_Exceeds_Max_Tested_Concentration <- "unselected: Max Tested Concentration Within AUC Range"
                           unselected_plot_data$Concentration_Range_Exceeds_Max_Tested_Concentration[unselected_plot_data$max_dose_uM < unselected_plot_data$max_mode_ccl_CTRPv2_conc] <- "unselected: Max Tested Concentration < AUC Range"
                           unselected_plot_data$Concentration_Range_Exceeds_Max_Tested_Concentration <- factor(unselected_plot_data$Concentration_Range_Exceeds_Max_Tested_Concentration, levels = c("unselected: Max Tested Concentration Within AUC Range", "unselected: Max Tested Concentration < AUC Range"))
-                          fig <- add_trace(fig, 
-                                    x = unselected_plot_data$Cell_Line,
-                                    y = unselected_plot_data$AUC_mode_ccl_CTRPv2_conc,
-                                    color = unselected_plot_data$Concentration_Range_Exceeds_Max_Tested_Concentration,
-                                    opacity = 0.2)
-                        }
-                      } else if(nrow(unselected_plot_data) > 0){
-                        unselected_plot_data$Concentration_Range_Exceeds_Max_Tested_Concentration <- "unselected: Max Tested Concentration Within AUC Range"
-                        unselected_plot_data$Concentration_Range_Exceeds_Max_Tested_Concentration[unselected_plot_data$max_dose_uM < unselected_plot_data$max_mode_ccl_CTRPv2_conc] <- "unselected: Max Tested Concentration < AUC Range"
-                        unselected_plot_data$Concentration_Range_Exceeds_Max_Tested_Concentration <- factor(unselected_plot_data$Concentration_Range_Exceeds_Max_Tested_Concentration, levels = c("unselected: Max Tested Concentration Within AUC Range", "unselected: Max Tested Concentration < AUC Range"))
-                        fig <- plot_ly(x = unselected_plot_data$Cell_Line,
-                                   y = unselected_plot_data$AUC_mode_ccl_CTRPv2_conc,
-                                   color = unselected_plot_data$Concentration_Range_Exceeds_Max_Tested_Concentration,
-                                   colors = colors,
-                                   opacity = 0.2,
-                                   type = "scatter",
-                                   mode = "markers")
-                      }
-                        
-                      fig <- layout(fig,
-                                    title = "CTRPv2 AUCs",
-                                    xaxis = list(title = paste0("CTRPv2 Cell Lines (n = ", nrow(plot_data), "; ", nrow(selected_plot_data), " selected)"), showticklabels = FALSE),
-                                    yaxis = list(title = ylab))
-                    } else {
-
-                      fig <- plot_ly(x = plot_data$Cell_Line,
-                                   y = plot_data$AUC_mode_ccl_CTRPv2_conc,
-                                   color = plot_data$Concentration_Range_Exceeds_Max_Tested_Concentration,
-                                   colors = colors,
-                                   type = "scatter",
-                                   mode = "markers")
-                      fig <- layout(fig,
-                                    title = "CTRPv2 AUCs",
-                                    xaxis = list(title = paste0("CTRPv2 Cell Lines (n = ", nrow(plot_data), ")"), showticklabels = FALSE),
-                                    yaxis = list(title = ylab))
-                    }
-
-                    fig
-                    
-                  } else if(input$Compound_Explorer_to_Plot == "AUC values for concentration range available for all tested cell lines"){
-                    plot_data <- CTRPv2_Results[! is.na(CTRPv2_Results$AUC_all_ccl_CTRPv2_conc),]
-                    plot_data <- plot_data[order(plot_data$AUC_all_ccl_CTRPv2_conc, decreasing = FALSE),]
-                    plot_data$Cell_Line <- factor(plot_data$Cell_Line, levels = plot_data$Cell_Line)
-                    ylab <- paste0("AUC (", signif(as.numeric(unique(plot_data$min_all_ccl_CTRPv2_conc)), 3), "-", signif(as.numeric(unique(plot_data$max_all_ccl_CTRPv2_conc)), 3), " microMolar)")
-                    
-                    if(input$Compound_Explorer_Highlight_Cell_Lines == TRUE){
-                      plot_data$symbol <- ": not selected"
-                      plot_data$symbol[plot_data$Cell_Line %in% input$Compound_Explorer_Cell_Lines] <- ": selected"
-                      selected_plot_data <- plot_data[plot_data$symbol == ": selected",]
-                      unselected_plot_data <- plot_data[plot_data$symbol == ": not selected",]
-                      
-                      if(nrow(selected_plot_data) > 0){
-                        fig <- plot_ly(x = selected_plot_data$Cell_Line,
-                                     y = selected_plot_data$AUC_all_ccl_CTRPv2_conc,
-                                     type = "scatter",
-                                     color = factor(rep("A", nrow(selected_plot_data))),
-                                     colors = colorRampPalette(c("blue"))(1),
-                                     mode = "markers",
-                                     name = "selected")
-                        if(nrow(unselected_plot_data) > 0){
-                          fig <- add_trace(fig, x = unselected_plot_data$Cell_Line,
-                                       y = unselected_plot_data$AUC_all_ccl_CTRPv2_conc,
-                                       color = factor(rep("A", nrow(unselected_plot_data))),
-                                       name = "unselected",
-                                       opacity = 0.2)
-                        }
-                      } else {
-                        fig <- plot_ly(x = unselected_plot_data$Cell_Line,
-                                     y = unselected_plot_data$AUC_all_ccl_CTRPv2_conc,
-                                     type = "scatter",
-                                     color = factor(rep("A", nrow(unselected_plot_data))),
-                                     colors = colorRampPalette(c("blue"))(1),
+                          fig <- plot_ly(x = unselected_plot_data$Cell_Line,
+                                     y = unselected_plot_data$AUC_mode_ccl_CTRPv2_conc,
+                                     color = unselected_plot_data$Concentration_Range_Exceeds_Max_Tested_Concentration,
+                                     colors = colors,
                                      opacity = 0.2,
-                                     mode = "markers",
-                                     name = "selected")
-                      }
-                      
-                      fig <- layout(fig,
-                                    title = "CTRPv2 AUCs",
-                                    xaxis = list(title = paste0("CTRPv2 Cell Lines (n = ", nrow(plot_data), ", ", nrow(selected_plot_data), " selected)"), showticklabels = FALSE),
-                                    yaxis = list(title = ylab))
-                      
-                    } else {
-                      fig <- plot_ly(x = plot_data$Cell_Line,
-                                   y = plot_data$AUC_all_ccl_CTRPv2_conc,
-                                   color = factor(rep("A", nrow(plot_data))),
-                                   colors = colorRampPalette(c("blue"))(1),
-                                   type = "scatter",
-                                   mode = "markers")
-                      
-                      fig <- layout(fig,
-                                    title = "CTRPv2 AUCs",
-                                    xaxis = list(title = paste0("CTRPv2 Cell Lines (n = ", nrow(plot_data), ")"), showticklabels = FALSE),
-                                    yaxis = list(title = ylab))
-                    }
-                    
-                    
-                    fig
-                    
-                  } else if(input$Compound_Explorer_to_Plot == "IC50 values"){
-                    plot_data <- CTRPv2_Results[! is.na(CTRPv2_Results$IC50),]
-                    if(nrow(plot_data) > 0){
-                      plot_data <- plot_data[order(plot_data$IC50, decreasing = FALSE),]
-                      plot_data$Group <- "IC50 <= max tested concentration"
-                      plot_data$Group[plot_data$IC50 > plot_data$max_dose_uM] <- "IC50 > max tested concentration"
-                      plot_data$Group[plot_data$IC50 == Inf] <- "Infinite IC50"
-                      if(any(plot_data$IC50 != Inf)){
-                        plot_data$IC50[plot_data$IC50 == Inf] <- max(plot_data$IC50[! plot_data$IC50 == Inf])
+                                     type = "scatter",
+                                     mode = "markers")
+                        }
+                          
+                        fig <- layout(fig,
+                                      title = "CTRPv2 AUCs",
+                                      xaxis = list(title = paste0("CTRPv2 Cell Lines (n = ", nrow(plot_data), "; ", nrow(selected_plot_data), " selected)"), showticklabels = FALSE),
+                                      yaxis = list(title = ylab))
                       } else {
-                        plot_data$IC50[plot_data$IC50 == Inf] <- max(plot_data$max_dose_uM)+1
+    
+                        fig <- plot_ly(x = plot_data$Cell_Line,
+                                     y = plot_data$AUC_mode_ccl_CTRPv2_conc,
+                                     color = plot_data$Concentration_Range_Exceeds_Max_Tested_Concentration,
+                                     colors = colors,
+                                     type = "scatter",
+                                     mode = "markers")
+                        fig <- layout(fig,
+                                      title = "CTRPv2 AUCs",
+                                      xaxis = list(title = paste0("CTRPv2 Cell Lines (n = ", nrow(plot_data), ")"), showticklabels = FALSE),
+                                      yaxis = list(title = ylab))
                       }
+                      #Organizing plot_data for download
+                        plot_data <- plot_data[,c("Compound", "Cell_Line", "min_dose_uM", "max_dose_uM", "min_mode_ccl_CTRPv2_conc", "max_mode_ccl_CTRPv2_conc", "AUC_mode_ccl_CTRPv2_conc")]
+                        colnames(plot_data) <- c("Compound_Name", "Cell_Line_Name", "Minimum_Tested_Compound_Concentration_For_This_Cell_Line_in_CTRPv2_uM", "Maximum_Tested_Compound_Concentration_For_This_Cell_Line_in_CTRPv2_uM", "Most_Commonly_Tested_Minimum_Compound_Concentration_In_CTRPv2_uM", "Most_Commonly_Tested_Maximum_Compound_Concentration_In_CTRPv2_uM", "Normalized_AUC_For_Most_Commonly_Tested_Compound_Concentration_Range_In_CTRPv2")
                       
-                      colors <- setNames(rep(colorRampPalette(c("blue", "red", "lightgray"))(3), 3),
-                                         c("IC50 <= max tested concentration", "IC50 > max tested concentration", "Infinite IC50",
-                                           "selected: IC50 <= max tested concentration", "selected: IC50 > max tested concentration", "selected: Infinite IC50",
-                                           "unselected: IC50 <= max tested concentration", "unselected: IC50 > max tested concentration", "unselected: Infinite IC50"))
-
+                    } else if(input$Compound_Explorer_to_Plot == "AUC values for concentration range available for all tested cell lines"){
+                      plot_data <- CTRPv2_Results[! is.na(CTRPv2_Results$AUC_all_ccl_CTRPv2_conc),]
+                      plot_data <- plot_data[order(plot_data$AUC_all_ccl_CTRPv2_conc, decreasing = FALSE),]
                       plot_data$Cell_Line <- factor(plot_data$Cell_Line, levels = plot_data$Cell_Line)
-                      ylab <- "IC50 (microMolar)"
+                      ylab <- paste0("AUC (", signif(as.numeric(unique(plot_data$min_all_ccl_CTRPv2_conc)), 3), "-", signif(as.numeric(unique(plot_data$max_all_ccl_CTRPv2_conc)), 3), " microMolar)")
                       
                       if(input$Compound_Explorer_Highlight_Cell_Lines == TRUE){
                         plot_data$symbol <- ": not selected"
@@ -1149,320 +1084,361 @@
                         unselected_plot_data <- plot_data[plot_data$symbol == ": not selected",]
                         
                         if(nrow(selected_plot_data) > 0){
-                          selected_plot_data$Group <- paste0("selected: ", selected_plot_data$Group)
-                          selected_plot_data$Group <- factor(selected_plot_data$Group, levels = c("selected: IC50 <= max tested concentration", "selected: IC50 > max tested concentration", "selected: Infinite IC50"))
                           fig <- plot_ly(x = selected_plot_data$Cell_Line,
-                                         y = selected_plot_data$IC50,
-                                         color = selected_plot_data$Group,
-                                         type = "scatter",
-                                         mode = "markers",
-                                         colors = colors)
+                                       y = selected_plot_data$AUC_all_ccl_CTRPv2_conc,
+                                       type = "scatter",
+                                       color = factor(rep("A", nrow(selected_plot_data))),
+                                       colors = colorRampPalette(c("blue"))(1),
+                                       mode = "markers",
+                                       name = "selected")
                           if(nrow(unselected_plot_data) > 0){
-                            unselected_plot_data$Group <- paste0("unselected: ", unselected_plot_data$Group)
-                            unselected_plot_data$Group <- factor(unselected_plot_data$Group, levels = c("unselected: IC50 <= max tested concentration", "unselected: IC50 > max tested concentration", "unselected: Infinite IC50"))
-                            fig <- add_trace(fig,
-                                             x = unselected_plot_data$Cell_Line,
-                                             y = unselected_plot_data$IC50,
-                                             color = unselected_plot_data$Group,
-                                             opacity = 0.2)
+                            fig <- add_trace(fig, x = unselected_plot_data$Cell_Line,
+                                         y = unselected_plot_data$AUC_all_ccl_CTRPv2_conc,
+                                         color = factor(rep("A", nrow(unselected_plot_data))),
+                                         name = "unselected",
+                                         opacity = 0.2)
                           }
                         } else {
-                          unselected_plot_data$Group <- paste0("unselected: ", unselected_plot_data$Group)
-                          unselected_plot_data$Group <- factor(unselected_plot_data$Group, levels = c("unselected: IC50 <= max tested concentration", "unselected: IC50 > max tested concentration", "unselected: Infinite IC50"))
                           fig <- plot_ly(x = unselected_plot_data$Cell_Line,
-                                         y = unselected_plot_data$IC50,
-                                         type = "scatter",
-                                         mode = "markers",
-                                         color = unselected_plot_data$Group,
-                                         colors = colors,
-                                         opacity = 0.2)
+                                       y = unselected_plot_data$AUC_all_ccl_CTRPv2_conc,
+                                       type = "scatter",
+                                       color = factor(rep("A", nrow(unselected_plot_data))),
+                                       colors = colorRampPalette(c("blue"))(1),
+                                       opacity = 0.2,
+                                       mode = "markers",
+                                       name = "selected")
                         }
                         
                         fig <- layout(fig,
-                                      title = "CTRPv2 IC50s",
+                                      title = "CTRPv2 AUCs",
                                       xaxis = list(title = paste0("CTRPv2 Cell Lines (n = ", nrow(plot_data), ", ", nrow(selected_plot_data), " selected)"), showticklabels = FALSE),
-                                      yaxis = list(title = ylab, type = "log"))
+                                      yaxis = list(title = ylab))
                         
                       } else {
-                        plot_data$Group <- factor(plot_data$Group, levels = c("IC50 <= max tested concentration", "IC50 > max tested concentration", "Infinite IC50"))
                         fig <- plot_ly(x = plot_data$Cell_Line,
-                                     y = plot_data$IC50,
+                                     y = plot_data$AUC_all_ccl_CTRPv2_conc,
+                                     color = factor(rep("A", nrow(plot_data))),
+                                     colors = colorRampPalette(c("blue"))(1),
                                      type = "scatter",
-                                     mode = "markers",
-                                     color = plot_data$Group,
-                                     colors = colors)
+                                     mode = "markers")
                         
                         fig <- layout(fig,
-                                      title = "CTRPv2 IC50s",
+                                      title = "CTRPv2 AUCs",
                                       xaxis = list(title = paste0("CTRPv2 Cell Lines (n = ", nrow(plot_data), ")"), showticklabels = FALSE),
-                                      yaxis = list(title = ylab, type = "log"))
+                                      yaxis = list(title = ylab))
                       }
+                      #Organizing plot_data for download
+                        plot_data <- plot_data[,c("Compound", "Cell_Line", "min_dose_uM", "max_dose_uM", "min_all_ccl_CTRPv2_conc", "max_all_ccl_CTRPv2_conc", "AUC_all_ccl_CTRPv2_conc")]
+                        colnames(plot_data) <- c("Compound_Name", "Cell_Line_Name", "Minimum_Tested_Compound_Concentration_For_This_Cell_Line_in_CTRPv2_uM", "Maximum_Tested_Compound_Concentration_For_This_Cell_Line_in_CTRPv2_uM", "Minimum_Tested_Compound_Concentration_That_Is_Available_For_All_Cell_Lines_In_CTRPv2_uM", "Maximum_Tested_Compound_Concentration_That_Is_Available_For_All_Cell_Lines_In_CTRPv2_uM", "Normalized_AUC_For_Tested_Compound_Concentration_Range_That_Is_Available_For_All_Cell_Lines_In_CTRPv2")
                       
-                      fig
-                    }
-                  } else if(input$Compound_Explorer_to_Plot == "Tested Cell Line Cancer Types & Genders"){
-                    ccls <- unique(CTRPv2_Results$Cell_Line)
-                    if(length(ccls) > 0){
-                      temp_dataset_ccl_data <- Simple_Cell_Line_Harm[Simple_Cell_Line_Harm$Harmonized_Cell_Line_ID %in% ccls,]
-                      temp_dataset_ccl_data$Simple_Cancer_Type[temp_dataset_ccl_data$Simple_Cancer_Type == "unknown"] <- "unknown cancer type"
-                      plot_data <- as.data.frame.table(table(temp_dataset_ccl_data$Simple_Cancer_Type))
-                      plot_data <- plot_data[order(plot_data$Freq, decreasing = TRUE),]
-                      plot_data <- rbind(plot_data[! plot_data$Var1 == "unknown cancer type",], plot_data[plot_data$Var1 == "unknown cancer type",])
-                      
-                      Gender_Unknown <- NA
-                      Gender_Female <- NA
-                      Gender_Male <- NA
-                      for(j in 1:nrow(plot_data)){
-                        Gender_Unknown[j] <- nrow(temp_dataset_ccl_data[temp_dataset_ccl_data$Simple_Cancer_Type %in% plot_data$Var1[j] & temp_dataset_ccl_data$Gender == "Sex unspecified",])
-                        Gender_Female[j] <- nrow(temp_dataset_ccl_data[temp_dataset_ccl_data$Simple_Cancer_Type %in% plot_data$Var1[j] & temp_dataset_ccl_data$Gender == "Female",])
-                        Gender_Male[j] <- nrow(temp_dataset_ccl_data[temp_dataset_ccl_data$Simple_Cancer_Type %in% plot_data$Var1[j] & temp_dataset_ccl_data$Gender == "Male",])
-                      }
-                      
-                      plot_data$Var1 <- factor(plot_data$Var1, levels = plot_data$Var1)
-                      
-                      fig <- plot_ly(x = plot_data$Var1, y = Gender_Unknown, type = "bar", name = "Unknown Gender", marker = list(color = "lightgray")) %>%
-                              add_trace(y = Gender_Male, name = "Male", marker = list(color = rgb(65,105,225, maxColorValue = 255))) %>%
-                              add_trace(y = Gender_Female, name = "Female", marker = list(color = rgb(186,85,211, maxColorValue = 255))) %>%
-                              layout(title = 'CTRPv2 Cell Line Cancer Types/Genders', yaxis = list(title = "# of Cell Lines"), xaxis = list(tickangle = 45), barmode = "stack", margin = list(b = 150, l = 50))
-                      fig
-                    }
-                  } else if(input$Compound_Explorer_to_Plot == "Tested Cell Line Ancestries"){
-                    ccls <- unique(CTRPv2_Results$Cell_Line)
-                    if(length(ccls) > 0){
-                      temp_dataset_ccl_data <- Simple_Cell_Line_Harm[Simple_Cell_Line_Harm$Harmonized_Cell_Line_ID %in% ccls,]
-                      completeness <- paste0("(data for ", nrow(temp_dataset_ccl_data[! is.na(temp_dataset_ccl_data$African_Ancestry),]), " of ", nrow(temp_dataset_ccl_data), " cell lines)")
-                      temp_dataset_ccl_data <- temp_dataset_ccl_data[! is.na(temp_dataset_ccl_data$African_Ancestry),]
-                      
-                      plot_data <- temp_dataset_ccl_data[,grepl("_Ancestry", colnames(temp_dataset_ccl_data))]*100
-                      rownames(plot_data) <- temp_dataset_ccl_data$Harmonized_Cell_Line_ID
-                      
-                      if(nrow(plot_data) > 2){
-                        plot_data <- plot_data[hclust(dist(plot_data))$order,]
-                      }
-                      colnames(plot_data) <- gsub("_Ancestry", "", colnames(plot_data))
-                      colnames(plot_data) <- gsub("_", " ", colnames(plot_data))
-                      x <- factor(rownames(plot_data), levels = rownames(plot_data))
-                      
+                    } else if(input$Compound_Explorer_to_Plot == "IC50 values"){
+                      plot_data <- CTRPv2_Results[! is.na(CTRPv2_Results$IC50),]
                       if(nrow(plot_data) > 0){
-                        plot_colors <- c("#6A3D9A", "#33A02C", "#FB9A99", "#E31A1C", "#FDBF6F", "#A6CEE3", "#1F78B4")
-                        fig <- plot_ly(x = x, y = plot_data[,1], name = colnames(plot_data)[1], type = "bar", marker = list(color = plot_colors[1])) %>%
-                          add_trace(y = plot_data[,2], name = colnames(plot_data)[2], marker = list(color = plot_colors[2])) %>%
-                          add_trace(y = plot_data[,3], name = colnames(plot_data)[3], marker = list(color = plot_colors[3])) %>%
-                          add_trace(y = plot_data[,4], name = colnames(plot_data)[4], marker = list(color = plot_colors[4])) %>%
-                          add_trace(y = plot_data[,5], name = colnames(plot_data)[5], marker = list(color = plot_colors[5])) %>%
-                          add_trace(y = plot_data[,6], name = colnames(plot_data)[6], marker = list(color = plot_colors[6])) %>%
-                          add_trace(y = plot_data[,7], name = colnames(plot_data)[7], marker = list(color = plot_colors[7])) %>%
-                          layout(title = 'CTRPv2 Ethnicities', barmode = "stack", xaxis = list(title = paste("Tested Cell Lines", completeness), showticklabels = FALSE), yaxis = list(title = "% Ancestry Makeup"), bargap = 0, legend = list(traceorder = "normal"))
-                      } else {
-                        fig <- plot_ly(x = 1, y = 100, name = "No Values", type = "bar", marker = list(color = "white")) %>%
-                        layout(title = 'CTRPv2 Cell Line Ethnicities', barmode = "stack", xaxis = list(title = paste("Tested Cell Lines", completeness), showticklabels = FALSE), yaxis = list(title = "% Ancestry Makeup"), bargap = 0, legend = list(traceorder = "normal"))
+                        plot_data <- plot_data[order(plot_data$IC50, decreasing = FALSE),]
+                        plot_data$Group <- "IC50 <= max tested concentration"
+                        plot_data$Group[plot_data$IC50 > plot_data$max_dose_uM] <- "IC50 > max tested concentration"
+                        Inf_IC50_Keys <- plot_data$Key[plot_data$IC50 == Inf]
+                        plot_data$Group[plot_data$IC50 == Inf] <- "Infinite IC50"
+                        if(any(plot_data$IC50 != Inf)){
+                          plot_data$IC50[plot_data$IC50 == Inf] <- max(plot_data$IC50[! plot_data$IC50 == Inf])
+                        } else {
+                          plot_data$IC50[plot_data$IC50 == Inf] <- max(plot_data$max_dose_uM)+1
+                        }
+                        
+                        colors <- setNames(rep(colorRampPalette(c("blue", "red", "lightgray"))(3), 3),
+                                           c("IC50 <= max tested concentration", "IC50 > max tested concentration", "Infinite IC50",
+                                             "selected: IC50 <= max tested concentration", "selected: IC50 > max tested concentration", "selected: Infinite IC50",
+                                             "unselected: IC50 <= max tested concentration", "unselected: IC50 > max tested concentration", "unselected: Infinite IC50"))
+    
+                        plot_data$Cell_Line <- factor(plot_data$Cell_Line, levels = plot_data$Cell_Line)
+                        ylab <- "IC50 (microMolar)"
+                        
+                        if(input$Compound_Explorer_Highlight_Cell_Lines == TRUE){
+                          plot_data$symbol <- ": not selected"
+                          plot_data$symbol[plot_data$Cell_Line %in% input$Compound_Explorer_Cell_Lines] <- ": selected"
+                          selected_plot_data <- plot_data[plot_data$symbol == ": selected",]
+                          unselected_plot_data <- plot_data[plot_data$symbol == ": not selected",]
+                          
+                          if(nrow(selected_plot_data) > 0){
+                            selected_plot_data$Group <- paste0("selected: ", selected_plot_data$Group)
+                            selected_plot_data$Group <- factor(selected_plot_data$Group, levels = c("selected: IC50 <= max tested concentration", "selected: IC50 > max tested concentration", "selected: Infinite IC50"))
+                            fig <- plot_ly(x = selected_plot_data$Cell_Line,
+                                           y = selected_plot_data$IC50,
+                                           color = selected_plot_data$Group,
+                                           type = "scatter",
+                                           mode = "markers",
+                                           colors = colors)
+                            if(nrow(unselected_plot_data) > 0){
+                              unselected_plot_data$Group <- paste0("unselected: ", unselected_plot_data$Group)
+                              unselected_plot_data$Group <- factor(unselected_plot_data$Group, levels = c("unselected: IC50 <= max tested concentration", "unselected: IC50 > max tested concentration", "unselected: Infinite IC50"))
+                              fig <- add_trace(fig,
+                                               x = unselected_plot_data$Cell_Line,
+                                               y = unselected_plot_data$IC50,
+                                               color = unselected_plot_data$Group,
+                                               opacity = 0.2)
+                            }
+                          } else {
+                            unselected_plot_data$Group <- paste0("unselected: ", unselected_plot_data$Group)
+                            unselected_plot_data$Group <- factor(unselected_plot_data$Group, levels = c("unselected: IC50 <= max tested concentration", "unselected: IC50 > max tested concentration", "unselected: Infinite IC50"))
+                            fig <- plot_ly(x = unselected_plot_data$Cell_Line,
+                                           y = unselected_plot_data$IC50,
+                                           type = "scatter",
+                                           mode = "markers",
+                                           color = unselected_plot_data$Group,
+                                           colors = colors,
+                                           opacity = 0.2)
+                          }
+                          
+                          fig <- layout(fig,
+                                        title = "CTRPv2 IC50s",
+                                        xaxis = list(title = paste0("CTRPv2 Cell Lines (n = ", nrow(plot_data), ", ", nrow(selected_plot_data), " selected)"), showticklabels = FALSE),
+                                        yaxis = list(title = ylab, type = "log"))
+                          
+                        } else {
+                          plot_data$Group <- factor(plot_data$Group, levels = c("IC50 <= max tested concentration", "IC50 > max tested concentration", "Infinite IC50"))
+                          fig <- plot_ly(x = plot_data$Cell_Line,
+                                       y = plot_data$IC50,
+                                       type = "scatter",
+                                       mode = "markers",
+                                       color = plot_data$Group,
+                                       colors = colors)
+                          
+                          fig <- layout(fig,
+                                        title = "CTRPv2 IC50s",
+                                        xaxis = list(title = paste0("CTRPv2 Cell Lines (n = ", nrow(plot_data), ")"), showticklabels = FALSE),
+                                        yaxis = list(title = ylab, type = "log"))
+                        }
                       }
-                      fig
-                    }
-                  } else if(input$Compound_Explorer_to_Plot == "Tested Cell Line Ages"){
-                    ccls <- unique(CTRPv2_Results$Cell_Line)
-                    if(length(ccls) > 0){
-                      temp_dataset_ccl_data <- Simple_Cell_Line_Harm[Simple_Cell_Line_Harm$Harmonized_Cell_Line_ID %in% ccls,]
-                      completeness <- paste0("(data for ", nrow(temp_dataset_ccl_data[! is.na(temp_dataset_ccl_data$Numeric_Age_in_Years),]), " of ", nrow(temp_dataset_ccl_data), " cell lines)")
-                      temp_dataset_ccl_data <- temp_dataset_ccl_data[! is.na(temp_dataset_ccl_data$Numeric_Age_in_Years),]
+                      #Organizing plot_data for download
+                        plot_data <- plot_data[,c("Compound", "Cell_Line", "min_dose_uM", "max_dose_uM", "IC50")]
+                        plot_data$IC50[plot_data$Key %in% Inf_IC50_Keys] <- "Inf"
+                        colnames(plot_data) <- c("Compound_Name", "Cell_Line_Name", "Minimum_Tested_Compound_Concentration_For_This_Cell_Line_in_CTRPv2_uM", "Maximum_Tested_Compound_Concentration_For_This_Cell_Line_in_CTRPv2_uM", "Estimated_IC50_uM")
                       
-                      if(nrow(temp_dataset_ccl_data) > 1){
-                        p <- ggplot(temp_dataset_ccl_data, aes(x = Numeric_Age_in_Years, y = after_stat(scaled))) +
-                                    geom_density(color = "darkblue", fill = "lightblue") +
-                                    theme_light() +
-                                    labs(x = paste("Patient Age (in Years) when Cell Line was Derived ", completeness), y = "Scaled Density") +
-                                    ggtitle("CTRPv2 Ages")
-                      } else if(nrow(temp_dataset_ccl_data) == 1){
-                        p <- ggplot(temp_dataset_ccl_data, aes(x = Numeric_Age_in_Years, y = Harmonized_Cell_Line_ID)) +
-                                    geom_bar(stat="identity") +
-                                    theme_light() +
-                                    labs(x = paste("Patient Age (in Years) when Cell Line was Derived ", completeness), y = "") +
-                                    ggtitle("CTRPv2 Ages")
+                    } else if(input$Compound_Explorer_to_Plot == "Tested Cell Line Cancer Types & Genders"){
+                      ccls <- unique(CTRPv2_Results$Cell_Line)
+                      if(length(ccls) > 0){
+                        temp_dataset_ccl_data <- Simple_Cell_Line_Harm[Simple_Cell_Line_Harm$Harmonized_Cell_Line_ID %in% ccls,]
+                        temp_dataset_ccl_data$Simple_Cancer_Type[temp_dataset_ccl_data$Simple_Cancer_Type == "unknown"] <- "unknown cancer type"
+                        plot_data <- as.data.frame.table(table(temp_dataset_ccl_data$Simple_Cancer_Type))
+                        plot_data <- plot_data[order(plot_data$Freq, decreasing = TRUE),]
+                        plot_data <- rbind(plot_data[! plot_data$Var1 == "unknown cancer type",], plot_data[plot_data$Var1 == "unknown cancer type",])
+                        
+                        Gender_Unknown <- NA
+                        Gender_Female <- NA
+                        Gender_Male <- NA
+                        for(j in 1:nrow(plot_data)){
+                          Gender_Unknown[j] <- nrow(temp_dataset_ccl_data[temp_dataset_ccl_data$Simple_Cancer_Type %in% plot_data$Var1[j] & temp_dataset_ccl_data$Gender == "Sex unspecified",])
+                          Gender_Female[j] <- nrow(temp_dataset_ccl_data[temp_dataset_ccl_data$Simple_Cancer_Type %in% plot_data$Var1[j] & temp_dataset_ccl_data$Gender == "Female",])
+                          Gender_Male[j] <- nrow(temp_dataset_ccl_data[temp_dataset_ccl_data$Simple_Cancer_Type %in% plot_data$Var1[j] & temp_dataset_ccl_data$Gender == "Male",])
+                        }
+                        
+                        plot_data$Var1 <- factor(plot_data$Var1, levels = plot_data$Var1)
+                        
+                        fig <- plot_ly(x = plot_data$Var1, y = Gender_Unknown, type = "bar", name = "Unknown Gender", marker = list(color = "lightgray")) %>%
+                                add_trace(y = Gender_Male, name = "Male", marker = list(color = rgb(65,105,225, maxColorValue = 255))) %>%
+                                add_trace(y = Gender_Female, name = "Female", marker = list(color = rgb(186,85,211, maxColorValue = 255))) %>%
+                                layout(title = 'CTRPv2 Cell Line Cancer Types/Genders', yaxis = list(title = "# of Cell Lines"), xaxis = list(tickangle = 45), barmode = "stack", margin = list(b = 150, l = 50))
+                        #Organizing plot_data for download
+                          temp_dataset_ccl_data$Compound <- CTRPv2_Results$Compound[1]
+                          plot_data <- temp_dataset_ccl_data[,c("Compound", "Harmonized_Cell_Line_ID", "Simple_Cancer_Type", "Gender")]
+                          colnames(plot_data) <- c("Compound", "Cell_Line", "Cancer_Type", "Gender")
                       } else {
-                        p <- ggplot(data.frame(x = c(0,100), y = c(0,1)), aes(x = x, y = y)) +
-                                    geom_blank() +
-                                    labs(x = paste("Patient Age (in Years) when Cell Line was Derived ", completeness), y = "Scaled Density") +
-                                    ggtitle("CTRPv2 Cell Line Patient Age Distribution")
+                        temp_colnames <- c("Compound", "Cell_Line", "Cancer_Type", "Gender")
+                        plot_data <- as.data.frame(matrix(NA, nrow = 0, ncol = length(temp_colnames)))
+                        colnames(plot_data) <- temp_colnames
                       }
-                  
-                      fig <- ggplotly(p)
-                      fig
+    
+                    } else if(input$Compound_Explorer_to_Plot == "Tested Cell Line Ancestries"){
+                      ccls <- unique(CTRPv2_Results$Cell_Line)
+                      if(length(ccls) > 0){
+                        temp_dataset_ccl_data <- Simple_Cell_Line_Harm[Simple_Cell_Line_Harm$Harmonized_Cell_Line_ID %in% ccls,]
+                        completeness <- paste0("(data for ", nrow(temp_dataset_ccl_data[! is.na(temp_dataset_ccl_data$African_Ancestry),]), " of ", nrow(temp_dataset_ccl_data), " cell lines)")
+                        temp_dataset_ccl_data <- temp_dataset_ccl_data[! is.na(temp_dataset_ccl_data$African_Ancestry),]
+                        
+                        plot_data <- temp_dataset_ccl_data[,grepl("_Ancestry", colnames(temp_dataset_ccl_data))]*100
+                        rownames(plot_data) <- temp_dataset_ccl_data$Harmonized_Cell_Line_ID
+                        
+                        if(nrow(plot_data) > 2){
+                          plot_data <- plot_data[hclust(dist(plot_data))$order,]
+                        }
+                        colnames(plot_data) <- gsub("_Ancestry", "", colnames(plot_data))
+                        colnames(plot_data) <- gsub("_", " ", colnames(plot_data))
+                        x <- factor(rownames(plot_data), levels = rownames(plot_data))
+                        
+                        if(nrow(plot_data) > 0){
+                          plot_colors <- c("#6A3D9A", "#33A02C", "#FB9A99", "#E31A1C", "#FDBF6F", "#A6CEE3", "#1F78B4")
+                          fig <- plot_ly(x = x, y = plot_data[,1], name = colnames(plot_data)[1], type = "bar", marker = list(color = plot_colors[1])) %>%
+                            add_trace(y = plot_data[,2], name = colnames(plot_data)[2], marker = list(color = plot_colors[2])) %>%
+                            add_trace(y = plot_data[,3], name = colnames(plot_data)[3], marker = list(color = plot_colors[3])) %>%
+                            add_trace(y = plot_data[,4], name = colnames(plot_data)[4], marker = list(color = plot_colors[4])) %>%
+                            add_trace(y = plot_data[,5], name = colnames(plot_data)[5], marker = list(color = plot_colors[5])) %>%
+                            add_trace(y = plot_data[,6], name = colnames(plot_data)[6], marker = list(color = plot_colors[6])) %>%
+                            add_trace(y = plot_data[,7], name = colnames(plot_data)[7], marker = list(color = plot_colors[7])) %>%
+                            layout(title = 'CTRPv2 Ethnicities', barmode = "stack", xaxis = list(title = paste("Tested Cell Lines", completeness), showticklabels = FALSE), yaxis = list(title = "% Ancestry Makeup"), bargap = 0, legend = list(traceorder = "normal"))
+                        } else {
+                          fig <- plot_ly(x = 1, y = 100, name = "No Values", type = "bar", marker = list(color = "white")) %>%
+                          layout(title = 'CTRPv2 Cell Line Ethnicities', barmode = "stack", xaxis = list(title = paste("Tested Cell Lines", completeness), showticklabels = FALSE), yaxis = list(title = "% Ancestry Makeup"), bargap = 0, legend = list(traceorder = "normal"))
+                        }
+                        #Organizing plot_data for download
+                          plot_data$Cell_Line <- rownames(plot_data)
+                          plot_data$Compound <- CTRPv2_Results$Compound[1]
+                          plot_data <- plot_data[,c("Compound", "Cell_Line", "African", "Native American", "East Asian (North)", "East Asian (South)", "South Asian", "European (North)", "European (South)")]
+                          colnames(plot_data) <- c("Compound", "Cell_Line", "African_Ancestry_Percentage", "Native_American_Ancestry_Percentage", "East_Asian_(North)_Ancestry_Percentage", "East_Asian_(South)_Ancestry_Percentage", "South_Asian_Ancestry_Percentage", "European_(North)_Ancestry_Percentage", "European_(South)_Ancestry_Percentage")
+                      } else {
+                        temp_colnames <- c("Compound", "Cell_Line", "African_Ancestry_Percentage", "Native_American_Ancestry_Percentage", "East_Asian_(North)_Ancestry_Percentage", "East_Asian_(South)_Ancestry_Percentage", "South_Asian_Ancestry_Percentage", "European_(North)_Ancestry_Percentage", "European_(South)_Ancestry_Percentage")
+                        plot_data <- as.data.frame(matrix(NA, nrow = 0, ncol = length(temp_colnames)))
+                        colnames(plot_data) <- temp_colnames
+                      }
+                      
+                    } else if(input$Compound_Explorer_to_Plot == "Tested Cell Line Ages"){
+                      ccls <- unique(CTRPv2_Results$Cell_Line)
+                      if(length(ccls) > 0){
+                        temp_dataset_ccl_data <- Simple_Cell_Line_Harm[Simple_Cell_Line_Harm$Harmonized_Cell_Line_ID %in% ccls,]
+                        temp_to_download <- temp_dataset_ccl_data
+                        completeness <- paste0("(data for ", nrow(temp_dataset_ccl_data[! is.na(temp_dataset_ccl_data$Numeric_Age_in_Years),]), " of ", nrow(temp_dataset_ccl_data), " cell lines)")
+                        temp_dataset_ccl_data <- temp_dataset_ccl_data[! is.na(temp_dataset_ccl_data$Numeric_Age_in_Years),]
+                        
+                        if(nrow(temp_dataset_ccl_data) > 1){
+                          p <- ggplot(temp_dataset_ccl_data, aes(x = Numeric_Age_in_Years, y = after_stat(scaled))) +
+                                      geom_density(color = "darkblue", fill = "lightblue") +
+                                      theme_light() +
+                                      labs(x = paste("Patient Age (in Years) when Cell Line was Derived ", completeness), y = "Scaled Density") +
+                                      ggtitle("CTRPv2 Ages")
+                        } else if(nrow(temp_dataset_ccl_data) == 1){
+                          p <- ggplot(temp_dataset_ccl_data, aes(x = Numeric_Age_in_Years, y = Harmonized_Cell_Line_ID)) +
+                                      geom_bar(stat="identity") +
+                                      theme_light() +
+                                      labs(x = paste("Patient Age (in Years) when Cell Line was Derived ", completeness), y = "") +
+                                      ggtitle("CTRPv2 Ages")
+                        } else {
+                          p <- ggplot(data.frame(x = c(0,100), y = c(0,1)), aes(x = x, y = y)) +
+                                      geom_blank() +
+                                      labs(x = paste("Patient Age (in Years) when Cell Line was Derived ", completeness), y = "Scaled Density") +
+                                      ggtitle("CTRPv2 Cell Line Patient Age Distribution")
+                        }
+                        
+                        fig <- ggplotly(p)
+                        
+                        #Organizing plot_data for download
+                          temp_to_download$Compound <- CTRPv2_Results$Compound[1]
+                          plot_data <- temp_to_download[,c("Compound", "Harmonized_Cell_Line_ID", "Age", "Numeric_Age_in_Years")]
+                          colnames(plot_data) <- c("Compound", "Cell_Line", "Age", "Numeric_Age_in_Years")
+                      } else {
+                        temp_colnames <- c("Compound", "Cell_Line", "Age", "Numeric_Age_in_Years")
+                        plot_data <- as.data.frame(matrix(NA, nrow = 0, ncol = length(temp_colnames)))
+                        colnames(plot_data) <- temp_colnames
+                      }
                     }
                   }
-                }
-            })
-            
-            output$Compound_Explorer_GDSC1_Plot <- renderPlotly({
-              #Loading raw data for this compound and any datasets with data for this compound
-                if("GDSC1" %in% Compound_Explorer_Datasets_with_Compound_Data()){
-                  GDSC1_Results <- cpdexp_data()$GDSC1
-                  GDSC1_Results <- GDSC1_Results[! is.na(GDSC1_Results$b_c_d_e) & GDSC1_Results$Cell_Line %in% cpdexplr_ccl_availability_data()$GDSC1,]
-                } else {
-                  GDSC1_Results <- data.frame(NULL)
-                }
-              #Making compound explorer GDSC1 plot
-                if(nrow(GDSC1_Results) > 0){
-                  if(input$Compound_Explorer_to_Plot == "AUC values for most commonly used concentration range"){
-                    plot_data <- GDSC1_Results[! is.na(GDSC1_Results$AUC_mode_ccl_GDSC1_conc),]
-                    plot_data <- plot_data[order(plot_data$AUC_mode_ccl_GDSC1_conc, decreasing = FALSE),]
-                    plot_data$Cell_Line <- factor(plot_data$Cell_Line, levels = plot_data$Cell_Line)
-                    plot_data$Concentration_Range_Exceeds_Max_Tested_Concentration <- "Max Tested Concentration Within AUC Range"
-                    plot_data$Concentration_Range_Exceeds_Max_Tested_Concentration[plot_data$max_dose_uM < plot_data$max_mode_ccl_GDSC1_conc] <- "Max Tested Concentration < AUC Range"
-                    plot_data$Concentration_Range_Exceeds_Max_Tested_Concentration <- factor(plot_data$Concentration_Range_Exceeds_Max_Tested_Concentration, levels = c("Max Tested Concentration Within AUC Range", "Max Tested Concentration < AUC Range"))
-                    ylab <- paste0("AUC (", signif(as.numeric(unique(plot_data$min_mode_ccl_GDSC1_conc)), 3), "-", signif(as.numeric(unique(plot_data$max_mode_ccl_GDSC1_conc)), 3), " microMolar)")
-                    
-                    colors <- setNames(rep(colorRampPalette(c("blue", "red"))(2), 3),
-                                       c("Max Tested Concentration Within AUC Range", "Max Tested Concentration < AUC Range",
-                                         "selected: Max Tested Concentration Within AUC Range", "selected: Max Tested Concentration < AUC Range",
-                                         "unselected: Max Tested Concentration Within AUC Range", "unselected: Max Tested Concentration < AUC Range"))
-                    
-                    if(all(plot_data$Concentration_Range_Exceeds_Max_Tested_Concentration %in% "Max Tested Concentration Within AUC Range")){
-                      colors <- colorRampPalette(c("blue"))(1)
-                    } else if(all(plot_data$Concentration_Range_Exceeds_Max_Tested_Concentration %in% "Max Tested Concentration < AUC Range")){
-                      colors <- colorRampPalette(c("red"))(1)
-                    } else {
-                      colors <- colorRampPalette(c("blue", "red"))(2)
+                #Allowing users to download data
+                  output$Compound_Explorer_Download_CTRPv2_Data <- downloadHandler(
+                    filename = "CTRPv2_Plot_Data.xlsx",
+                    content = function(file){
+                      write.xlsx(plot_data, file, row.names = FALSE)
                     }
-
-                    if(input$Compound_Explorer_Highlight_Cell_Lines == TRUE){
-                      plot_data$symbol <- ": not selected"
-                      plot_data$symbol[plot_data$Cell_Line %in% input$Compound_Explorer_Cell_Lines] <- ": selected"
-                      selected_plot_data <- plot_data[plot_data$symbol == ": selected",]
-                      unselected_plot_data <- plot_data[plot_data$symbol == ": not selected",]
+                  )
+                #Returning Figure
+                  fig
+              })
+            
+            #Creating Plot for GDSC1
+              output$Compound_Explorer_GDSC1_Plot <- renderPlotly({
+                #Loading raw data for this compound and any datasets with data for this compound
+                  if("GDSC1" %in% Compound_Explorer_Datasets_with_Compound_Data()){
+                    GDSC1_Results <- cpdexp_data()$GDSC1
+                    GDSC1_Results <- GDSC1_Results[! is.na(GDSC1_Results$b_c_d_e) & GDSC1_Results$Cell_Line %in% cpdexplr_ccl_availability_data()$GDSC1,]
+                  } else {
+                    GDSC1_Results <- data.frame(NULL)
+                  }
+                #Making compound explorer GDSC1 plot
+                  if(nrow(GDSC1_Results) > 0){
+                    if(input$Compound_Explorer_to_Plot == "AUC values for most commonly used concentration range"){
+                      plot_data <- GDSC1_Results[! is.na(GDSC1_Results$AUC_mode_ccl_GDSC1_conc),]
+                      plot_data <- plot_data[order(plot_data$AUC_mode_ccl_GDSC1_conc, decreasing = FALSE),]
+                      plot_data$Cell_Line <- factor(plot_data$Cell_Line, levels = plot_data$Cell_Line)
+                      plot_data$Concentration_Range_Exceeds_Max_Tested_Concentration <- "Max Tested Concentration Within AUC Range"
+                      plot_data$Concentration_Range_Exceeds_Max_Tested_Concentration[plot_data$max_dose_uM < plot_data$max_mode_ccl_GDSC1_conc] <- "Max Tested Concentration < AUC Range"
+                      plot_data$Concentration_Range_Exceeds_Max_Tested_Concentration <- factor(plot_data$Concentration_Range_Exceeds_Max_Tested_Concentration, levels = c("Max Tested Concentration Within AUC Range", "Max Tested Concentration < AUC Range"))
+                      ylab <- paste0("AUC (", signif(as.numeric(unique(plot_data$min_mode_ccl_GDSC1_conc)), 3), "-", signif(as.numeric(unique(plot_data$max_mode_ccl_GDSC1_conc)), 3), " microMolar)")
                       
-                      if(nrow(selected_plot_data) > 0){
-                        selected_plot_data$Concentration_Range_Exceeds_Max_Tested_Concentration <- "selected: Max Tested Concentration Within AUC Range"
-                        selected_plot_data$Concentration_Range_Exceeds_Max_Tested_Concentration[selected_plot_data$max_dose_uM < selected_plot_data$max_mode_ccl_GDSC1_conc] <- "selected: Max Tested Concentration < AUC Range"
-                        selected_plot_data$Concentration_Range_Exceeds_Max_Tested_Concentration <- factor(selected_plot_data$Concentration_Range_Exceeds_Max_Tested_Concentration, levels = c("selected: Max Tested Concentration Within AUC Range", "selected: Max Tested Concentration < AUC Range"))
-                        fig <- plot_ly(x = selected_plot_data$Cell_Line,
-                                   y = selected_plot_data$AUC_mode_ccl_GDSC1_conc,
-                                   color = selected_plot_data$Concentration_Range_Exceeds_Max_Tested_Concentration,
-                                   colors = colors,
-                                   type = "scatter",
-                                   mode = "markers")
-                        if(nrow(unselected_plot_data) > 0){
+                      colors <- setNames(rep(colorRampPalette(c("blue", "red"))(2), 3),
+                                         c("Max Tested Concentration Within AUC Range", "Max Tested Concentration < AUC Range",
+                                           "selected: Max Tested Concentration Within AUC Range", "selected: Max Tested Concentration < AUC Range",
+                                           "unselected: Max Tested Concentration Within AUC Range", "unselected: Max Tested Concentration < AUC Range"))
+                      
+                      if(all(plot_data$Concentration_Range_Exceeds_Max_Tested_Concentration %in% "Max Tested Concentration Within AUC Range")){
+                        colors <- colorRampPalette(c("blue"))(1)
+                      } else if(all(plot_data$Concentration_Range_Exceeds_Max_Tested_Concentration %in% "Max Tested Concentration < AUC Range")){
+                        colors <- colorRampPalette(c("red"))(1)
+                      } else {
+                        colors <- colorRampPalette(c("blue", "red"))(2)
+                      }
+    
+                      if(input$Compound_Explorer_Highlight_Cell_Lines == TRUE){
+                        plot_data$symbol <- ": not selected"
+                        plot_data$symbol[plot_data$Cell_Line %in% input$Compound_Explorer_Cell_Lines] <- ": selected"
+                        selected_plot_data <- plot_data[plot_data$symbol == ": selected",]
+                        unselected_plot_data <- plot_data[plot_data$symbol == ": not selected",]
+                        
+                        if(nrow(selected_plot_data) > 0){
+                          selected_plot_data$Concentration_Range_Exceeds_Max_Tested_Concentration <- "selected: Max Tested Concentration Within AUC Range"
+                          selected_plot_data$Concentration_Range_Exceeds_Max_Tested_Concentration[selected_plot_data$max_dose_uM < selected_plot_data$max_mode_ccl_GDSC1_conc] <- "selected: Max Tested Concentration < AUC Range"
+                          selected_plot_data$Concentration_Range_Exceeds_Max_Tested_Concentration <- factor(selected_plot_data$Concentration_Range_Exceeds_Max_Tested_Concentration, levels = c("selected: Max Tested Concentration Within AUC Range", "selected: Max Tested Concentration < AUC Range"))
+                          fig <- plot_ly(x = selected_plot_data$Cell_Line,
+                                     y = selected_plot_data$AUC_mode_ccl_GDSC1_conc,
+                                     color = selected_plot_data$Concentration_Range_Exceeds_Max_Tested_Concentration,
+                                     colors = colors,
+                                     type = "scatter",
+                                     mode = "markers")
+                          if(nrow(unselected_plot_data) > 0){
+                            unselected_plot_data$Concentration_Range_Exceeds_Max_Tested_Concentration <- "unselected: Max Tested Concentration Within AUC Range"
+                            unselected_plot_data$Concentration_Range_Exceeds_Max_Tested_Concentration[unselected_plot_data$max_dose_uM < unselected_plot_data$max_mode_ccl_GDSC1_conc] <- "unselected: Max Tested Concentration < AUC Range"
+                            unselected_plot_data$Concentration_Range_Exceeds_Max_Tested_Concentration <- factor(unselected_plot_data$Concentration_Range_Exceeds_Max_Tested_Concentration, levels = c("unselected: Max Tested Concentration Within AUC Range", "unselected: Max Tested Concentration < AUC Range"))
+                            fig <- add_trace(fig, 
+                                      x = unselected_plot_data$Cell_Line,
+                                      y = unselected_plot_data$AUC_mode_ccl_GDSC1_conc,
+                                      color = unselected_plot_data$Concentration_Range_Exceeds_Max_Tested_Concentration,
+                                      opacity = 0.2)
+                          }
+                        } else if(nrow(unselected_plot_data) > 0){
                           unselected_plot_data$Concentration_Range_Exceeds_Max_Tested_Concentration <- "unselected: Max Tested Concentration Within AUC Range"
                           unselected_plot_data$Concentration_Range_Exceeds_Max_Tested_Concentration[unselected_plot_data$max_dose_uM < unselected_plot_data$max_mode_ccl_GDSC1_conc] <- "unselected: Max Tested Concentration < AUC Range"
                           unselected_plot_data$Concentration_Range_Exceeds_Max_Tested_Concentration <- factor(unselected_plot_data$Concentration_Range_Exceeds_Max_Tested_Concentration, levels = c("unselected: Max Tested Concentration Within AUC Range", "unselected: Max Tested Concentration < AUC Range"))
-                          fig <- add_trace(fig, 
-                                    x = unselected_plot_data$Cell_Line,
-                                    y = unselected_plot_data$AUC_mode_ccl_GDSC1_conc,
-                                    color = unselected_plot_data$Concentration_Range_Exceeds_Max_Tested_Concentration,
-                                    opacity = 0.2)
-                        }
-                      } else if(nrow(unselected_plot_data) > 0){
-                        unselected_plot_data$Concentration_Range_Exceeds_Max_Tested_Concentration <- "unselected: Max Tested Concentration Within AUC Range"
-                        unselected_plot_data$Concentration_Range_Exceeds_Max_Tested_Concentration[unselected_plot_data$max_dose_uM < unselected_plot_data$max_mode_ccl_GDSC1_conc] <- "unselected: Max Tested Concentration < AUC Range"
-                        unselected_plot_data$Concentration_Range_Exceeds_Max_Tested_Concentration <- factor(unselected_plot_data$Concentration_Range_Exceeds_Max_Tested_Concentration, levels = c("unselected: Max Tested Concentration Within AUC Range", "unselected: Max Tested Concentration < AUC Range"))
-                        fig <- plot_ly(x = unselected_plot_data$Cell_Line,
-                                   y = unselected_plot_data$AUC_mode_ccl_GDSC1_conc,
-                                   color = unselected_plot_data$Concentration_Range_Exceeds_Max_Tested_Concentration,
-                                   colors = colors,
-                                   opacity = 0.2,
-                                   type = "scatter",
-                                   mode = "markers")
-                      }
-                        
-                      fig <- layout(fig,
-                                    title = "GDSC1 AUCs",
-                                    xaxis = list(title = paste0("GDSC1 Cell Lines (n = ", nrow(plot_data), "; ", nrow(selected_plot_data), " selected)"), showticklabels = FALSE),
-                                    yaxis = list(title = ylab))
-                    } else {
-
-                      fig <- plot_ly(x = plot_data$Cell_Line,
-                                   y = plot_data$AUC_mode_ccl_GDSC1_conc,
-                                   color = plot_data$Concentration_Range_Exceeds_Max_Tested_Concentration,
-                                   colors = colors,
-                                   type = "scatter",
-                                   mode = "markers")
-                      fig <- layout(fig,
-                                    title = "GDSC1 AUCs",
-                                    xaxis = list(title = paste0("GDSC1 Cell Lines (n = ", nrow(plot_data), ")"), showticklabels = FALSE),
-                                    yaxis = list(title = ylab))
-                    }
-
-                    fig
-                    
-                  } else if(input$Compound_Explorer_to_Plot == "AUC values for concentration range available for all tested cell lines"){
-                    plot_data <- GDSC1_Results[! is.na(GDSC1_Results$AUC_all_ccl_GDSC1_conc),]
-                    plot_data <- plot_data[order(plot_data$AUC_all_ccl_GDSC1_conc, decreasing = FALSE),]
-                    plot_data$Cell_Line <- factor(plot_data$Cell_Line, levels = plot_data$Cell_Line)
-                    ylab <- paste0("AUC (", signif(as.numeric(unique(plot_data$min_all_ccl_GDSC1_conc)), 3), "-", signif(as.numeric(unique(plot_data$max_all_ccl_GDSC1_conc)), 3), " microMolar)")
-                    
-                    if(input$Compound_Explorer_Highlight_Cell_Lines == TRUE){
-                      plot_data$symbol <- ": not selected"
-                      plot_data$symbol[plot_data$Cell_Line %in% input$Compound_Explorer_Cell_Lines] <- ": selected"
-                      selected_plot_data <- plot_data[plot_data$symbol == ": selected",]
-                      unselected_plot_data <- plot_data[plot_data$symbol == ": not selected",]
-                      
-                      if(nrow(selected_plot_data) > 0){
-                        fig <- plot_ly(x = selected_plot_data$Cell_Line,
-                                     y = selected_plot_data$AUC_all_ccl_GDSC1_conc,
-                                     type = "scatter",
-                                     color = factor(rep("A", nrow(selected_plot_data))),
-                                     colors = colorRampPalette(c("blue"))(1),
-                                     mode = "markers",
-                                     name = "selected")
-                        if(nrow(unselected_plot_data) > 0){
-                          fig <- add_trace(fig, x = unselected_plot_data$Cell_Line,
-                                       y = unselected_plot_data$AUC_all_ccl_GDSC1_conc,
-                                       color = factor(rep("A", nrow(unselected_plot_data))),
-                                       name = "unselected",
-                                       opacity = 0.2)
-                        }
-                      } else {
-                        fig <- plot_ly(x = unselected_plot_data$Cell_Line,
-                                     y = unselected_plot_data$AUC_all_ccl_GDSC1_conc,
-                                     type = "scatter",
-                                     color = factor(rep("A", nrow(unselected_plot_data))),
-                                     colors = colorRampPalette(c("blue"))(1),
+                          fig <- plot_ly(x = unselected_plot_data$Cell_Line,
+                                     y = unselected_plot_data$AUC_mode_ccl_GDSC1_conc,
+                                     color = unselected_plot_data$Concentration_Range_Exceeds_Max_Tested_Concentration,
+                                     colors = colors,
                                      opacity = 0.2,
-                                     mode = "markers",
-                                     name = "selected")
-                      }
-                      
-                      fig <- layout(fig,
-                                    title = "GDSC1 AUCs",
-                                    xaxis = list(title = paste0("GDSC1 Cell Lines (n = ", nrow(plot_data), ", ", nrow(selected_plot_data), " selected)"), showticklabels = FALSE),
-                                    yaxis = list(title = ylab))
-                      
-                    } else {
-                      fig <- plot_ly(x = plot_data$Cell_Line,
-                                   y = plot_data$AUC_all_ccl_GDSC1_conc,
-                                   color = factor(rep("A", nrow(plot_data))),
-                                   colors = colorRampPalette(c("blue"))(1),
-                                   type = "scatter",
-                                   mode = "markers")
-                      
-                      fig <- layout(fig,
-                                    title = "GDSC1 AUCs",
-                                    xaxis = list(title = paste0("GDSC1 Cell Lines (n = ", nrow(plot_data), ")"), showticklabels = FALSE),
-                                    yaxis = list(title = ylab))
-                    }
-                    
-                    
-                    fig
-                    
-                  } else if(input$Compound_Explorer_to_Plot == "IC50 values"){
-                    plot_data <- GDSC1_Results[! is.na(GDSC1_Results$IC50),]
-                    if(nrow(plot_data) > 0){
-                      plot_data <- plot_data[order(plot_data$IC50, decreasing = FALSE),]
-                      plot_data$Group <- "IC50 <= max tested concentration"
-                      plot_data$Group[plot_data$IC50 > plot_data$max_dose_uM] <- "IC50 > max tested concentration"
-                      plot_data$Group[plot_data$IC50 == Inf] <- "Infinite IC50"
-                      if(any(plot_data$IC50 != Inf)){
-                        plot_data$IC50[plot_data$IC50 == Inf] <- max(plot_data$IC50[! plot_data$IC50 == Inf])
+                                     type = "scatter",
+                                     mode = "markers")
+                        }
+                          
+                        fig <- layout(fig,
+                                      title = "GDSC1 AUCs",
+                                      xaxis = list(title = paste0("GDSC1 Cell Lines (n = ", nrow(plot_data), "; ", nrow(selected_plot_data), " selected)"), showticklabels = FALSE),
+                                      yaxis = list(title = ylab))
                       } else {
-                        plot_data$IC50[plot_data$IC50 == Inf] <- max(plot_data$max_dose_uM)+1
+    
+                        fig <- plot_ly(x = plot_data$Cell_Line,
+                                     y = plot_data$AUC_mode_ccl_GDSC1_conc,
+                                     color = plot_data$Concentration_Range_Exceeds_Max_Tested_Concentration,
+                                     colors = colors,
+                                     type = "scatter",
+                                     mode = "markers")
+                        fig <- layout(fig,
+                                      title = "GDSC1 AUCs",
+                                      xaxis = list(title = paste0("GDSC1 Cell Lines (n = ", nrow(plot_data), ")"), showticklabels = FALSE),
+                                      yaxis = list(title = ylab))
                       }
+                      #Organizing plot_data for download
+                        plot_data <- plot_data[,c("Compound", "Cell_Line", "min_dose_uM", "max_dose_uM", "min_mode_ccl_GDSC1_conc", "max_mode_ccl_GDSC1_conc", "AUC_mode_ccl_GDSC1_conc")]
+                        colnames(plot_data) <- c("Compound_Name", "Cell_Line_Name", "Minimum_Tested_Compound_Concentration_For_This_Cell_Line_in_GDSC1_uM", "Maximum_Tested_Compound_Concentration_For_This_Cell_Line_in_GDSC1_uM", "Most_Commonly_Tested_Minimum_Compound_Concentration_In_GDSC1_uM", "Most_Commonly_Tested_Maximum_Compound_Concentration_In_GDSC1_uM", "Normalized_AUC_For_Most_Commonly_Tested_Compound_Concentration_Range_In_GDSC1")
                       
-                      colors <- setNames(rep(colorRampPalette(c("blue", "red", "lightgray"))(3), 3),
-                                         c("IC50 <= max tested concentration", "IC50 > max tested concentration", "Infinite IC50",
-                                           "selected: IC50 <= max tested concentration", "selected: IC50 > max tested concentration", "selected: Infinite IC50",
-                                           "unselected: IC50 <= max tested concentration", "unselected: IC50 > max tested concentration", "unselected: Infinite IC50"))
-
+                    } else if(input$Compound_Explorer_to_Plot == "AUC values for concentration range available for all tested cell lines"){
+                      plot_data <- GDSC1_Results[! is.na(GDSC1_Results$AUC_all_ccl_GDSC1_conc),]
+                      plot_data <- plot_data[order(plot_data$AUC_all_ccl_GDSC1_conc, decreasing = FALSE),]
                       plot_data$Cell_Line <- factor(plot_data$Cell_Line, levels = plot_data$Cell_Line)
-                      ylab <- "IC50 (microMolar)"
+                      ylab <- paste0("AUC (", signif(as.numeric(unique(plot_data$min_all_ccl_GDSC1_conc)), 3), "-", signif(as.numeric(unique(plot_data$max_all_ccl_GDSC1_conc)), 3), " microMolar)")
                       
                       if(input$Compound_Explorer_Highlight_Cell_Lines == TRUE){
                         plot_data$symbol <- ": not selected"
@@ -1471,320 +1447,361 @@
                         unselected_plot_data <- plot_data[plot_data$symbol == ": not selected",]
                         
                         if(nrow(selected_plot_data) > 0){
-                          selected_plot_data$Group <- paste0("selected: ", selected_plot_data$Group)
-                          selected_plot_data$Group <- factor(selected_plot_data$Group, levels = c("selected: IC50 <= max tested concentration", "selected: IC50 > max tested concentration", "selected: Infinite IC50"))
                           fig <- plot_ly(x = selected_plot_data$Cell_Line,
-                                         y = selected_plot_data$IC50,
-                                         color = selected_plot_data$Group,
-                                         type = "scatter",
-                                         mode = "markers",
-                                         colors = colors)
+                                       y = selected_plot_data$AUC_all_ccl_GDSC1_conc,
+                                       type = "scatter",
+                                       color = factor(rep("A", nrow(selected_plot_data))),
+                                       colors = colorRampPalette(c("blue"))(1),
+                                       mode = "markers",
+                                       name = "selected")
                           if(nrow(unselected_plot_data) > 0){
-                            unselected_plot_data$Group <- paste0("unselected: ", unselected_plot_data$Group)
-                            unselected_plot_data$Group <- factor(unselected_plot_data$Group, levels = c("unselected: IC50 <= max tested concentration", "unselected: IC50 > max tested concentration", "unselected: Infinite IC50"))
-                            fig <- add_trace(fig,
-                                             x = unselected_plot_data$Cell_Line,
-                                             y = unselected_plot_data$IC50,
-                                             color = unselected_plot_data$Group,
-                                             opacity = 0.2)
+                            fig <- add_trace(fig, x = unselected_plot_data$Cell_Line,
+                                         y = unselected_plot_data$AUC_all_ccl_GDSC1_conc,
+                                         color = factor(rep("A", nrow(unselected_plot_data))),
+                                         name = "unselected",
+                                         opacity = 0.2)
                           }
                         } else {
-                          unselected_plot_data$Group <- paste0("unselected: ", unselected_plot_data$Group)
-                          unselected_plot_data$Group <- factor(unselected_plot_data$Group, levels = c("unselected: IC50 <= max tested concentration", "unselected: IC50 > max tested concentration", "unselected: Infinite IC50"))
                           fig <- plot_ly(x = unselected_plot_data$Cell_Line,
-                                         y = unselected_plot_data$IC50,
-                                         type = "scatter",
-                                         mode = "markers",
-                                         color = unselected_plot_data$Group,
-                                         colors = colors,
-                                         opacity = 0.2)
+                                       y = unselected_plot_data$AUC_all_ccl_GDSC1_conc,
+                                       type = "scatter",
+                                       color = factor(rep("A", nrow(unselected_plot_data))),
+                                       colors = colorRampPalette(c("blue"))(1),
+                                       opacity = 0.2,
+                                       mode = "markers",
+                                       name = "selected")
                         }
                         
                         fig <- layout(fig,
-                                      title = "GDSC1 IC50s",
+                                      title = "GDSC1 AUCs",
                                       xaxis = list(title = paste0("GDSC1 Cell Lines (n = ", nrow(plot_data), ", ", nrow(selected_plot_data), " selected)"), showticklabels = FALSE),
-                                      yaxis = list(title = ylab, type = "log"))
+                                      yaxis = list(title = ylab))
                         
                       } else {
-                        plot_data$Group <- factor(plot_data$Group, levels = c("IC50 <= max tested concentration", "IC50 > max tested concentration", "Infinite IC50"))
                         fig <- plot_ly(x = plot_data$Cell_Line,
-                                     y = plot_data$IC50,
+                                     y = plot_data$AUC_all_ccl_GDSC1_conc,
+                                     color = factor(rep("A", nrow(plot_data))),
+                                     colors = colorRampPalette(c("blue"))(1),
                                      type = "scatter",
-                                     mode = "markers",
-                                     color = plot_data$Group,
-                                     colors = colors)
+                                     mode = "markers")
                         
                         fig <- layout(fig,
-                                      title = "GDSC1 IC50s",
+                                      title = "GDSC1 AUCs",
                                       xaxis = list(title = paste0("GDSC1 Cell Lines (n = ", nrow(plot_data), ")"), showticklabels = FALSE),
-                                      yaxis = list(title = ylab, type = "log"))
+                                      yaxis = list(title = ylab))
                       }
+                      #Organizing plot_data for download
+                        plot_data <- plot_data[,c("Compound", "Cell_Line", "min_dose_uM", "max_dose_uM", "min_all_ccl_GDSC1_conc", "max_all_ccl_GDSC1_conc", "AUC_all_ccl_GDSC1_conc")]
+                        colnames(plot_data) <- c("Compound_Name", "Cell_Line_Name", "Minimum_Tested_Compound_Concentration_For_This_Cell_Line_in_GDSC1_uM", "Maximum_Tested_Compound_Concentration_For_This_Cell_Line_in_GDSC1_uM", "Minimum_Tested_Compound_Concentration_That_Is_Available_For_All_Cell_Lines_In_GDSC1_uM", "Maximum_Tested_Compound_Concentration_That_Is_Available_For_All_Cell_Lines_In_GDSC1_uM", "Normalized_AUC_For_Tested_Compound_Concentration_Range_That_Is_Available_For_All_Cell_Lines_In_GDSC1")
                       
-                      fig
-                    }
-                  } else if(input$Compound_Explorer_to_Plot == "Tested Cell Line Cancer Types & Genders"){
-                    ccls <- unique(GDSC1_Results$Cell_Line)
-                    if(length(ccls) > 0){
-                      temp_dataset_ccl_data <- Simple_Cell_Line_Harm[Simple_Cell_Line_Harm$Harmonized_Cell_Line_ID %in% ccls,]
-                      temp_dataset_ccl_data$Simple_Cancer_Type[temp_dataset_ccl_data$Simple_Cancer_Type == "unknown"] <- "unknown cancer type"
-                      plot_data <- as.data.frame.table(table(temp_dataset_ccl_data$Simple_Cancer_Type))
-                      plot_data <- plot_data[order(plot_data$Freq, decreasing = TRUE),]
-                      plot_data <- rbind(plot_data[! plot_data$Var1 == "unknown cancer type",], plot_data[plot_data$Var1 == "unknown cancer type",])
-                      
-                      Gender_Unknown <- NA
-                      Gender_Female <- NA
-                      Gender_Male <- NA
-                      for(j in 1:nrow(plot_data)){
-                        Gender_Unknown[j] <- nrow(temp_dataset_ccl_data[temp_dataset_ccl_data$Simple_Cancer_Type %in% plot_data$Var1[j] & temp_dataset_ccl_data$Gender == "Sex unspecified",])
-                        Gender_Female[j] <- nrow(temp_dataset_ccl_data[temp_dataset_ccl_data$Simple_Cancer_Type %in% plot_data$Var1[j] & temp_dataset_ccl_data$Gender == "Female",])
-                        Gender_Male[j] <- nrow(temp_dataset_ccl_data[temp_dataset_ccl_data$Simple_Cancer_Type %in% plot_data$Var1[j] & temp_dataset_ccl_data$Gender == "Male",])
-                      }
-                      
-                      plot_data$Var1 <- factor(plot_data$Var1, levels = plot_data$Var1)
-                      
-                      fig <- plot_ly(x = plot_data$Var1, y = Gender_Unknown, type = "bar", name = "Unknown Gender", marker = list(color = "lightgray")) %>%
-                              add_trace(y = Gender_Male, name = "Male", marker = list(color = rgb(65,105,225, maxColorValue = 255))) %>%
-                              add_trace(y = Gender_Female, name = "Female", marker = list(color = rgb(186,85,211, maxColorValue = 255))) %>%
-                              layout(title = 'GDSC1 Cell Line Cancer Types/Genders', yaxis = list(title = "# of Cell Lines"), xaxis = list(tickangle = 45), barmode = "stack", margin = list(b = 150, l = 50))
-                      fig
-                    }
-                  } else if(input$Compound_Explorer_to_Plot == "Tested Cell Line Ancestries"){
-                    ccls <- unique(GDSC1_Results$Cell_Line)
-                    if(length(ccls) > 0){
-                      temp_dataset_ccl_data <- Simple_Cell_Line_Harm[Simple_Cell_Line_Harm$Harmonized_Cell_Line_ID %in% ccls,]
-                      completeness <- paste0("(data for ", nrow(temp_dataset_ccl_data[! is.na(temp_dataset_ccl_data$African_Ancestry),]), " of ", nrow(temp_dataset_ccl_data), " cell lines)")
-                      temp_dataset_ccl_data <- temp_dataset_ccl_data[! is.na(temp_dataset_ccl_data$African_Ancestry),]
-                      
-                      plot_data <- temp_dataset_ccl_data[,grepl("_Ancestry", colnames(temp_dataset_ccl_data))]*100
-                      rownames(plot_data) <- temp_dataset_ccl_data$Harmonized_Cell_Line_ID
-                      
-                      if(nrow(plot_data) > 2){
-                        plot_data <- plot_data[hclust(dist(plot_data))$order,]
-                      }
-                      colnames(plot_data) <- gsub("_Ancestry", "", colnames(plot_data))
-                      colnames(plot_data) <- gsub("_", " ", colnames(plot_data))
-                      x <- factor(rownames(plot_data), levels = rownames(plot_data))
-                      
+                    } else if(input$Compound_Explorer_to_Plot == "IC50 values"){
+                      plot_data <- GDSC1_Results[! is.na(GDSC1_Results$IC50),]
                       if(nrow(plot_data) > 0){
-                        plot_colors <- c("#6A3D9A", "#33A02C", "#FB9A99", "#E31A1C", "#FDBF6F", "#A6CEE3", "#1F78B4")
-                        fig <- plot_ly(x = x, y = plot_data[,1], name = colnames(plot_data)[1], type = "bar", marker = list(color = plot_colors[1])) %>%
-                          add_trace(y = plot_data[,2], name = colnames(plot_data)[2], marker = list(color = plot_colors[2])) %>%
-                          add_trace(y = plot_data[,3], name = colnames(plot_data)[3], marker = list(color = plot_colors[3])) %>%
-                          add_trace(y = plot_data[,4], name = colnames(plot_data)[4], marker = list(color = plot_colors[4])) %>%
-                          add_trace(y = plot_data[,5], name = colnames(plot_data)[5], marker = list(color = plot_colors[5])) %>%
-                          add_trace(y = plot_data[,6], name = colnames(plot_data)[6], marker = list(color = plot_colors[6])) %>%
-                          add_trace(y = plot_data[,7], name = colnames(plot_data)[7], marker = list(color = plot_colors[7])) %>%
-                          layout(title = 'GDSC1 Ethnicities', barmode = "stack", xaxis = list(title = paste("Tested Cell Lines", completeness), showticklabels = FALSE), yaxis = list(title = "% Ancestry Makeup"), bargap = 0, legend = list(traceorder = "normal"))
-                      } else {
-                        fig <- plot_ly(x = 1, y = 100, name = "No Values", type = "bar", marker = list(color = "white")) %>%
-                        layout(title = 'GDSC1 Cell Line Ethnicities', barmode = "stack", xaxis = list(title = paste("Tested Cell Lines", completeness), showticklabels = FALSE), yaxis = list(title = "% Ancestry Makeup"), bargap = 0, legend = list(traceorder = "normal"))
+                        plot_data <- plot_data[order(plot_data$IC50, decreasing = FALSE),]
+                        plot_data$Group <- "IC50 <= max tested concentration"
+                        plot_data$Group[plot_data$IC50 > plot_data$max_dose_uM] <- "IC50 > max tested concentration"
+                        Inf_IC50_Keys <- plot_data$Key[plot_data$IC50 == Inf]
+                        plot_data$Group[plot_data$IC50 == Inf] <- "Infinite IC50"
+                        if(any(plot_data$IC50 != Inf)){
+                          plot_data$IC50[plot_data$IC50 == Inf] <- max(plot_data$IC50[! plot_data$IC50 == Inf])
+                        } else {
+                          plot_data$IC50[plot_data$IC50 == Inf] <- max(plot_data$max_dose_uM)+1
+                        }
+                        
+                        colors <- setNames(rep(colorRampPalette(c("blue", "red", "lightgray"))(3), 3),
+                                           c("IC50 <= max tested concentration", "IC50 > max tested concentration", "Infinite IC50",
+                                             "selected: IC50 <= max tested concentration", "selected: IC50 > max tested concentration", "selected: Infinite IC50",
+                                             "unselected: IC50 <= max tested concentration", "unselected: IC50 > max tested concentration", "unselected: Infinite IC50"))
+    
+                        plot_data$Cell_Line <- factor(plot_data$Cell_Line, levels = plot_data$Cell_Line)
+                        ylab <- "IC50 (microMolar)"
+                        
+                        if(input$Compound_Explorer_Highlight_Cell_Lines == TRUE){
+                          plot_data$symbol <- ": not selected"
+                          plot_data$symbol[plot_data$Cell_Line %in% input$Compound_Explorer_Cell_Lines] <- ": selected"
+                          selected_plot_data <- plot_data[plot_data$symbol == ": selected",]
+                          unselected_plot_data <- plot_data[plot_data$symbol == ": not selected",]
+                          
+                          if(nrow(selected_plot_data) > 0){
+                            selected_plot_data$Group <- paste0("selected: ", selected_plot_data$Group)
+                            selected_plot_data$Group <- factor(selected_plot_data$Group, levels = c("selected: IC50 <= max tested concentration", "selected: IC50 > max tested concentration", "selected: Infinite IC50"))
+                            fig <- plot_ly(x = selected_plot_data$Cell_Line,
+                                           y = selected_plot_data$IC50,
+                                           color = selected_plot_data$Group,
+                                           type = "scatter",
+                                           mode = "markers",
+                                           colors = colors)
+                            if(nrow(unselected_plot_data) > 0){
+                              unselected_plot_data$Group <- paste0("unselected: ", unselected_plot_data$Group)
+                              unselected_plot_data$Group <- factor(unselected_plot_data$Group, levels = c("unselected: IC50 <= max tested concentration", "unselected: IC50 > max tested concentration", "unselected: Infinite IC50"))
+                              fig <- add_trace(fig,
+                                               x = unselected_plot_data$Cell_Line,
+                                               y = unselected_plot_data$IC50,
+                                               color = unselected_plot_data$Group,
+                                               opacity = 0.2)
+                            }
+                          } else {
+                            unselected_plot_data$Group <- paste0("unselected: ", unselected_plot_data$Group)
+                            unselected_plot_data$Group <- factor(unselected_plot_data$Group, levels = c("unselected: IC50 <= max tested concentration", "unselected: IC50 > max tested concentration", "unselected: Infinite IC50"))
+                            fig <- plot_ly(x = unselected_plot_data$Cell_Line,
+                                           y = unselected_plot_data$IC50,
+                                           type = "scatter",
+                                           mode = "markers",
+                                           color = unselected_plot_data$Group,
+                                           colors = colors,
+                                           opacity = 0.2)
+                          }
+                          
+                          fig <- layout(fig,
+                                        title = "GDSC1 IC50s",
+                                        xaxis = list(title = paste0("GDSC1 Cell Lines (n = ", nrow(plot_data), ", ", nrow(selected_plot_data), " selected)"), showticklabels = FALSE),
+                                        yaxis = list(title = ylab, type = "log"))
+                          
+                        } else {
+                          plot_data$Group <- factor(plot_data$Group, levels = c("IC50 <= max tested concentration", "IC50 > max tested concentration", "Infinite IC50"))
+                          fig <- plot_ly(x = plot_data$Cell_Line,
+                                       y = plot_data$IC50,
+                                       type = "scatter",
+                                       mode = "markers",
+                                       color = plot_data$Group,
+                                       colors = colors)
+                          
+                          fig <- layout(fig,
+                                        title = "GDSC1 IC50s",
+                                        xaxis = list(title = paste0("GDSC1 Cell Lines (n = ", nrow(plot_data), ")"), showticklabels = FALSE),
+                                        yaxis = list(title = ylab, type = "log"))
+                        }
                       }
-                      fig
-                    }
-                  } else if(input$Compound_Explorer_to_Plot == "Tested Cell Line Ages"){
-                    ccls <- unique(GDSC1_Results$Cell_Line)
-                    if(length(ccls) > 0){
-                      temp_dataset_ccl_data <- Simple_Cell_Line_Harm[Simple_Cell_Line_Harm$Harmonized_Cell_Line_ID %in% ccls,]
-                      completeness <- paste0("(data for ", nrow(temp_dataset_ccl_data[! is.na(temp_dataset_ccl_data$Numeric_Age_in_Years),]), " of ", nrow(temp_dataset_ccl_data), " cell lines)")
-                      temp_dataset_ccl_data <- temp_dataset_ccl_data[! is.na(temp_dataset_ccl_data$Numeric_Age_in_Years),]
+                      #Organizing plot_data for download
+                        plot_data <- plot_data[,c("Compound", "Cell_Line", "min_dose_uM", "max_dose_uM", "IC50")]
+                        plot_data$IC50[plot_data$Key %in% Inf_IC50_Keys] <- "Inf"
+                        colnames(plot_data) <- c("Compound_Name", "Cell_Line_Name", "Minimum_Tested_Compound_Concentration_For_This_Cell_Line_in_GDSC1_uM", "Maximum_Tested_Compound_Concentration_For_This_Cell_Line_in_GDSC1_uM", "Estimated_IC50_uM")
                       
-                      if(nrow(temp_dataset_ccl_data) > 1){
-                        p <- ggplot(temp_dataset_ccl_data, aes(x = Numeric_Age_in_Years, y = after_stat(scaled))) +
-                                    geom_density(color = "darkblue", fill = "lightblue") +
-                                    theme_light() +
-                                    labs(x = paste("Patient Age (in Years) when Cell Line was Derived ", completeness), y = "Scaled Density") +
-                                    ggtitle("GDSC1 Ages")
-                      } else if(nrow(temp_dataset_ccl_data) == 1){
-                        p <- ggplot(temp_dataset_ccl_data, aes(x = Numeric_Age_in_Years, y = Harmonized_Cell_Line_ID)) +
-                                    geom_bar(stat="identity") +
-                                    theme_light() +
-                                    labs(x = paste("Patient Age (in Years) when Cell Line was Derived ", completeness), y = "") +
-                                    ggtitle("GDSC1 Ages")
+                    } else if(input$Compound_Explorer_to_Plot == "Tested Cell Line Cancer Types & Genders"){
+                      ccls <- unique(GDSC1_Results$Cell_Line)
+                      if(length(ccls) > 0){
+                        temp_dataset_ccl_data <- Simple_Cell_Line_Harm[Simple_Cell_Line_Harm$Harmonized_Cell_Line_ID %in% ccls,]
+                        temp_dataset_ccl_data$Simple_Cancer_Type[temp_dataset_ccl_data$Simple_Cancer_Type == "unknown"] <- "unknown cancer type"
+                        plot_data <- as.data.frame.table(table(temp_dataset_ccl_data$Simple_Cancer_Type))
+                        plot_data <- plot_data[order(plot_data$Freq, decreasing = TRUE),]
+                        plot_data <- rbind(plot_data[! plot_data$Var1 == "unknown cancer type",], plot_data[plot_data$Var1 == "unknown cancer type",])
+                        
+                        Gender_Unknown <- NA
+                        Gender_Female <- NA
+                        Gender_Male <- NA
+                        for(j in 1:nrow(plot_data)){
+                          Gender_Unknown[j] <- nrow(temp_dataset_ccl_data[temp_dataset_ccl_data$Simple_Cancer_Type %in% plot_data$Var1[j] & temp_dataset_ccl_data$Gender == "Sex unspecified",])
+                          Gender_Female[j] <- nrow(temp_dataset_ccl_data[temp_dataset_ccl_data$Simple_Cancer_Type %in% plot_data$Var1[j] & temp_dataset_ccl_data$Gender == "Female",])
+                          Gender_Male[j] <- nrow(temp_dataset_ccl_data[temp_dataset_ccl_data$Simple_Cancer_Type %in% plot_data$Var1[j] & temp_dataset_ccl_data$Gender == "Male",])
+                        }
+                        
+                        plot_data$Var1 <- factor(plot_data$Var1, levels = plot_data$Var1)
+                        
+                        fig <- plot_ly(x = plot_data$Var1, y = Gender_Unknown, type = "bar", name = "Unknown Gender", marker = list(color = "lightgray")) %>%
+                                add_trace(y = Gender_Male, name = "Male", marker = list(color = rgb(65,105,225, maxColorValue = 255))) %>%
+                                add_trace(y = Gender_Female, name = "Female", marker = list(color = rgb(186,85,211, maxColorValue = 255))) %>%
+                                layout(title = 'GDSC1 Cell Line Cancer Types/Genders', yaxis = list(title = "# of Cell Lines"), xaxis = list(tickangle = 45), barmode = "stack", margin = list(b = 150, l = 50))
+                        #Organizing plot_data for download
+                          temp_dataset_ccl_data$Compound <- GDSC1_Results$Compound[1]
+                          plot_data <- temp_dataset_ccl_data[,c("Compound", "Harmonized_Cell_Line_ID", "Simple_Cancer_Type", "Gender")]
+                          colnames(plot_data) <- c("Compound", "Cell_Line", "Cancer_Type", "Gender")
                       } else {
-                        p <- ggplot(data.frame(x = c(0,100), y = c(0,1)), aes(x = x, y = y)) +
-                                    geom_blank() +
-                                    labs(x = paste("Patient Age (in Years) when Cell Line was Derived ", completeness), y = "Scaled Density") +
-                                    ggtitle("GDSC1 Cell Line Patient Age Distribution")
+                        temp_colnames <- c("Compound", "Cell_Line", "Cancer_Type", "Gender")
+                        plot_data <- as.data.frame(matrix(NA, nrow = 0, ncol = length(temp_colnames)))
+                        colnames(plot_data) <- temp_colnames
                       }
-                  
-                      fig <- ggplotly(p)
-                      fig
+    
+                    } else if(input$Compound_Explorer_to_Plot == "Tested Cell Line Ancestries"){
+                      ccls <- unique(GDSC1_Results$Cell_Line)
+                      if(length(ccls) > 0){
+                        temp_dataset_ccl_data <- Simple_Cell_Line_Harm[Simple_Cell_Line_Harm$Harmonized_Cell_Line_ID %in% ccls,]
+                        completeness <- paste0("(data for ", nrow(temp_dataset_ccl_data[! is.na(temp_dataset_ccl_data$African_Ancestry),]), " of ", nrow(temp_dataset_ccl_data), " cell lines)")
+                        temp_dataset_ccl_data <- temp_dataset_ccl_data[! is.na(temp_dataset_ccl_data$African_Ancestry),]
+                        
+                        plot_data <- temp_dataset_ccl_data[,grepl("_Ancestry", colnames(temp_dataset_ccl_data))]*100
+                        rownames(plot_data) <- temp_dataset_ccl_data$Harmonized_Cell_Line_ID
+                        
+                        if(nrow(plot_data) > 2){
+                          plot_data <- plot_data[hclust(dist(plot_data))$order,]
+                        }
+                        colnames(plot_data) <- gsub("_Ancestry", "", colnames(plot_data))
+                        colnames(plot_data) <- gsub("_", " ", colnames(plot_data))
+                        x <- factor(rownames(plot_data), levels = rownames(plot_data))
+                        
+                        if(nrow(plot_data) > 0){
+                          plot_colors <- c("#6A3D9A", "#33A02C", "#FB9A99", "#E31A1C", "#FDBF6F", "#A6CEE3", "#1F78B4")
+                          fig <- plot_ly(x = x, y = plot_data[,1], name = colnames(plot_data)[1], type = "bar", marker = list(color = plot_colors[1])) %>%
+                            add_trace(y = plot_data[,2], name = colnames(plot_data)[2], marker = list(color = plot_colors[2])) %>%
+                            add_trace(y = plot_data[,3], name = colnames(plot_data)[3], marker = list(color = plot_colors[3])) %>%
+                            add_trace(y = plot_data[,4], name = colnames(plot_data)[4], marker = list(color = plot_colors[4])) %>%
+                            add_trace(y = plot_data[,5], name = colnames(plot_data)[5], marker = list(color = plot_colors[5])) %>%
+                            add_trace(y = plot_data[,6], name = colnames(plot_data)[6], marker = list(color = plot_colors[6])) %>%
+                            add_trace(y = plot_data[,7], name = colnames(plot_data)[7], marker = list(color = plot_colors[7])) %>%
+                            layout(title = 'GDSC1 Ethnicities', barmode = "stack", xaxis = list(title = paste("Tested Cell Lines", completeness), showticklabels = FALSE), yaxis = list(title = "% Ancestry Makeup"), bargap = 0, legend = list(traceorder = "normal"))
+                        } else {
+                          fig <- plot_ly(x = 1, y = 100, name = "No Values", type = "bar", marker = list(color = "white")) %>%
+                          layout(title = 'GDSC1 Cell Line Ethnicities', barmode = "stack", xaxis = list(title = paste("Tested Cell Lines", completeness), showticklabels = FALSE), yaxis = list(title = "% Ancestry Makeup"), bargap = 0, legend = list(traceorder = "normal"))
+                        }
+                        #Organizing plot_data for download
+                          plot_data$Cell_Line <- rownames(plot_data)
+                          plot_data$Compound <- GDSC1_Results$Compound[1]
+                          plot_data <- plot_data[,c("Compound", "Cell_Line", "African", "Native American", "East Asian (North)", "East Asian (South)", "South Asian", "European (North)", "European (South)")]
+                          colnames(plot_data) <- c("Compound", "Cell_Line", "African_Ancestry_Percentage", "Native_American_Ancestry_Percentage", "East_Asian_(North)_Ancestry_Percentage", "East_Asian_(South)_Ancestry_Percentage", "South_Asian_Ancestry_Percentage", "European_(North)_Ancestry_Percentage", "European_(South)_Ancestry_Percentage")
+                      } else {
+                        temp_colnames <- c("Compound", "Cell_Line", "African_Ancestry_Percentage", "Native_American_Ancestry_Percentage", "East_Asian_(North)_Ancestry_Percentage", "East_Asian_(South)_Ancestry_Percentage", "South_Asian_Ancestry_Percentage", "European_(North)_Ancestry_Percentage", "European_(South)_Ancestry_Percentage")
+                        plot_data <- as.data.frame(matrix(NA, nrow = 0, ncol = length(temp_colnames)))
+                        colnames(plot_data) <- temp_colnames
+                      }
+                      
+                    } else if(input$Compound_Explorer_to_Plot == "Tested Cell Line Ages"){
+                      ccls <- unique(GDSC1_Results$Cell_Line)
+                      if(length(ccls) > 0){
+                        temp_dataset_ccl_data <- Simple_Cell_Line_Harm[Simple_Cell_Line_Harm$Harmonized_Cell_Line_ID %in% ccls,]
+                        temp_to_download <- temp_dataset_ccl_data
+                        completeness <- paste0("(data for ", nrow(temp_dataset_ccl_data[! is.na(temp_dataset_ccl_data$Numeric_Age_in_Years),]), " of ", nrow(temp_dataset_ccl_data), " cell lines)")
+                        temp_dataset_ccl_data <- temp_dataset_ccl_data[! is.na(temp_dataset_ccl_data$Numeric_Age_in_Years),]
+                        
+                        if(nrow(temp_dataset_ccl_data) > 1){
+                          p <- ggplot(temp_dataset_ccl_data, aes(x = Numeric_Age_in_Years, y = after_stat(scaled))) +
+                                      geom_density(color = "darkblue", fill = "lightblue") +
+                                      theme_light() +
+                                      labs(x = paste("Patient Age (in Years) when Cell Line was Derived ", completeness), y = "Scaled Density") +
+                                      ggtitle("GDSC1 Ages")
+                        } else if(nrow(temp_dataset_ccl_data) == 1){
+                          p <- ggplot(temp_dataset_ccl_data, aes(x = Numeric_Age_in_Years, y = Harmonized_Cell_Line_ID)) +
+                                      geom_bar(stat="identity") +
+                                      theme_light() +
+                                      labs(x = paste("Patient Age (in Years) when Cell Line was Derived ", completeness), y = "") +
+                                      ggtitle("GDSC1 Ages")
+                        } else {
+                          p <- ggplot(data.frame(x = c(0,100), y = c(0,1)), aes(x = x, y = y)) +
+                                      geom_blank() +
+                                      labs(x = paste("Patient Age (in Years) when Cell Line was Derived ", completeness), y = "Scaled Density") +
+                                      ggtitle("GDSC1 Cell Line Patient Age Distribution")
+                        }
+                        
+                        fig <- ggplotly(p)
+                        
+                        #Organizing plot_data for download
+                          temp_to_download$Compound <- GDSC1_Results$Compound[1]
+                          plot_data <- temp_to_download[,c("Compound", "Harmonized_Cell_Line_ID", "Age", "Numeric_Age_in_Years")]
+                          colnames(plot_data) <- c("Compound", "Cell_Line", "Age", "Numeric_Age_in_Years")
+                      } else {
+                        temp_colnames <- c("Compound", "Cell_Line", "Age", "Numeric_Age_in_Years")
+                        plot_data <- as.data.frame(matrix(NA, nrow = 0, ncol = length(temp_colnames)))
+                        colnames(plot_data) <- temp_colnames
+                      }
                     }
                   }
-                }
-            })
-            
-            output$Compound_Explorer_GDSC2_Plot <- renderPlotly({
-              #Loading raw data for this compound and any datasets with data for this compound
-                if("GDSC2" %in% Compound_Explorer_Datasets_with_Compound_Data()){
-                  GDSC2_Results <- cpdexp_data()$GDSC2
-                  GDSC2_Results <- GDSC2_Results[! is.na(GDSC2_Results$b_c_d_e) & GDSC2_Results$Cell_Line %in% cpdexplr_ccl_availability_data()$GDSC2,]
-                } else {
-                  GDSC2_Results <- data.frame(NULL)
-                }
-              #Making compound explorer GDSC2 plot
-                if(nrow(GDSC2_Results) > 0){
-                  if(input$Compound_Explorer_to_Plot == "AUC values for most commonly used concentration range"){
-                    plot_data <- GDSC2_Results[! is.na(GDSC2_Results$AUC_mode_ccl_GDSC2_conc),]
-                    plot_data <- plot_data[order(plot_data$AUC_mode_ccl_GDSC2_conc, decreasing = FALSE),]
-                    plot_data$Cell_Line <- factor(plot_data$Cell_Line, levels = plot_data$Cell_Line)
-                    plot_data$Concentration_Range_Exceeds_Max_Tested_Concentration <- "Max Tested Concentration Within AUC Range"
-                    plot_data$Concentration_Range_Exceeds_Max_Tested_Concentration[plot_data$max_dose_uM < plot_data$max_mode_ccl_GDSC2_conc] <- "Max Tested Concentration < AUC Range"
-                    plot_data$Concentration_Range_Exceeds_Max_Tested_Concentration <- factor(plot_data$Concentration_Range_Exceeds_Max_Tested_Concentration, levels = c("Max Tested Concentration Within AUC Range", "Max Tested Concentration < AUC Range"))
-                    ylab <- paste0("AUC (", signif(as.numeric(unique(plot_data$min_mode_ccl_GDSC2_conc)), 3), "-", signif(as.numeric(unique(plot_data$max_mode_ccl_GDSC2_conc)), 3), " microMolar)")
-                    
-                    colors <- setNames(rep(colorRampPalette(c("blue", "red"))(2), 3),
-                                       c("Max Tested Concentration Within AUC Range", "Max Tested Concentration < AUC Range",
-                                         "selected: Max Tested Concentration Within AUC Range", "selected: Max Tested Concentration < AUC Range",
-                                         "unselected: Max Tested Concentration Within AUC Range", "unselected: Max Tested Concentration < AUC Range"))
-                    
-                    if(all(plot_data$Concentration_Range_Exceeds_Max_Tested_Concentration %in% "Max Tested Concentration Within AUC Range")){
-                      colors <- colorRampPalette(c("blue"))(1)
-                    } else if(all(plot_data$Concentration_Range_Exceeds_Max_Tested_Concentration %in% "Max Tested Concentration < AUC Range")){
-                      colors <- colorRampPalette(c("red"))(1)
-                    } else {
-                      colors <- colorRampPalette(c("blue", "red"))(2)
+                #Allowing users to download data
+                  output$Compound_Explorer_Download_GDSC1_Data <- downloadHandler(
+                    filename = "GDSC1_Plot_Data.xlsx",
+                    content = function(file){
+                      write.xlsx(plot_data, file, row.names = FALSE)
                     }
-
-                    if(input$Compound_Explorer_Highlight_Cell_Lines == TRUE){
-                      plot_data$symbol <- ": not selected"
-                      plot_data$symbol[plot_data$Cell_Line %in% input$Compound_Explorer_Cell_Lines] <- ": selected"
-                      selected_plot_data <- plot_data[plot_data$symbol == ": selected",]
-                      unselected_plot_data <- plot_data[plot_data$symbol == ": not selected",]
+                  )
+                #Returning Figure
+                  fig
+              })
+            
+            #Creating Plot for GDSC2
+              output$Compound_Explorer_GDSC2_Plot <- renderPlotly({
+                #Loading raw data for this compound and any datasets with data for this compound
+                  if("GDSC2" %in% Compound_Explorer_Datasets_with_Compound_Data()){
+                    GDSC2_Results <- cpdexp_data()$GDSC2
+                    GDSC2_Results <- GDSC2_Results[! is.na(GDSC2_Results$b_c_d_e) & GDSC2_Results$Cell_Line %in% cpdexplr_ccl_availability_data()$GDSC2,]
+                  } else {
+                    GDSC2_Results <- data.frame(NULL)
+                  }
+                #Making compound explorer GDSC2 plot
+                  if(nrow(GDSC2_Results) > 0){
+                    if(input$Compound_Explorer_to_Plot == "AUC values for most commonly used concentration range"){
+                      plot_data <- GDSC2_Results[! is.na(GDSC2_Results$AUC_mode_ccl_GDSC2_conc),]
+                      plot_data <- plot_data[order(plot_data$AUC_mode_ccl_GDSC2_conc, decreasing = FALSE),]
+                      plot_data$Cell_Line <- factor(plot_data$Cell_Line, levels = plot_data$Cell_Line)
+                      plot_data$Concentration_Range_Exceeds_Max_Tested_Concentration <- "Max Tested Concentration Within AUC Range"
+                      plot_data$Concentration_Range_Exceeds_Max_Tested_Concentration[plot_data$max_dose_uM < plot_data$max_mode_ccl_GDSC2_conc] <- "Max Tested Concentration < AUC Range"
+                      plot_data$Concentration_Range_Exceeds_Max_Tested_Concentration <- factor(plot_data$Concentration_Range_Exceeds_Max_Tested_Concentration, levels = c("Max Tested Concentration Within AUC Range", "Max Tested Concentration < AUC Range"))
+                      ylab <- paste0("AUC (", signif(as.numeric(unique(plot_data$min_mode_ccl_GDSC2_conc)), 3), "-", signif(as.numeric(unique(plot_data$max_mode_ccl_GDSC2_conc)), 3), " microMolar)")
                       
-                      if(nrow(selected_plot_data) > 0){
-                        selected_plot_data$Concentration_Range_Exceeds_Max_Tested_Concentration <- "selected: Max Tested Concentration Within AUC Range"
-                        selected_plot_data$Concentration_Range_Exceeds_Max_Tested_Concentration[selected_plot_data$max_dose_uM < selected_plot_data$max_mode_ccl_GDSC2_conc] <- "selected: Max Tested Concentration < AUC Range"
-                        selected_plot_data$Concentration_Range_Exceeds_Max_Tested_Concentration <- factor(selected_plot_data$Concentration_Range_Exceeds_Max_Tested_Concentration, levels = c("selected: Max Tested Concentration Within AUC Range", "selected: Max Tested Concentration < AUC Range"))
-                        fig <- plot_ly(x = selected_plot_data$Cell_Line,
-                                   y = selected_plot_data$AUC_mode_ccl_GDSC2_conc,
-                                   color = selected_plot_data$Concentration_Range_Exceeds_Max_Tested_Concentration,
-                                   colors = colors,
-                                   type = "scatter",
-                                   mode = "markers")
-                        if(nrow(unselected_plot_data) > 0){
+                      colors <- setNames(rep(colorRampPalette(c("blue", "red"))(2), 3),
+                                         c("Max Tested Concentration Within AUC Range", "Max Tested Concentration < AUC Range",
+                                           "selected: Max Tested Concentration Within AUC Range", "selected: Max Tested Concentration < AUC Range",
+                                           "unselected: Max Tested Concentration Within AUC Range", "unselected: Max Tested Concentration < AUC Range"))
+                      
+                      if(all(plot_data$Concentration_Range_Exceeds_Max_Tested_Concentration %in% "Max Tested Concentration Within AUC Range")){
+                        colors <- colorRampPalette(c("blue"))(1)
+                      } else if(all(plot_data$Concentration_Range_Exceeds_Max_Tested_Concentration %in% "Max Tested Concentration < AUC Range")){
+                        colors <- colorRampPalette(c("red"))(1)
+                      } else {
+                        colors <- colorRampPalette(c("blue", "red"))(2)
+                      }
+    
+                      if(input$Compound_Explorer_Highlight_Cell_Lines == TRUE){
+                        plot_data$symbol <- ": not selected"
+                        plot_data$symbol[plot_data$Cell_Line %in% input$Compound_Explorer_Cell_Lines] <- ": selected"
+                        selected_plot_data <- plot_data[plot_data$symbol == ": selected",]
+                        unselected_plot_data <- plot_data[plot_data$symbol == ": not selected",]
+                        
+                        if(nrow(selected_plot_data) > 0){
+                          selected_plot_data$Concentration_Range_Exceeds_Max_Tested_Concentration <- "selected: Max Tested Concentration Within AUC Range"
+                          selected_plot_data$Concentration_Range_Exceeds_Max_Tested_Concentration[selected_plot_data$max_dose_uM < selected_plot_data$max_mode_ccl_GDSC2_conc] <- "selected: Max Tested Concentration < AUC Range"
+                          selected_plot_data$Concentration_Range_Exceeds_Max_Tested_Concentration <- factor(selected_plot_data$Concentration_Range_Exceeds_Max_Tested_Concentration, levels = c("selected: Max Tested Concentration Within AUC Range", "selected: Max Tested Concentration < AUC Range"))
+                          fig <- plot_ly(x = selected_plot_data$Cell_Line,
+                                     y = selected_plot_data$AUC_mode_ccl_GDSC2_conc,
+                                     color = selected_plot_data$Concentration_Range_Exceeds_Max_Tested_Concentration,
+                                     colors = colors,
+                                     type = "scatter",
+                                     mode = "markers")
+                          if(nrow(unselected_plot_data) > 0){
+                            unselected_plot_data$Concentration_Range_Exceeds_Max_Tested_Concentration <- "unselected: Max Tested Concentration Within AUC Range"
+                            unselected_plot_data$Concentration_Range_Exceeds_Max_Tested_Concentration[unselected_plot_data$max_dose_uM < unselected_plot_data$max_mode_ccl_GDSC2_conc] <- "unselected: Max Tested Concentration < AUC Range"
+                            unselected_plot_data$Concentration_Range_Exceeds_Max_Tested_Concentration <- factor(unselected_plot_data$Concentration_Range_Exceeds_Max_Tested_Concentration, levels = c("unselected: Max Tested Concentration Within AUC Range", "unselected: Max Tested Concentration < AUC Range"))
+                            fig <- add_trace(fig, 
+                                      x = unselected_plot_data$Cell_Line,
+                                      y = unselected_plot_data$AUC_mode_ccl_GDSC2_conc,
+                                      color = unselected_plot_data$Concentration_Range_Exceeds_Max_Tested_Concentration,
+                                      opacity = 0.2)
+                          }
+                        } else if(nrow(unselected_plot_data) > 0){
                           unselected_plot_data$Concentration_Range_Exceeds_Max_Tested_Concentration <- "unselected: Max Tested Concentration Within AUC Range"
                           unselected_plot_data$Concentration_Range_Exceeds_Max_Tested_Concentration[unselected_plot_data$max_dose_uM < unselected_plot_data$max_mode_ccl_GDSC2_conc] <- "unselected: Max Tested Concentration < AUC Range"
                           unselected_plot_data$Concentration_Range_Exceeds_Max_Tested_Concentration <- factor(unselected_plot_data$Concentration_Range_Exceeds_Max_Tested_Concentration, levels = c("unselected: Max Tested Concentration Within AUC Range", "unselected: Max Tested Concentration < AUC Range"))
-                          fig <- add_trace(fig, 
-                                    x = unselected_plot_data$Cell_Line,
-                                    y = unselected_plot_data$AUC_mode_ccl_GDSC2_conc,
-                                    color = unselected_plot_data$Concentration_Range_Exceeds_Max_Tested_Concentration,
-                                    opacity = 0.2)
-                        }
-                      } else if(nrow(unselected_plot_data) > 0){
-                        unselected_plot_data$Concentration_Range_Exceeds_Max_Tested_Concentration <- "unselected: Max Tested Concentration Within AUC Range"
-                        unselected_plot_data$Concentration_Range_Exceeds_Max_Tested_Concentration[unselected_plot_data$max_dose_uM < unselected_plot_data$max_mode_ccl_GDSC2_conc] <- "unselected: Max Tested Concentration < AUC Range"
-                        unselected_plot_data$Concentration_Range_Exceeds_Max_Tested_Concentration <- factor(unselected_plot_data$Concentration_Range_Exceeds_Max_Tested_Concentration, levels = c("unselected: Max Tested Concentration Within AUC Range", "unselected: Max Tested Concentration < AUC Range"))
-                        fig <- plot_ly(x = unselected_plot_data$Cell_Line,
-                                   y = unselected_plot_data$AUC_mode_ccl_GDSC2_conc,
-                                   color = unselected_plot_data$Concentration_Range_Exceeds_Max_Tested_Concentration,
-                                   colors = colors,
-                                   opacity = 0.2,
-                                   type = "scatter",
-                                   mode = "markers")
-                      }
-                        
-                      fig <- layout(fig,
-                                    title = "GDSC2 AUCs",
-                                    xaxis = list(title = paste0("GDSC2 Cell Lines (n = ", nrow(plot_data), "; ", nrow(selected_plot_data), " selected)"), showticklabels = FALSE),
-                                    yaxis = list(title = ylab))
-                    } else {
-
-                      fig <- plot_ly(x = plot_data$Cell_Line,
-                                   y = plot_data$AUC_mode_ccl_GDSC2_conc,
-                                   color = plot_data$Concentration_Range_Exceeds_Max_Tested_Concentration,
-                                   colors = colors,
-                                   type = "scatter",
-                                   mode = "markers")
-                      fig <- layout(fig,
-                                    title = "GDSC2 AUCs",
-                                    xaxis = list(title = paste0("GDSC2 Cell Lines (n = ", nrow(plot_data), ")"), showticklabels = FALSE),
-                                    yaxis = list(title = ylab))
-                    }
-
-                    fig
-                    
-                  } else if(input$Compound_Explorer_to_Plot == "AUC values for concentration range available for all tested cell lines"){
-                    plot_data <- GDSC2_Results[! is.na(GDSC2_Results$AUC_all_ccl_GDSC2_conc),]
-                    plot_data <- plot_data[order(plot_data$AUC_all_ccl_GDSC2_conc, decreasing = FALSE),]
-                    plot_data$Cell_Line <- factor(plot_data$Cell_Line, levels = plot_data$Cell_Line)
-                    ylab <- paste0("AUC (", signif(as.numeric(unique(plot_data$min_all_ccl_GDSC2_conc)), 3), "-", signif(as.numeric(unique(plot_data$max_all_ccl_GDSC2_conc)), 3), " microMolar)")
-                    
-                    if(input$Compound_Explorer_Highlight_Cell_Lines == TRUE){
-                      plot_data$symbol <- ": not selected"
-                      plot_data$symbol[plot_data$Cell_Line %in% input$Compound_Explorer_Cell_Lines] <- ": selected"
-                      selected_plot_data <- plot_data[plot_data$symbol == ": selected",]
-                      unselected_plot_data <- plot_data[plot_data$symbol == ": not selected",]
-                      
-                      if(nrow(selected_plot_data) > 0){
-                        fig <- plot_ly(x = selected_plot_data$Cell_Line,
-                                     y = selected_plot_data$AUC_all_ccl_GDSC2_conc,
-                                     type = "scatter",
-                                     color = factor(rep("A", nrow(selected_plot_data))),
-                                     colors = colorRampPalette(c("blue"))(1),
-                                     mode = "markers",
-                                     name = "selected")
-                        if(nrow(unselected_plot_data) > 0){
-                          fig <- add_trace(fig, x = unselected_plot_data$Cell_Line,
-                                       y = unselected_plot_data$AUC_all_ccl_GDSC2_conc,
-                                       color = factor(rep("A", nrow(unselected_plot_data))),
-                                       name = "unselected",
-                                       opacity = 0.2)
-                        }
-                      } else {
-                        fig <- plot_ly(x = unselected_plot_data$Cell_Line,
-                                     y = unselected_plot_data$AUC_all_ccl_GDSC2_conc,
-                                     type = "scatter",
-                                     color = factor(rep("A", nrow(unselected_plot_data))),
-                                     colors = colorRampPalette(c("blue"))(1),
+                          fig <- plot_ly(x = unselected_plot_data$Cell_Line,
+                                     y = unselected_plot_data$AUC_mode_ccl_GDSC2_conc,
+                                     color = unselected_plot_data$Concentration_Range_Exceeds_Max_Tested_Concentration,
+                                     colors = colors,
                                      opacity = 0.2,
-                                     mode = "markers",
-                                     name = "selected")
-                      }
-                      
-                      fig <- layout(fig,
-                                    title = "GDSC2 AUCs",
-                                    xaxis = list(title = paste0("GDSC2 Cell Lines (n = ", nrow(plot_data), ", ", nrow(selected_plot_data), " selected)"), showticklabels = FALSE),
-                                    yaxis = list(title = ylab))
-                      
-                    } else {
-                      fig <- plot_ly(x = plot_data$Cell_Line,
-                                   y = plot_data$AUC_all_ccl_GDSC2_conc,
-                                   color = factor(rep("A", nrow(plot_data))),
-                                   colors = colorRampPalette(c("blue"))(1),
-                                   type = "scatter",
-                                   mode = "markers")
-                      
-                      fig <- layout(fig,
-                                    title = "GDSC2 AUCs",
-                                    xaxis = list(title = paste0("GDSC2 Cell Lines (n = ", nrow(plot_data), ")"), showticklabels = FALSE),
-                                    yaxis = list(title = ylab))
-                    }
-                    
-                    
-                    fig
-                    
-                  } else if(input$Compound_Explorer_to_Plot == "IC50 values"){
-                    plot_data <- GDSC2_Results[! is.na(GDSC2_Results$IC50),]
-                    if(nrow(plot_data) > 0){
-                      plot_data <- plot_data[order(plot_data$IC50, decreasing = FALSE),]
-                      plot_data$Group <- "IC50 <= max tested concentration"
-                      plot_data$Group[plot_data$IC50 > plot_data$max_dose_uM] <- "IC50 > max tested concentration"
-                      plot_data$Group[plot_data$IC50 == Inf] <- "Infinite IC50"
-                      if(any(plot_data$IC50 != Inf)){
-                        plot_data$IC50[plot_data$IC50 == Inf] <- max(plot_data$IC50[! plot_data$IC50 == Inf])
+                                     type = "scatter",
+                                     mode = "markers")
+                        }
+                          
+                        fig <- layout(fig,
+                                      title = "GDSC2 AUCs",
+                                      xaxis = list(title = paste0("GDSC2 Cell Lines (n = ", nrow(plot_data), "; ", nrow(selected_plot_data), " selected)"), showticklabels = FALSE),
+                                      yaxis = list(title = ylab))
                       } else {
-                        plot_data$IC50[plot_data$IC50 == Inf] <- max(plot_data$max_dose_uM)+1
+    
+                        fig <- plot_ly(x = plot_data$Cell_Line,
+                                     y = plot_data$AUC_mode_ccl_GDSC2_conc,
+                                     color = plot_data$Concentration_Range_Exceeds_Max_Tested_Concentration,
+                                     colors = colors,
+                                     type = "scatter",
+                                     mode = "markers")
+                        fig <- layout(fig,
+                                      title = "GDSC2 AUCs",
+                                      xaxis = list(title = paste0("GDSC2 Cell Lines (n = ", nrow(plot_data), ")"), showticklabels = FALSE),
+                                      yaxis = list(title = ylab))
                       }
+                      #Organizing plot_data for download
+                        plot_data <- plot_data[,c("Compound", "Cell_Line", "min_dose_uM", "max_dose_uM", "min_mode_ccl_GDSC2_conc", "max_mode_ccl_GDSC2_conc", "AUC_mode_ccl_GDSC2_conc")]
+                        colnames(plot_data) <- c("Compound_Name", "Cell_Line_Name", "Minimum_Tested_Compound_Concentration_For_This_Cell_Line_in_GDSC2_uM", "Maximum_Tested_Compound_Concentration_For_This_Cell_Line_in_GDSC2_uM", "Most_Commonly_Tested_Minimum_Compound_Concentration_In_GDSC2_uM", "Most_Commonly_Tested_Maximum_Compound_Concentration_In_GDSC2_uM", "Normalized_AUC_For_Most_Commonly_Tested_Compound_Concentration_Range_In_GDSC2")
                       
-                      colors <- setNames(rep(colorRampPalette(c("blue", "red", "lightgray"))(3), 3),
-                                         c("IC50 <= max tested concentration", "IC50 > max tested concentration", "Infinite IC50",
-                                           "selected: IC50 <= max tested concentration", "selected: IC50 > max tested concentration", "selected: Infinite IC50",
-                                           "unselected: IC50 <= max tested concentration", "unselected: IC50 > max tested concentration", "unselected: Infinite IC50"))
-
+                    } else if(input$Compound_Explorer_to_Plot == "AUC values for concentration range available for all tested cell lines"){
+                      plot_data <- GDSC2_Results[! is.na(GDSC2_Results$AUC_all_ccl_GDSC2_conc),]
+                      plot_data <- plot_data[order(plot_data$AUC_all_ccl_GDSC2_conc, decreasing = FALSE),]
                       plot_data$Cell_Line <- factor(plot_data$Cell_Line, levels = plot_data$Cell_Line)
-                      ylab <- "IC50 (microMolar)"
+                      ylab <- paste0("AUC (", signif(as.numeric(unique(plot_data$min_all_ccl_GDSC2_conc)), 3), "-", signif(as.numeric(unique(plot_data$max_all_ccl_GDSC2_conc)), 3), " microMolar)")
                       
                       if(input$Compound_Explorer_Highlight_Cell_Lines == TRUE){
                         plot_data$symbol <- ": not selected"
@@ -1793,320 +1810,361 @@
                         unselected_plot_data <- plot_data[plot_data$symbol == ": not selected",]
                         
                         if(nrow(selected_plot_data) > 0){
-                          selected_plot_data$Group <- paste0("selected: ", selected_plot_data$Group)
-                          selected_plot_data$Group <- factor(selected_plot_data$Group, levels = c("selected: IC50 <= max tested concentration", "selected: IC50 > max tested concentration", "selected: Infinite IC50"))
                           fig <- plot_ly(x = selected_plot_data$Cell_Line,
-                                         y = selected_plot_data$IC50,
-                                         color = selected_plot_data$Group,
-                                         type = "scatter",
-                                         mode = "markers",
-                                         colors = colors)
+                                       y = selected_plot_data$AUC_all_ccl_GDSC2_conc,
+                                       type = "scatter",
+                                       color = factor(rep("A", nrow(selected_plot_data))),
+                                       colors = colorRampPalette(c("blue"))(1),
+                                       mode = "markers",
+                                       name = "selected")
                           if(nrow(unselected_plot_data) > 0){
-                            unselected_plot_data$Group <- paste0("unselected: ", unselected_plot_data$Group)
-                            unselected_plot_data$Group <- factor(unselected_plot_data$Group, levels = c("unselected: IC50 <= max tested concentration", "unselected: IC50 > max tested concentration", "unselected: Infinite IC50"))
-                            fig <- add_trace(fig,
-                                             x = unselected_plot_data$Cell_Line,
-                                             y = unselected_plot_data$IC50,
-                                             color = unselected_plot_data$Group,
-                                             opacity = 0.2)
+                            fig <- add_trace(fig, x = unselected_plot_data$Cell_Line,
+                                         y = unselected_plot_data$AUC_all_ccl_GDSC2_conc,
+                                         color = factor(rep("A", nrow(unselected_plot_data))),
+                                         name = "unselected",
+                                         opacity = 0.2)
                           }
                         } else {
-                          unselected_plot_data$Group <- paste0("unselected: ", unselected_plot_data$Group)
-                          unselected_plot_data$Group <- factor(unselected_plot_data$Group, levels = c("unselected: IC50 <= max tested concentration", "unselected: IC50 > max tested concentration", "unselected: Infinite IC50"))
                           fig <- plot_ly(x = unselected_plot_data$Cell_Line,
-                                         y = unselected_plot_data$IC50,
-                                         type = "scatter",
-                                         mode = "markers",
-                                         color = unselected_plot_data$Group,
-                                         colors = colors,
-                                         opacity = 0.2)
+                                       y = unselected_plot_data$AUC_all_ccl_GDSC2_conc,
+                                       type = "scatter",
+                                       color = factor(rep("A", nrow(unselected_plot_data))),
+                                       colors = colorRampPalette(c("blue"))(1),
+                                       opacity = 0.2,
+                                       mode = "markers",
+                                       name = "selected")
                         }
                         
                         fig <- layout(fig,
-                                      title = "GDSC2 IC50s",
+                                      title = "GDSC2 AUCs",
                                       xaxis = list(title = paste0("GDSC2 Cell Lines (n = ", nrow(plot_data), ", ", nrow(selected_plot_data), " selected)"), showticklabels = FALSE),
-                                      yaxis = list(title = ylab, type = "log"))
+                                      yaxis = list(title = ylab))
                         
                       } else {
-                        plot_data$Group <- factor(plot_data$Group, levels = c("IC50 <= max tested concentration", "IC50 > max tested concentration", "Infinite IC50"))
                         fig <- plot_ly(x = plot_data$Cell_Line,
-                                     y = plot_data$IC50,
+                                     y = plot_data$AUC_all_ccl_GDSC2_conc,
+                                     color = factor(rep("A", nrow(plot_data))),
+                                     colors = colorRampPalette(c("blue"))(1),
                                      type = "scatter",
-                                     mode = "markers",
-                                     color = plot_data$Group,
-                                     colors = colors)
+                                     mode = "markers")
                         
                         fig <- layout(fig,
-                                      title = "GDSC2 IC50s",
+                                      title = "GDSC2 AUCs",
                                       xaxis = list(title = paste0("GDSC2 Cell Lines (n = ", nrow(plot_data), ")"), showticklabels = FALSE),
-                                      yaxis = list(title = ylab, type = "log"))
+                                      yaxis = list(title = ylab))
                       }
+                      #Organizing plot_data for download
+                        plot_data <- plot_data[,c("Compound", "Cell_Line", "min_dose_uM", "max_dose_uM", "min_all_ccl_GDSC2_conc", "max_all_ccl_GDSC2_conc", "AUC_all_ccl_GDSC2_conc")]
+                        colnames(plot_data) <- c("Compound_Name", "Cell_Line_Name", "Minimum_Tested_Compound_Concentration_For_This_Cell_Line_in_GDSC2_uM", "Maximum_Tested_Compound_Concentration_For_This_Cell_Line_in_GDSC2_uM", "Minimum_Tested_Compound_Concentration_That_Is_Available_For_All_Cell_Lines_In_GDSC2_uM", "Maximum_Tested_Compound_Concentration_That_Is_Available_For_All_Cell_Lines_In_GDSC2_uM", "Normalized_AUC_For_Tested_Compound_Concentration_Range_That_Is_Available_For_All_Cell_Lines_In_GDSC2")
                       
-                      fig
-                    }
-                  } else if(input$Compound_Explorer_to_Plot == "Tested Cell Line Cancer Types & Genders"){
-                    ccls <- unique(GDSC2_Results$Cell_Line)
-                    if(length(ccls) > 0){
-                      temp_dataset_ccl_data <- Simple_Cell_Line_Harm[Simple_Cell_Line_Harm$Harmonized_Cell_Line_ID %in% ccls,]
-                      temp_dataset_ccl_data$Simple_Cancer_Type[temp_dataset_ccl_data$Simple_Cancer_Type == "unknown"] <- "unknown cancer type"
-                      plot_data <- as.data.frame.table(table(temp_dataset_ccl_data$Simple_Cancer_Type))
-                      plot_data <- plot_data[order(plot_data$Freq, decreasing = TRUE),]
-                      plot_data <- rbind(plot_data[! plot_data$Var1 == "unknown cancer type",], plot_data[plot_data$Var1 == "unknown cancer type",])
-                      
-                      Gender_Unknown <- NA
-                      Gender_Female <- NA
-                      Gender_Male <- NA
-                      for(j in 1:nrow(plot_data)){
-                        Gender_Unknown[j] <- nrow(temp_dataset_ccl_data[temp_dataset_ccl_data$Simple_Cancer_Type %in% plot_data$Var1[j] & temp_dataset_ccl_data$Gender == "Sex unspecified",])
-                        Gender_Female[j] <- nrow(temp_dataset_ccl_data[temp_dataset_ccl_data$Simple_Cancer_Type %in% plot_data$Var1[j] & temp_dataset_ccl_data$Gender == "Female",])
-                        Gender_Male[j] <- nrow(temp_dataset_ccl_data[temp_dataset_ccl_data$Simple_Cancer_Type %in% plot_data$Var1[j] & temp_dataset_ccl_data$Gender == "Male",])
-                      }
-                      
-                      plot_data$Var1 <- factor(plot_data$Var1, levels = plot_data$Var1)
-                      
-                      fig <- plot_ly(x = plot_data$Var1, y = Gender_Unknown, type = "bar", name = "Unknown Gender", marker = list(color = "lightgray")) %>%
-                              add_trace(y = Gender_Male, name = "Male", marker = list(color = rgb(65,105,225, maxColorValue = 255))) %>%
-                              add_trace(y = Gender_Female, name = "Female", marker = list(color = rgb(186,85,211, maxColorValue = 255))) %>%
-                              layout(title = 'GDSC2 Cell Line Cancer Types/Genders', yaxis = list(title = "# of Cell Lines"), xaxis = list(tickangle = 45), barmode = "stack", margin = list(b = 150, l = 50))
-                      fig
-                    }
-                  } else if(input$Compound_Explorer_to_Plot == "Tested Cell Line Ancestries"){
-                    ccls <- unique(GDSC2_Results$Cell_Line)
-                    if(length(ccls) > 0){
-                      temp_dataset_ccl_data <- Simple_Cell_Line_Harm[Simple_Cell_Line_Harm$Harmonized_Cell_Line_ID %in% ccls,]
-                      completeness <- paste0("(data for ", nrow(temp_dataset_ccl_data[! is.na(temp_dataset_ccl_data$African_Ancestry),]), " of ", nrow(temp_dataset_ccl_data), " cell lines)")
-                      temp_dataset_ccl_data <- temp_dataset_ccl_data[! is.na(temp_dataset_ccl_data$African_Ancestry),]
-                      
-                      plot_data <- temp_dataset_ccl_data[,grepl("_Ancestry", colnames(temp_dataset_ccl_data))]*100
-                      rownames(plot_data) <- temp_dataset_ccl_data$Harmonized_Cell_Line_ID
-                      
-                      if(nrow(plot_data) > 2){
-                        plot_data <- plot_data[hclust(dist(plot_data))$order,]
-                      }
-                      colnames(plot_data) <- gsub("_Ancestry", "", colnames(plot_data))
-                      colnames(plot_data) <- gsub("_", " ", colnames(plot_data))
-                      x <- factor(rownames(plot_data), levels = rownames(plot_data))
-                      
+                    } else if(input$Compound_Explorer_to_Plot == "IC50 values"){
+                      plot_data <- GDSC2_Results[! is.na(GDSC2_Results$IC50),]
                       if(nrow(plot_data) > 0){
-                        plot_colors <- c("#6A3D9A", "#33A02C", "#FB9A99", "#E31A1C", "#FDBF6F", "#A6CEE3", "#1F78B4")
-                        fig <- plot_ly(x = x, y = plot_data[,1], name = colnames(plot_data)[1], type = "bar", marker = list(color = plot_colors[1])) %>%
-                          add_trace(y = plot_data[,2], name = colnames(plot_data)[2], marker = list(color = plot_colors[2])) %>%
-                          add_trace(y = plot_data[,3], name = colnames(plot_data)[3], marker = list(color = plot_colors[3])) %>%
-                          add_trace(y = plot_data[,4], name = colnames(plot_data)[4], marker = list(color = plot_colors[4])) %>%
-                          add_trace(y = plot_data[,5], name = colnames(plot_data)[5], marker = list(color = plot_colors[5])) %>%
-                          add_trace(y = plot_data[,6], name = colnames(plot_data)[6], marker = list(color = plot_colors[6])) %>%
-                          add_trace(y = plot_data[,7], name = colnames(plot_data)[7], marker = list(color = plot_colors[7])) %>%
-                          layout(title = 'GDSC2 Ethnicities', barmode = "stack", xaxis = list(title = paste("Tested Cell Lines", completeness), showticklabels = FALSE), yaxis = list(title = "% Ancestry Makeup"), bargap = 0, legend = list(traceorder = "normal"))
-                      } else {
-                        fig <- plot_ly(x = 1, y = 100, name = "No Values", type = "bar", marker = list(color = "white")) %>%
-                        layout(title = 'GDSC2 Cell Line Ethnicities', barmode = "stack", xaxis = list(title = paste("Tested Cell Lines", completeness), showticklabels = FALSE), yaxis = list(title = "% Ancestry Makeup"), bargap = 0, legend = list(traceorder = "normal"))
+                        plot_data <- plot_data[order(plot_data$IC50, decreasing = FALSE),]
+                        plot_data$Group <- "IC50 <= max tested concentration"
+                        plot_data$Group[plot_data$IC50 > plot_data$max_dose_uM] <- "IC50 > max tested concentration"
+                        Inf_IC50_Keys <- plot_data$Key[plot_data$IC50 == Inf]
+                        plot_data$Group[plot_data$IC50 == Inf] <- "Infinite IC50"
+                        if(any(plot_data$IC50 != Inf)){
+                          plot_data$IC50[plot_data$IC50 == Inf] <- max(plot_data$IC50[! plot_data$IC50 == Inf])
+                        } else {
+                          plot_data$IC50[plot_data$IC50 == Inf] <- max(plot_data$max_dose_uM)+1
+                        }
+                        
+                        colors <- setNames(rep(colorRampPalette(c("blue", "red", "lightgray"))(3), 3),
+                                           c("IC50 <= max tested concentration", "IC50 > max tested concentration", "Infinite IC50",
+                                             "selected: IC50 <= max tested concentration", "selected: IC50 > max tested concentration", "selected: Infinite IC50",
+                                             "unselected: IC50 <= max tested concentration", "unselected: IC50 > max tested concentration", "unselected: Infinite IC50"))
+    
+                        plot_data$Cell_Line <- factor(plot_data$Cell_Line, levels = plot_data$Cell_Line)
+                        ylab <- "IC50 (microMolar)"
+                        
+                        if(input$Compound_Explorer_Highlight_Cell_Lines == TRUE){
+                          plot_data$symbol <- ": not selected"
+                          plot_data$symbol[plot_data$Cell_Line %in% input$Compound_Explorer_Cell_Lines] <- ": selected"
+                          selected_plot_data <- plot_data[plot_data$symbol == ": selected",]
+                          unselected_plot_data <- plot_data[plot_data$symbol == ": not selected",]
+                          
+                          if(nrow(selected_plot_data) > 0){
+                            selected_plot_data$Group <- paste0("selected: ", selected_plot_data$Group)
+                            selected_plot_data$Group <- factor(selected_plot_data$Group, levels = c("selected: IC50 <= max tested concentration", "selected: IC50 > max tested concentration", "selected: Infinite IC50"))
+                            fig <- plot_ly(x = selected_plot_data$Cell_Line,
+                                           y = selected_plot_data$IC50,
+                                           color = selected_plot_data$Group,
+                                           type = "scatter",
+                                           mode = "markers",
+                                           colors = colors)
+                            if(nrow(unselected_plot_data) > 0){
+                              unselected_plot_data$Group <- paste0("unselected: ", unselected_plot_data$Group)
+                              unselected_plot_data$Group <- factor(unselected_plot_data$Group, levels = c("unselected: IC50 <= max tested concentration", "unselected: IC50 > max tested concentration", "unselected: Infinite IC50"))
+                              fig <- add_trace(fig,
+                                               x = unselected_plot_data$Cell_Line,
+                                               y = unselected_plot_data$IC50,
+                                               color = unselected_plot_data$Group,
+                                               opacity = 0.2)
+                            }
+                          } else {
+                            unselected_plot_data$Group <- paste0("unselected: ", unselected_plot_data$Group)
+                            unselected_plot_data$Group <- factor(unselected_plot_data$Group, levels = c("unselected: IC50 <= max tested concentration", "unselected: IC50 > max tested concentration", "unselected: Infinite IC50"))
+                            fig <- plot_ly(x = unselected_plot_data$Cell_Line,
+                                           y = unselected_plot_data$IC50,
+                                           type = "scatter",
+                                           mode = "markers",
+                                           color = unselected_plot_data$Group,
+                                           colors = colors,
+                                           opacity = 0.2)
+                          }
+                          
+                          fig <- layout(fig,
+                                        title = "GDSC2 IC50s",
+                                        xaxis = list(title = paste0("GDSC2 Cell Lines (n = ", nrow(plot_data), ", ", nrow(selected_plot_data), " selected)"), showticklabels = FALSE),
+                                        yaxis = list(title = ylab, type = "log"))
+                          
+                        } else {
+                          plot_data$Group <- factor(plot_data$Group, levels = c("IC50 <= max tested concentration", "IC50 > max tested concentration", "Infinite IC50"))
+                          fig <- plot_ly(x = plot_data$Cell_Line,
+                                       y = plot_data$IC50,
+                                       type = "scatter",
+                                       mode = "markers",
+                                       color = plot_data$Group,
+                                       colors = colors)
+                          
+                          fig <- layout(fig,
+                                        title = "GDSC2 IC50s",
+                                        xaxis = list(title = paste0("GDSC2 Cell Lines (n = ", nrow(plot_data), ")"), showticklabels = FALSE),
+                                        yaxis = list(title = ylab, type = "log"))
+                        }
                       }
-                      fig
-                    }
-                  } else if(input$Compound_Explorer_to_Plot == "Tested Cell Line Ages"){
-                    ccls <- unique(GDSC2_Results$Cell_Line)
-                    if(length(ccls) > 0){
-                      temp_dataset_ccl_data <- Simple_Cell_Line_Harm[Simple_Cell_Line_Harm$Harmonized_Cell_Line_ID %in% ccls,]
-                      completeness <- paste0("(data for ", nrow(temp_dataset_ccl_data[! is.na(temp_dataset_ccl_data$Numeric_Age_in_Years),]), " of ", nrow(temp_dataset_ccl_data), " cell lines)")
-                      temp_dataset_ccl_data <- temp_dataset_ccl_data[! is.na(temp_dataset_ccl_data$Numeric_Age_in_Years),]
+                      #Organizing plot_data for download
+                        plot_data <- plot_data[,c("Compound", "Cell_Line", "min_dose_uM", "max_dose_uM", "IC50")]
+                        plot_data$IC50[plot_data$Key %in% Inf_IC50_Keys] <- "Inf"
+                        colnames(plot_data) <- c("Compound_Name", "Cell_Line_Name", "Minimum_Tested_Compound_Concentration_For_This_Cell_Line_in_GDSC2_uM", "Maximum_Tested_Compound_Concentration_For_This_Cell_Line_in_GDSC2_uM", "Estimated_IC50_uM")
                       
-                      if(nrow(temp_dataset_ccl_data) > 1){
-                        p <- ggplot(temp_dataset_ccl_data, aes(x = Numeric_Age_in_Years, y = after_stat(scaled))) +
-                                    geom_density(color = "darkblue", fill = "lightblue") +
-                                    theme_light() +
-                                    labs(x = paste("Patient Age (in Years) when Cell Line was Derived ", completeness), y = "Scaled Density") +
-                                    ggtitle("GDSC2 Ages")
-                      } else if(nrow(temp_dataset_ccl_data) == 1){
-                        p <- ggplot(temp_dataset_ccl_data, aes(x = Numeric_Age_in_Years, y = Harmonized_Cell_Line_ID)) +
-                                    geom_bar(stat="identity") +
-                                    theme_light() +
-                                    labs(x = paste("Patient Age (in Years) when Cell Line was Derived ", completeness), y = "") +
-                                    ggtitle("GDSC2 Ages")
+                    } else if(input$Compound_Explorer_to_Plot == "Tested Cell Line Cancer Types & Genders"){
+                      ccls <- unique(GDSC2_Results$Cell_Line)
+                      if(length(ccls) > 0){
+                        temp_dataset_ccl_data <- Simple_Cell_Line_Harm[Simple_Cell_Line_Harm$Harmonized_Cell_Line_ID %in% ccls,]
+                        temp_dataset_ccl_data$Simple_Cancer_Type[temp_dataset_ccl_data$Simple_Cancer_Type == "unknown"] <- "unknown cancer type"
+                        plot_data <- as.data.frame.table(table(temp_dataset_ccl_data$Simple_Cancer_Type))
+                        plot_data <- plot_data[order(plot_data$Freq, decreasing = TRUE),]
+                        plot_data <- rbind(plot_data[! plot_data$Var1 == "unknown cancer type",], plot_data[plot_data$Var1 == "unknown cancer type",])
+                        
+                        Gender_Unknown <- NA
+                        Gender_Female <- NA
+                        Gender_Male <- NA
+                        for(j in 1:nrow(plot_data)){
+                          Gender_Unknown[j] <- nrow(temp_dataset_ccl_data[temp_dataset_ccl_data$Simple_Cancer_Type %in% plot_data$Var1[j] & temp_dataset_ccl_data$Gender == "Sex unspecified",])
+                          Gender_Female[j] <- nrow(temp_dataset_ccl_data[temp_dataset_ccl_data$Simple_Cancer_Type %in% plot_data$Var1[j] & temp_dataset_ccl_data$Gender == "Female",])
+                          Gender_Male[j] <- nrow(temp_dataset_ccl_data[temp_dataset_ccl_data$Simple_Cancer_Type %in% plot_data$Var1[j] & temp_dataset_ccl_data$Gender == "Male",])
+                        }
+                        
+                        plot_data$Var1 <- factor(plot_data$Var1, levels = plot_data$Var1)
+                        
+                        fig <- plot_ly(x = plot_data$Var1, y = Gender_Unknown, type = "bar", name = "Unknown Gender", marker = list(color = "lightgray")) %>%
+                                add_trace(y = Gender_Male, name = "Male", marker = list(color = rgb(65,105,225, maxColorValue = 255))) %>%
+                                add_trace(y = Gender_Female, name = "Female", marker = list(color = rgb(186,85,211, maxColorValue = 255))) %>%
+                                layout(title = 'GDSC2 Cell Line Cancer Types/Genders', yaxis = list(title = "# of Cell Lines"), xaxis = list(tickangle = 45), barmode = "stack", margin = list(b = 150, l = 50))
+                        #Organizing plot_data for download
+                          temp_dataset_ccl_data$Compound <- GDSC2_Results$Compound[1]
+                          plot_data <- temp_dataset_ccl_data[,c("Compound", "Harmonized_Cell_Line_ID", "Simple_Cancer_Type", "Gender")]
+                          colnames(plot_data) <- c("Compound", "Cell_Line", "Cancer_Type", "Gender")
                       } else {
-                        p <- ggplot(data.frame(x = c(0,100), y = c(0,1)), aes(x = x, y = y)) +
-                                    geom_blank() +
-                                    labs(x = paste("Patient Age (in Years) when Cell Line was Derived ", completeness), y = "Scaled Density") +
-                                    ggtitle("GDSC2 Cell Line Patient Age Distribution")
+                        temp_colnames <- c("Compound", "Cell_Line", "Cancer_Type", "Gender")
+                        plot_data <- as.data.frame(matrix(NA, nrow = 0, ncol = length(temp_colnames)))
+                        colnames(plot_data) <- temp_colnames
                       }
-                  
-                      fig <- ggplotly(p)
-                      fig
+    
+                    } else if(input$Compound_Explorer_to_Plot == "Tested Cell Line Ancestries"){
+                      ccls <- unique(GDSC2_Results$Cell_Line)
+                      if(length(ccls) > 0){
+                        temp_dataset_ccl_data <- Simple_Cell_Line_Harm[Simple_Cell_Line_Harm$Harmonized_Cell_Line_ID %in% ccls,]
+                        completeness <- paste0("(data for ", nrow(temp_dataset_ccl_data[! is.na(temp_dataset_ccl_data$African_Ancestry),]), " of ", nrow(temp_dataset_ccl_data), " cell lines)")
+                        temp_dataset_ccl_data <- temp_dataset_ccl_data[! is.na(temp_dataset_ccl_data$African_Ancestry),]
+                        
+                        plot_data <- temp_dataset_ccl_data[,grepl("_Ancestry", colnames(temp_dataset_ccl_data))]*100
+                        rownames(plot_data) <- temp_dataset_ccl_data$Harmonized_Cell_Line_ID
+                        
+                        if(nrow(plot_data) > 2){
+                          plot_data <- plot_data[hclust(dist(plot_data))$order,]
+                        }
+                        colnames(plot_data) <- gsub("_Ancestry", "", colnames(plot_data))
+                        colnames(plot_data) <- gsub("_", " ", colnames(plot_data))
+                        x <- factor(rownames(plot_data), levels = rownames(plot_data))
+                        
+                        if(nrow(plot_data) > 0){
+                          plot_colors <- c("#6A3D9A", "#33A02C", "#FB9A99", "#E31A1C", "#FDBF6F", "#A6CEE3", "#1F78B4")
+                          fig <- plot_ly(x = x, y = plot_data[,1], name = colnames(plot_data)[1], type = "bar", marker = list(color = plot_colors[1])) %>%
+                            add_trace(y = plot_data[,2], name = colnames(plot_data)[2], marker = list(color = plot_colors[2])) %>%
+                            add_trace(y = plot_data[,3], name = colnames(plot_data)[3], marker = list(color = plot_colors[3])) %>%
+                            add_trace(y = plot_data[,4], name = colnames(plot_data)[4], marker = list(color = plot_colors[4])) %>%
+                            add_trace(y = plot_data[,5], name = colnames(plot_data)[5], marker = list(color = plot_colors[5])) %>%
+                            add_trace(y = plot_data[,6], name = colnames(plot_data)[6], marker = list(color = plot_colors[6])) %>%
+                            add_trace(y = plot_data[,7], name = colnames(plot_data)[7], marker = list(color = plot_colors[7])) %>%
+                            layout(title = 'GDSC2 Ethnicities', barmode = "stack", xaxis = list(title = paste("Tested Cell Lines", completeness), showticklabels = FALSE), yaxis = list(title = "% Ancestry Makeup"), bargap = 0, legend = list(traceorder = "normal"))
+                        } else {
+                          fig <- plot_ly(x = 1, y = 100, name = "No Values", type = "bar", marker = list(color = "white")) %>%
+                          layout(title = 'GDSC2 Cell Line Ethnicities', barmode = "stack", xaxis = list(title = paste("Tested Cell Lines", completeness), showticklabels = FALSE), yaxis = list(title = "% Ancestry Makeup"), bargap = 0, legend = list(traceorder = "normal"))
+                        }
+                        #Organizing plot_data for download
+                          plot_data$Cell_Line <- rownames(plot_data)
+                          plot_data$Compound <- GDSC2_Results$Compound[1]
+                          plot_data <- plot_data[,c("Compound", "Cell_Line", "African", "Native American", "East Asian (North)", "East Asian (South)", "South Asian", "European (North)", "European (South)")]
+                          colnames(plot_data) <- c("Compound", "Cell_Line", "African_Ancestry_Percentage", "Native_American_Ancestry_Percentage", "East_Asian_(North)_Ancestry_Percentage", "East_Asian_(South)_Ancestry_Percentage", "South_Asian_Ancestry_Percentage", "European_(North)_Ancestry_Percentage", "European_(South)_Ancestry_Percentage")
+                      } else {
+                        temp_colnames <- c("Compound", "Cell_Line", "African_Ancestry_Percentage", "Native_American_Ancestry_Percentage", "East_Asian_(North)_Ancestry_Percentage", "East_Asian_(South)_Ancestry_Percentage", "South_Asian_Ancestry_Percentage", "European_(North)_Ancestry_Percentage", "European_(South)_Ancestry_Percentage")
+                        plot_data <- as.data.frame(matrix(NA, nrow = 0, ncol = length(temp_colnames)))
+                        colnames(plot_data) <- temp_colnames
+                      }
+                      
+                    } else if(input$Compound_Explorer_to_Plot == "Tested Cell Line Ages"){
+                      ccls <- unique(GDSC2_Results$Cell_Line)
+                      if(length(ccls) > 0){
+                        temp_dataset_ccl_data <- Simple_Cell_Line_Harm[Simple_Cell_Line_Harm$Harmonized_Cell_Line_ID %in% ccls,]
+                        temp_to_download <- temp_dataset_ccl_data
+                        completeness <- paste0("(data for ", nrow(temp_dataset_ccl_data[! is.na(temp_dataset_ccl_data$Numeric_Age_in_Years),]), " of ", nrow(temp_dataset_ccl_data), " cell lines)")
+                        temp_dataset_ccl_data <- temp_dataset_ccl_data[! is.na(temp_dataset_ccl_data$Numeric_Age_in_Years),]
+                        
+                        if(nrow(temp_dataset_ccl_data) > 1){
+                          p <- ggplot(temp_dataset_ccl_data, aes(x = Numeric_Age_in_Years, y = after_stat(scaled))) +
+                                      geom_density(color = "darkblue", fill = "lightblue") +
+                                      theme_light() +
+                                      labs(x = paste("Patient Age (in Years) when Cell Line was Derived ", completeness), y = "Scaled Density") +
+                                      ggtitle("GDSC2 Ages")
+                        } else if(nrow(temp_dataset_ccl_data) == 1){
+                          p <- ggplot(temp_dataset_ccl_data, aes(x = Numeric_Age_in_Years, y = Harmonized_Cell_Line_ID)) +
+                                      geom_bar(stat="identity") +
+                                      theme_light() +
+                                      labs(x = paste("Patient Age (in Years) when Cell Line was Derived ", completeness), y = "") +
+                                      ggtitle("GDSC2 Ages")
+                        } else {
+                          p <- ggplot(data.frame(x = c(0,100), y = c(0,1)), aes(x = x, y = y)) +
+                                      geom_blank() +
+                                      labs(x = paste("Patient Age (in Years) when Cell Line was Derived ", completeness), y = "Scaled Density") +
+                                      ggtitle("GDSC2 Cell Line Patient Age Distribution")
+                        }
+                        
+                        fig <- ggplotly(p)
+                        
+                        #Organizing plot_data for download
+                          temp_to_download$Compound <- GDSC2_Results$Compound[1]
+                          plot_data <- temp_to_download[,c("Compound", "Harmonized_Cell_Line_ID", "Age", "Numeric_Age_in_Years")]
+                          colnames(plot_data) <- c("Compound", "Cell_Line", "Age", "Numeric_Age_in_Years")
+                      } else {
+                        temp_colnames <- c("Compound", "Cell_Line", "Age", "Numeric_Age_in_Years")
+                        plot_data <- as.data.frame(matrix(NA, nrow = 0, ncol = length(temp_colnames)))
+                        colnames(plot_data) <- temp_colnames
+                      }
                     }
                   }
-                }
-            })
-  
-            output$Compound_Explorer_PRISM_Repurposing_Plot <- renderPlotly({
-              #Loading raw data for this compound and any datasets with data for this compound
-                if("PRISM_Repurposing" %in% Compound_Explorer_Datasets_with_Compound_Data()){
-                  PRISM_Repurposing_Results <- cpdexp_data()$PRISM_Repurposing
-                  PRISM_Repurposing_Results <- PRISM_Repurposing_Results[! is.na(PRISM_Repurposing_Results$b_c_d_e) & PRISM_Repurposing_Results$Cell_Line %in% cpdexplr_ccl_availability_data()$PRISM_Repurposing,]
-                } else {
-                  PRISM_Repurposing_Results <- data.frame(NULL)
-                }
-              #Making compound explorer PRISM_Repurposing plot
-                if(nrow(PRISM_Repurposing_Results) > 0){
-                  if(input$Compound_Explorer_to_Plot == "AUC values for most commonly used concentration range"){
-                    plot_data <- PRISM_Repurposing_Results[! is.na(PRISM_Repurposing_Results$AUC_mode_ccl_PRISM_Repurposing_conc),]
-                    plot_data <- plot_data[order(plot_data$AUC_mode_ccl_PRISM_Repurposing_conc, decreasing = FALSE),]
-                    plot_data$Cell_Line <- factor(plot_data$Cell_Line, levels = plot_data$Cell_Line)
-                    plot_data$Concentration_Range_Exceeds_Max_Tested_Concentration <- "Max Tested Concentration Within AUC Range"
-                    plot_data$Concentration_Range_Exceeds_Max_Tested_Concentration[plot_data$max_dose_uM < plot_data$max_mode_ccl_PRISM_Repurposing_conc] <- "Max Tested Concentration < AUC Range"
-                    plot_data$Concentration_Range_Exceeds_Max_Tested_Concentration <- factor(plot_data$Concentration_Range_Exceeds_Max_Tested_Concentration, levels = c("Max Tested Concentration Within AUC Range", "Max Tested Concentration < AUC Range"))
-                    ylab <- paste0("AUC (", signif(as.numeric(unique(plot_data$min_mode_ccl_PRISM_Repurposing_conc)), 3), "-", signif(as.numeric(unique(plot_data$max_mode_ccl_PRISM_Repurposing_conc)), 3), " microMolar)")
-                    
-                    colors <- setNames(rep(colorRampPalette(c("blue", "red"))(2), 3),
-                                       c("Max Tested Concentration Within AUC Range", "Max Tested Concentration < AUC Range",
-                                         "selected: Max Tested Concentration Within AUC Range", "selected: Max Tested Concentration < AUC Range",
-                                         "unselected: Max Tested Concentration Within AUC Range", "unselected: Max Tested Concentration < AUC Range"))
-                    
-                    if(all(plot_data$Concentration_Range_Exceeds_Max_Tested_Concentration %in% "Max Tested Concentration Within AUC Range")){
-                      colors <- colorRampPalette(c("blue"))(1)
-                    } else if(all(plot_data$Concentration_Range_Exceeds_Max_Tested_Concentration %in% "Max Tested Concentration < AUC Range")){
-                      colors <- colorRampPalette(c("red"))(1)
-                    } else {
-                      colors <- colorRampPalette(c("blue", "red"))(2)
+                #Allowing users to download data
+                  output$Compound_Explorer_Download_GDSC2_Data <- downloadHandler(
+                    filename = "GDSC2_Plot_Data.xlsx",
+                    content = function(file){
+                      write.xlsx(plot_data, file, row.names = FALSE)
                     }
-
-                    if(input$Compound_Explorer_Highlight_Cell_Lines == TRUE){
-                      plot_data$symbol <- ": not selected"
-                      plot_data$symbol[plot_data$Cell_Line %in% input$Compound_Explorer_Cell_Lines] <- ": selected"
-                      selected_plot_data <- plot_data[plot_data$symbol == ": selected",]
-                      unselected_plot_data <- plot_data[plot_data$symbol == ": not selected",]
+                  )
+                #Returning Figure
+                  fig
+              })
+  
+            #Creating Plot for PRISM_Repurposing
+              output$Compound_Explorer_PRISM_Repurposing_Plot <- renderPlotly({
+                #Loading raw data for this compound and any datasets with data for this compound
+                  if("PRISM_Repurposing" %in% Compound_Explorer_Datasets_with_Compound_Data()){
+                    PRISM_Repurposing_Results <- cpdexp_data()$PRISM_Repurposing
+                    PRISM_Repurposing_Results <- PRISM_Repurposing_Results[! is.na(PRISM_Repurposing_Results$b_c_d_e) & PRISM_Repurposing_Results$Cell_Line %in% cpdexplr_ccl_availability_data()$PRISM_Repurposing,]
+                  } else {
+                    PRISM_Repurposing_Results <- data.frame(NULL)
+                  }
+                #Making compound explorer PRISM_Repurposing plot
+                  if(nrow(PRISM_Repurposing_Results) > 0){
+                    if(input$Compound_Explorer_to_Plot == "AUC values for most commonly used concentration range"){
+                      plot_data <- PRISM_Repurposing_Results[! is.na(PRISM_Repurposing_Results$AUC_mode_ccl_PRISM_Repurposing_conc),]
+                      plot_data <- plot_data[order(plot_data$AUC_mode_ccl_PRISM_Repurposing_conc, decreasing = FALSE),]
+                      plot_data$Cell_Line <- factor(plot_data$Cell_Line, levels = plot_data$Cell_Line)
+                      plot_data$Concentration_Range_Exceeds_Max_Tested_Concentration <- "Max Tested Concentration Within AUC Range"
+                      plot_data$Concentration_Range_Exceeds_Max_Tested_Concentration[plot_data$max_dose_uM < plot_data$max_mode_ccl_PRISM_Repurposing_conc] <- "Max Tested Concentration < AUC Range"
+                      plot_data$Concentration_Range_Exceeds_Max_Tested_Concentration <- factor(plot_data$Concentration_Range_Exceeds_Max_Tested_Concentration, levels = c("Max Tested Concentration Within AUC Range", "Max Tested Concentration < AUC Range"))
+                      ylab <- paste0("AUC (", signif(as.numeric(unique(plot_data$min_mode_ccl_PRISM_Repurposing_conc)), 3), "-", signif(as.numeric(unique(plot_data$max_mode_ccl_PRISM_Repurposing_conc)), 3), " microMolar)")
                       
-                      if(nrow(selected_plot_data) > 0){
-                        selected_plot_data$Concentration_Range_Exceeds_Max_Tested_Concentration <- "selected: Max Tested Concentration Within AUC Range"
-                        selected_plot_data$Concentration_Range_Exceeds_Max_Tested_Concentration[selected_plot_data$max_dose_uM < selected_plot_data$max_mode_ccl_PRISM_Repurposing_conc] <- "selected: Max Tested Concentration < AUC Range"
-                        selected_plot_data$Concentration_Range_Exceeds_Max_Tested_Concentration <- factor(selected_plot_data$Concentration_Range_Exceeds_Max_Tested_Concentration, levels = c("selected: Max Tested Concentration Within AUC Range", "selected: Max Tested Concentration < AUC Range"))
-                        fig <- plot_ly(x = selected_plot_data$Cell_Line,
-                                   y = selected_plot_data$AUC_mode_ccl_PRISM_Repurposing_conc,
-                                   color = selected_plot_data$Concentration_Range_Exceeds_Max_Tested_Concentration,
-                                   colors = colors,
-                                   type = "scatter",
-                                   mode = "markers")
-                        if(nrow(unselected_plot_data) > 0){
+                      colors <- setNames(rep(colorRampPalette(c("blue", "red"))(2), 3),
+                                         c("Max Tested Concentration Within AUC Range", "Max Tested Concentration < AUC Range",
+                                           "selected: Max Tested Concentration Within AUC Range", "selected: Max Tested Concentration < AUC Range",
+                                           "unselected: Max Tested Concentration Within AUC Range", "unselected: Max Tested Concentration < AUC Range"))
+                      
+                      if(all(plot_data$Concentration_Range_Exceeds_Max_Tested_Concentration %in% "Max Tested Concentration Within AUC Range")){
+                        colors <- colorRampPalette(c("blue"))(1)
+                      } else if(all(plot_data$Concentration_Range_Exceeds_Max_Tested_Concentration %in% "Max Tested Concentration < AUC Range")){
+                        colors <- colorRampPalette(c("red"))(1)
+                      } else {
+                        colors <- colorRampPalette(c("blue", "red"))(2)
+                      }
+    
+                      if(input$Compound_Explorer_Highlight_Cell_Lines == TRUE){
+                        plot_data$symbol <- ": not selected"
+                        plot_data$symbol[plot_data$Cell_Line %in% input$Compound_Explorer_Cell_Lines] <- ": selected"
+                        selected_plot_data <- plot_data[plot_data$symbol == ": selected",]
+                        unselected_plot_data <- plot_data[plot_data$symbol == ": not selected",]
+                        
+                        if(nrow(selected_plot_data) > 0){
+                          selected_plot_data$Concentration_Range_Exceeds_Max_Tested_Concentration <- "selected: Max Tested Concentration Within AUC Range"
+                          selected_plot_data$Concentration_Range_Exceeds_Max_Tested_Concentration[selected_plot_data$max_dose_uM < selected_plot_data$max_mode_ccl_PRISM_Repurposing_conc] <- "selected: Max Tested Concentration < AUC Range"
+                          selected_plot_data$Concentration_Range_Exceeds_Max_Tested_Concentration <- factor(selected_plot_data$Concentration_Range_Exceeds_Max_Tested_Concentration, levels = c("selected: Max Tested Concentration Within AUC Range", "selected: Max Tested Concentration < AUC Range"))
+                          fig <- plot_ly(x = selected_plot_data$Cell_Line,
+                                     y = selected_plot_data$AUC_mode_ccl_PRISM_Repurposing_conc,
+                                     color = selected_plot_data$Concentration_Range_Exceeds_Max_Tested_Concentration,
+                                     colors = colors,
+                                     type = "scatter",
+                                     mode = "markers")
+                          if(nrow(unselected_plot_data) > 0){
+                            unselected_plot_data$Concentration_Range_Exceeds_Max_Tested_Concentration <- "unselected: Max Tested Concentration Within AUC Range"
+                            unselected_plot_data$Concentration_Range_Exceeds_Max_Tested_Concentration[unselected_plot_data$max_dose_uM < unselected_plot_data$max_mode_ccl_PRISM_Repurposing_conc] <- "unselected: Max Tested Concentration < AUC Range"
+                            unselected_plot_data$Concentration_Range_Exceeds_Max_Tested_Concentration <- factor(unselected_plot_data$Concentration_Range_Exceeds_Max_Tested_Concentration, levels = c("unselected: Max Tested Concentration Within AUC Range", "unselected: Max Tested Concentration < AUC Range"))
+                            fig <- add_trace(fig, 
+                                      x = unselected_plot_data$Cell_Line,
+                                      y = unselected_plot_data$AUC_mode_ccl_PRISM_Repurposing_conc,
+                                      color = unselected_plot_data$Concentration_Range_Exceeds_Max_Tested_Concentration,
+                                      opacity = 0.2)
+                          }
+                        } else if(nrow(unselected_plot_data) > 0){
                           unselected_plot_data$Concentration_Range_Exceeds_Max_Tested_Concentration <- "unselected: Max Tested Concentration Within AUC Range"
                           unselected_plot_data$Concentration_Range_Exceeds_Max_Tested_Concentration[unselected_plot_data$max_dose_uM < unselected_plot_data$max_mode_ccl_PRISM_Repurposing_conc] <- "unselected: Max Tested Concentration < AUC Range"
                           unselected_plot_data$Concentration_Range_Exceeds_Max_Tested_Concentration <- factor(unselected_plot_data$Concentration_Range_Exceeds_Max_Tested_Concentration, levels = c("unselected: Max Tested Concentration Within AUC Range", "unselected: Max Tested Concentration < AUC Range"))
-                          fig <- add_trace(fig, 
-                                    x = unselected_plot_data$Cell_Line,
-                                    y = unselected_plot_data$AUC_mode_ccl_PRISM_Repurposing_conc,
-                                    color = unselected_plot_data$Concentration_Range_Exceeds_Max_Tested_Concentration,
-                                    opacity = 0.2)
-                        }
-                      } else if(nrow(unselected_plot_data) > 0){
-                        unselected_plot_data$Concentration_Range_Exceeds_Max_Tested_Concentration <- "unselected: Max Tested Concentration Within AUC Range"
-                        unselected_plot_data$Concentration_Range_Exceeds_Max_Tested_Concentration[unselected_plot_data$max_dose_uM < unselected_plot_data$max_mode_ccl_PRISM_Repurposing_conc] <- "unselected: Max Tested Concentration < AUC Range"
-                        unselected_plot_data$Concentration_Range_Exceeds_Max_Tested_Concentration <- factor(unselected_plot_data$Concentration_Range_Exceeds_Max_Tested_Concentration, levels = c("unselected: Max Tested Concentration Within AUC Range", "unselected: Max Tested Concentration < AUC Range"))
-                        fig <- plot_ly(x = unselected_plot_data$Cell_Line,
-                                   y = unselected_plot_data$AUC_mode_ccl_PRISM_Repurposing_conc,
-                                   color = unselected_plot_data$Concentration_Range_Exceeds_Max_Tested_Concentration,
-                                   colors = colors,
-                                   opacity = 0.2,
-                                   type = "scatter",
-                                   mode = "markers")
-                      }
-                        
-                      fig <- layout(fig,
-                                    title = "PRISM_Repurposing AUCs",
-                                    xaxis = list(title = paste0("PRISM_Repurposing Cell Lines (n = ", nrow(plot_data), "; ", nrow(selected_plot_data), " selected)"), showticklabels = FALSE),
-                                    yaxis = list(title = ylab))
-                    } else {
-
-                      fig <- plot_ly(x = plot_data$Cell_Line,
-                                   y = plot_data$AUC_mode_ccl_PRISM_Repurposing_conc,
-                                   color = plot_data$Concentration_Range_Exceeds_Max_Tested_Concentration,
-                                   colors = colors,
-                                   type = "scatter",
-                                   mode = "markers")
-                      fig <- layout(fig,
-                                    title = "PRISM_Repurposing AUCs",
-                                    xaxis = list(title = paste0("PRISM_Repurposing Cell Lines (n = ", nrow(plot_data), ")"), showticklabels = FALSE),
-                                    yaxis = list(title = ylab))
-                    }
-
-                    fig
-                    
-                  } else if(input$Compound_Explorer_to_Plot == "AUC values for concentration range available for all tested cell lines"){
-                    plot_data <- PRISM_Repurposing_Results[! is.na(PRISM_Repurposing_Results$AUC_all_ccl_PRISM_Repurposing_conc),]
-                    plot_data <- plot_data[order(plot_data$AUC_all_ccl_PRISM_Repurposing_conc, decreasing = FALSE),]
-                    plot_data$Cell_Line <- factor(plot_data$Cell_Line, levels = plot_data$Cell_Line)
-                    ylab <- paste0("AUC (", signif(as.numeric(unique(plot_data$min_all_ccl_PRISM_Repurposing_conc)), 3), "-", signif(as.numeric(unique(plot_data$max_all_ccl_PRISM_Repurposing_conc)), 3), " microMolar)")
-                    
-                    if(input$Compound_Explorer_Highlight_Cell_Lines == TRUE){
-                      plot_data$symbol <- ": not selected"
-                      plot_data$symbol[plot_data$Cell_Line %in% input$Compound_Explorer_Cell_Lines] <- ": selected"
-                      selected_plot_data <- plot_data[plot_data$symbol == ": selected",]
-                      unselected_plot_data <- plot_data[plot_data$symbol == ": not selected",]
-                      
-                      if(nrow(selected_plot_data) > 0){
-                        fig <- plot_ly(x = selected_plot_data$Cell_Line,
-                                     y = selected_plot_data$AUC_all_ccl_PRISM_Repurposing_conc,
-                                     type = "scatter",
-                                     color = factor(rep("A", nrow(selected_plot_data))),
-                                     colors = colorRampPalette(c("blue"))(1),
-                                     mode = "markers",
-                                     name = "selected")
-                        if(nrow(unselected_plot_data) > 0){
-                          fig <- add_trace(fig, x = unselected_plot_data$Cell_Line,
-                                       y = unselected_plot_data$AUC_all_ccl_PRISM_Repurposing_conc,
-                                       color = factor(rep("A", nrow(unselected_plot_data))),
-                                       name = "unselected",
-                                       opacity = 0.2)
-                        }
-                      } else {
-                        fig <- plot_ly(x = unselected_plot_data$Cell_Line,
-                                     y = unselected_plot_data$AUC_all_ccl_PRISM_Repurposing_conc,
-                                     type = "scatter",
-                                     color = factor(rep("A", nrow(unselected_plot_data))),
-                                     colors = colorRampPalette(c("blue"))(1),
+                          fig <- plot_ly(x = unselected_plot_data$Cell_Line,
+                                     y = unselected_plot_data$AUC_mode_ccl_PRISM_Repurposing_conc,
+                                     color = unselected_plot_data$Concentration_Range_Exceeds_Max_Tested_Concentration,
+                                     colors = colors,
                                      opacity = 0.2,
-                                     mode = "markers",
-                                     name = "selected")
-                      }
-                      
-                      fig <- layout(fig,
-                                    title = "PRISM_Repurposing AUCs",
-                                    xaxis = list(title = paste0("PRISM_Repurposing Cell Lines (n = ", nrow(plot_data), ", ", nrow(selected_plot_data), " selected)"), showticklabels = FALSE),
-                                    yaxis = list(title = ylab))
-                      
-                    } else {
-                      fig <- plot_ly(x = plot_data$Cell_Line,
-                                   y = plot_data$AUC_all_ccl_PRISM_Repurposing_conc,
-                                   color = factor(rep("A", nrow(plot_data))),
-                                   colors = colorRampPalette(c("blue"))(1),
-                                   type = "scatter",
-                                   mode = "markers")
-                      
-                      fig <- layout(fig,
-                                    title = "PRISM_Repurposing AUCs",
-                                    xaxis = list(title = paste0("PRISM_Repurposing Cell Lines (n = ", nrow(plot_data), ")"), showticklabels = FALSE),
-                                    yaxis = list(title = ylab))
-                    }
-                    
-                    
-                    fig
-                    
-                  } else if(input$Compound_Explorer_to_Plot == "IC50 values"){
-                    plot_data <- PRISM_Repurposing_Results[! is.na(PRISM_Repurposing_Results$IC50),]
-                    if(nrow(plot_data) > 0){
-                      plot_data <- plot_data[order(plot_data$IC50, decreasing = FALSE),]
-                      plot_data$Group <- "IC50 <= max tested concentration"
-                      plot_data$Group[plot_data$IC50 > plot_data$max_dose_uM] <- "IC50 > max tested concentration"
-                      plot_data$Group[plot_data$IC50 == Inf] <- "Infinite IC50"
-                      if(any(plot_data$IC50 != Inf)){
-                        plot_data$IC50[plot_data$IC50 == Inf] <- max(plot_data$IC50[! plot_data$IC50 == Inf])
+                                     type = "scatter",
+                                     mode = "markers")
+                        }
+                          
+                        fig <- layout(fig,
+                                      title = "PRISM_Repurposing AUCs",
+                                      xaxis = list(title = paste0("PRISM_Repurposing Cell Lines (n = ", nrow(plot_data), "; ", nrow(selected_plot_data), " selected)"), showticklabels = FALSE),
+                                      yaxis = list(title = ylab))
                       } else {
-                        plot_data$IC50[plot_data$IC50 == Inf] <- max(plot_data$max_dose_uM)+1
+    
+                        fig <- plot_ly(x = plot_data$Cell_Line,
+                                     y = plot_data$AUC_mode_ccl_PRISM_Repurposing_conc,
+                                     color = plot_data$Concentration_Range_Exceeds_Max_Tested_Concentration,
+                                     colors = colors,
+                                     type = "scatter",
+                                     mode = "markers")
+                        fig <- layout(fig,
+                                      title = "PRISM_Repurposing AUCs",
+                                      xaxis = list(title = paste0("PRISM_Repurposing Cell Lines (n = ", nrow(plot_data), ")"), showticklabels = FALSE),
+                                      yaxis = list(title = ylab))
                       }
+                      #Organizing plot_data for download
+                        plot_data <- plot_data[,c("Compound", "Cell_Line", "min_dose_uM", "max_dose_uM", "min_mode_ccl_PRISM_Repurposing_conc", "max_mode_ccl_PRISM_Repurposing_conc", "AUC_mode_ccl_PRISM_Repurposing_conc")]
+                        colnames(plot_data) <- c("Compound_Name", "Cell_Line_Name", "Minimum_Tested_Compound_Concentration_For_This_Cell_Line_in_PRISM_Repurposing_uM", "Maximum_Tested_Compound_Concentration_For_This_Cell_Line_in_PRISM_Repurposing_uM", "Most_Commonly_Tested_Minimum_Compound_Concentration_In_PRISM_Repurposing_uM", "Most_Commonly_Tested_Maximum_Compound_Concentration_In_PRISM_Repurposing_uM", "Normalized_AUC_For_Most_Commonly_Tested_Compound_Concentration_Range_In_PRISM_Repurposing")
                       
-                      colors <- setNames(rep(colorRampPalette(c("blue", "red", "lightgray"))(3), 3),
-                                         c("IC50 <= max tested concentration", "IC50 > max tested concentration", "Infinite IC50",
-                                           "selected: IC50 <= max tested concentration", "selected: IC50 > max tested concentration", "selected: Infinite IC50",
-                                           "unselected: IC50 <= max tested concentration", "unselected: IC50 > max tested concentration", "unselected: Infinite IC50"))
-
+                    } else if(input$Compound_Explorer_to_Plot == "AUC values for concentration range available for all tested cell lines"){
+                      plot_data <- PRISM_Repurposing_Results[! is.na(PRISM_Repurposing_Results$AUC_all_ccl_PRISM_Repurposing_conc),]
+                      plot_data <- plot_data[order(plot_data$AUC_all_ccl_PRISM_Repurposing_conc, decreasing = FALSE),]
                       plot_data$Cell_Line <- factor(plot_data$Cell_Line, levels = plot_data$Cell_Line)
-                      ylab <- "IC50 (microMolar)"
+                      ylab <- paste0("AUC (", signif(as.numeric(unique(plot_data$min_all_ccl_PRISM_Repurposing_conc)), 3), "-", signif(as.numeric(unique(plot_data$max_all_ccl_PRISM_Repurposing_conc)), 3), " microMolar)")
                       
                       if(input$Compound_Explorer_Highlight_Cell_Lines == TRUE){
                         plot_data$symbol <- ": not selected"
@@ -2115,148 +2173,262 @@
                         unselected_plot_data <- plot_data[plot_data$symbol == ": not selected",]
                         
                         if(nrow(selected_plot_data) > 0){
-                          selected_plot_data$Group <- paste0("selected: ", selected_plot_data$Group)
-                          selected_plot_data$Group <- factor(selected_plot_data$Group, levels = c("selected: IC50 <= max tested concentration", "selected: IC50 > max tested concentration", "selected: Infinite IC50"))
                           fig <- plot_ly(x = selected_plot_data$Cell_Line,
-                                         y = selected_plot_data$IC50,
-                                         color = selected_plot_data$Group,
-                                         type = "scatter",
-                                         mode = "markers",
-                                         colors = colors)
+                                       y = selected_plot_data$AUC_all_ccl_PRISM_Repurposing_conc,
+                                       type = "scatter",
+                                       color = factor(rep("A", nrow(selected_plot_data))),
+                                       colors = colorRampPalette(c("blue"))(1),
+                                       mode = "markers",
+                                       name = "selected")
                           if(nrow(unselected_plot_data) > 0){
-                            unselected_plot_data$Group <- paste0("unselected: ", unselected_plot_data$Group)
-                            unselected_plot_data$Group <- factor(unselected_plot_data$Group, levels = c("unselected: IC50 <= max tested concentration", "unselected: IC50 > max tested concentration", "unselected: Infinite IC50"))
-                            fig <- add_trace(fig,
-                                             x = unselected_plot_data$Cell_Line,
-                                             y = unselected_plot_data$IC50,
-                                             color = unselected_plot_data$Group,
-                                             opacity = 0.2)
+                            fig <- add_trace(fig, x = unselected_plot_data$Cell_Line,
+                                         y = unselected_plot_data$AUC_all_ccl_PRISM_Repurposing_conc,
+                                         color = factor(rep("A", nrow(unselected_plot_data))),
+                                         name = "unselected",
+                                         opacity = 0.2)
                           }
                         } else {
-                          unselected_plot_data$Group <- paste0("unselected: ", unselected_plot_data$Group)
-                          unselected_plot_data$Group <- factor(unselected_plot_data$Group, levels = c("unselected: IC50 <= max tested concentration", "unselected: IC50 > max tested concentration", "unselected: Infinite IC50"))
                           fig <- plot_ly(x = unselected_plot_data$Cell_Line,
-                                         y = unselected_plot_data$IC50,
-                                         type = "scatter",
-                                         mode = "markers",
-                                         color = unselected_plot_data$Group,
-                                         colors = colors,
-                                         opacity = 0.2)
+                                       y = unselected_plot_data$AUC_all_ccl_PRISM_Repurposing_conc,
+                                       type = "scatter",
+                                       color = factor(rep("A", nrow(unselected_plot_data))),
+                                       colors = colorRampPalette(c("blue"))(1),
+                                       opacity = 0.2,
+                                       mode = "markers",
+                                       name = "selected")
                         }
                         
                         fig <- layout(fig,
-                                      title = "PRISM_Repurposing IC50s",
+                                      title = "PRISM_Repurposing AUCs",
                                       xaxis = list(title = paste0("PRISM_Repurposing Cell Lines (n = ", nrow(plot_data), ", ", nrow(selected_plot_data), " selected)"), showticklabels = FALSE),
-                                      yaxis = list(title = ylab, type = "log"))
+                                      yaxis = list(title = ylab))
                         
                       } else {
-                        plot_data$Group <- factor(plot_data$Group, levels = c("IC50 <= max tested concentration", "IC50 > max tested concentration", "Infinite IC50"))
                         fig <- plot_ly(x = plot_data$Cell_Line,
-                                     y = plot_data$IC50,
+                                     y = plot_data$AUC_all_ccl_PRISM_Repurposing_conc,
+                                     color = factor(rep("A", nrow(plot_data))),
+                                     colors = colorRampPalette(c("blue"))(1),
                                      type = "scatter",
-                                     mode = "markers",
-                                     color = plot_data$Group,
-                                     colors = colors)
+                                     mode = "markers")
                         
                         fig <- layout(fig,
-                                      title = "PRISM_Repurposing IC50s",
+                                      title = "PRISM_Repurposing AUCs",
                                       xaxis = list(title = paste0("PRISM_Repurposing Cell Lines (n = ", nrow(plot_data), ")"), showticklabels = FALSE),
-                                      yaxis = list(title = ylab, type = "log"))
+                                      yaxis = list(title = ylab))
                       }
+                      #Organizing plot_data for download
+                        plot_data <- plot_data[,c("Compound", "Cell_Line", "min_dose_uM", "max_dose_uM", "min_all_ccl_PRISM_Repurposing_conc", "max_all_ccl_PRISM_Repurposing_conc", "AUC_all_ccl_PRISM_Repurposing_conc")]
+                        colnames(plot_data) <- c("Compound_Name", "Cell_Line_Name", "Minimum_Tested_Compound_Concentration_For_This_Cell_Line_in_PRISM_Repurposing_uM", "Maximum_Tested_Compound_Concentration_For_This_Cell_Line_in_PRISM_Repurposing_uM", "Minimum_Tested_Compound_Concentration_That_Is_Available_For_All_Cell_Lines_In_PRISM_Repurposing_uM", "Maximum_Tested_Compound_Concentration_That_Is_Available_For_All_Cell_Lines_In_PRISM_Repurposing_uM", "Normalized_AUC_For_Tested_Compound_Concentration_Range_That_Is_Available_For_All_Cell_Lines_In_PRISM_Repurposing")
                       
-                      fig
-                    }
-                  } else if(input$Compound_Explorer_to_Plot == "Tested Cell Line Cancer Types & Genders"){
-                    ccls <- unique(PRISM_Repurposing_Results$Cell_Line)
-                    if(length(ccls) > 0){
-                      temp_dataset_ccl_data <- Simple_Cell_Line_Harm[Simple_Cell_Line_Harm$Harmonized_Cell_Line_ID %in% ccls,]
-                      temp_dataset_ccl_data$Simple_Cancer_Type[temp_dataset_ccl_data$Simple_Cancer_Type == "unknown"] <- "unknown cancer type"
-                      plot_data <- as.data.frame.table(table(temp_dataset_ccl_data$Simple_Cancer_Type))
-                      plot_data <- plot_data[order(plot_data$Freq, decreasing = TRUE),]
-                      plot_data <- rbind(plot_data[! plot_data$Var1 == "unknown cancer type",], plot_data[plot_data$Var1 == "unknown cancer type",])
-                      
-                      Gender_Unknown <- NA
-                      Gender_Female <- NA
-                      Gender_Male <- NA
-                      for(j in 1:nrow(plot_data)){
-                        Gender_Unknown[j] <- nrow(temp_dataset_ccl_data[temp_dataset_ccl_data$Simple_Cancer_Type %in% plot_data$Var1[j] & temp_dataset_ccl_data$Gender == "Sex unspecified",])
-                        Gender_Female[j] <- nrow(temp_dataset_ccl_data[temp_dataset_ccl_data$Simple_Cancer_Type %in% plot_data$Var1[j] & temp_dataset_ccl_data$Gender == "Female",])
-                        Gender_Male[j] <- nrow(temp_dataset_ccl_data[temp_dataset_ccl_data$Simple_Cancer_Type %in% plot_data$Var1[j] & temp_dataset_ccl_data$Gender == "Male",])
-                      }
-                      
-                      plot_data$Var1 <- factor(plot_data$Var1, levels = plot_data$Var1)
-                      
-                      fig <- plot_ly(x = plot_data$Var1, y = Gender_Unknown, type = "bar", name = "Unknown Gender", marker = list(color = "lightgray")) %>%
-                              add_trace(y = Gender_Male, name = "Male", marker = list(color = rgb(65,105,225, maxColorValue = 255))) %>%
-                              add_trace(y = Gender_Female, name = "Female", marker = list(color = rgb(186,85,211, maxColorValue = 255))) %>%
-                              layout(title = 'PRISM_Repurposing Cell Line Cancer Types/Genders', yaxis = list(title = "# of Cell Lines"), xaxis = list(tickangle = 45), barmode = "stack", margin = list(b = 150, l = 50))
-                      fig
-                    }
-                  } else if(input$Compound_Explorer_to_Plot == "Tested Cell Line Ancestries"){
-                    ccls <- unique(PRISM_Repurposing_Results$Cell_Line)
-                    if(length(ccls) > 0){
-                      temp_dataset_ccl_data <- Simple_Cell_Line_Harm[Simple_Cell_Line_Harm$Harmonized_Cell_Line_ID %in% ccls,]
-                      completeness <- paste0("(data for ", nrow(temp_dataset_ccl_data[! is.na(temp_dataset_ccl_data$African_Ancestry),]), " of ", nrow(temp_dataset_ccl_data), " cell lines)")
-                      temp_dataset_ccl_data <- temp_dataset_ccl_data[! is.na(temp_dataset_ccl_data$African_Ancestry),]
-                      
-                      plot_data <- temp_dataset_ccl_data[,grepl("_Ancestry", colnames(temp_dataset_ccl_data))]*100
-                      rownames(plot_data) <- temp_dataset_ccl_data$Harmonized_Cell_Line_ID
-                      
-                      if(nrow(plot_data) > 2){
-                        plot_data <- plot_data[hclust(dist(plot_data))$order,]
-                      }
-                      colnames(plot_data) <- gsub("_Ancestry", "", colnames(plot_data))
-                      colnames(plot_data) <- gsub("_", " ", colnames(plot_data))
-                      x <- factor(rownames(plot_data), levels = rownames(plot_data))
-                      
+                    } else if(input$Compound_Explorer_to_Plot == "IC50 values"){
+                      plot_data <- PRISM_Repurposing_Results[! is.na(PRISM_Repurposing_Results$IC50),]
                       if(nrow(plot_data) > 0){
-                        plot_colors <- c("#6A3D9A", "#33A02C", "#FB9A99", "#E31A1C", "#FDBF6F", "#A6CEE3", "#1F78B4")
-                        fig <- plot_ly(x = x, y = plot_data[,1], name = colnames(plot_data)[1], type = "bar", marker = list(color = plot_colors[1])) %>%
-                          add_trace(y = plot_data[,2], name = colnames(plot_data)[2], marker = list(color = plot_colors[2])) %>%
-                          add_trace(y = plot_data[,3], name = colnames(plot_data)[3], marker = list(color = plot_colors[3])) %>%
-                          add_trace(y = plot_data[,4], name = colnames(plot_data)[4], marker = list(color = plot_colors[4])) %>%
-                          add_trace(y = plot_data[,5], name = colnames(plot_data)[5], marker = list(color = plot_colors[5])) %>%
-                          add_trace(y = plot_data[,6], name = colnames(plot_data)[6], marker = list(color = plot_colors[6])) %>%
-                          add_trace(y = plot_data[,7], name = colnames(plot_data)[7], marker = list(color = plot_colors[7])) %>%
-                          layout(title = 'PRISM_Repurposing Ethnicities', barmode = "stack", xaxis = list(title = paste("Tested Cell Lines", completeness), showticklabels = FALSE), yaxis = list(title = "% Ancestry Makeup"), bargap = 0, legend = list(traceorder = "normal"))
-                      } else {
-                        fig <- plot_ly(x = 1, y = 100, name = "No Values", type = "bar", marker = list(color = "white")) %>%
-                        layout(title = 'PRISM_Repurposing Cell Line Ethnicities', barmode = "stack", xaxis = list(title = paste("Tested Cell Lines", completeness), showticklabels = FALSE), yaxis = list(title = "% Ancestry Makeup"), bargap = 0, legend = list(traceorder = "normal"))
+                        plot_data <- plot_data[order(plot_data$IC50, decreasing = FALSE),]
+                        plot_data$Group <- "IC50 <= max tested concentration"
+                        plot_data$Group[plot_data$IC50 > plot_data$max_dose_uM] <- "IC50 > max tested concentration"
+                        Inf_IC50_Keys <- plot_data$Key[plot_data$IC50 == Inf]
+                        plot_data$Group[plot_data$IC50 == Inf] <- "Infinite IC50"
+                        if(any(plot_data$IC50 != Inf)){
+                          plot_data$IC50[plot_data$IC50 == Inf] <- max(plot_data$IC50[! plot_data$IC50 == Inf])
+                        } else {
+                          plot_data$IC50[plot_data$IC50 == Inf] <- max(plot_data$max_dose_uM)+1
+                        }
+                        
+                        colors <- setNames(rep(colorRampPalette(c("blue", "red", "lightgray"))(3), 3),
+                                           c("IC50 <= max tested concentration", "IC50 > max tested concentration", "Infinite IC50",
+                                             "selected: IC50 <= max tested concentration", "selected: IC50 > max tested concentration", "selected: Infinite IC50",
+                                             "unselected: IC50 <= max tested concentration", "unselected: IC50 > max tested concentration", "unselected: Infinite IC50"))
+    
+                        plot_data$Cell_Line <- factor(plot_data$Cell_Line, levels = plot_data$Cell_Line)
+                        ylab <- "IC50 (microMolar)"
+                        
+                        if(input$Compound_Explorer_Highlight_Cell_Lines == TRUE){
+                          plot_data$symbol <- ": not selected"
+                          plot_data$symbol[plot_data$Cell_Line %in% input$Compound_Explorer_Cell_Lines] <- ": selected"
+                          selected_plot_data <- plot_data[plot_data$symbol == ": selected",]
+                          unselected_plot_data <- plot_data[plot_data$symbol == ": not selected",]
+                          
+                          if(nrow(selected_plot_data) > 0){
+                            selected_plot_data$Group <- paste0("selected: ", selected_plot_data$Group)
+                            selected_plot_data$Group <- factor(selected_plot_data$Group, levels = c("selected: IC50 <= max tested concentration", "selected: IC50 > max tested concentration", "selected: Infinite IC50"))
+                            fig <- plot_ly(x = selected_plot_data$Cell_Line,
+                                           y = selected_plot_data$IC50,
+                                           color = selected_plot_data$Group,
+                                           type = "scatter",
+                                           mode = "markers",
+                                           colors = colors)
+                            if(nrow(unselected_plot_data) > 0){
+                              unselected_plot_data$Group <- paste0("unselected: ", unselected_plot_data$Group)
+                              unselected_plot_data$Group <- factor(unselected_plot_data$Group, levels = c("unselected: IC50 <= max tested concentration", "unselected: IC50 > max tested concentration", "unselected: Infinite IC50"))
+                              fig <- add_trace(fig,
+                                               x = unselected_plot_data$Cell_Line,
+                                               y = unselected_plot_data$IC50,
+                                               color = unselected_plot_data$Group,
+                                               opacity = 0.2)
+                            }
+                          } else {
+                            unselected_plot_data$Group <- paste0("unselected: ", unselected_plot_data$Group)
+                            unselected_plot_data$Group <- factor(unselected_plot_data$Group, levels = c("unselected: IC50 <= max tested concentration", "unselected: IC50 > max tested concentration", "unselected: Infinite IC50"))
+                            fig <- plot_ly(x = unselected_plot_data$Cell_Line,
+                                           y = unselected_plot_data$IC50,
+                                           type = "scatter",
+                                           mode = "markers",
+                                           color = unselected_plot_data$Group,
+                                           colors = colors,
+                                           opacity = 0.2)
+                          }
+                          
+                          fig <- layout(fig,
+                                        title = "PRISM_Repurposing IC50s",
+                                        xaxis = list(title = paste0("PRISM_Repurposing Cell Lines (n = ", nrow(plot_data), ", ", nrow(selected_plot_data), " selected)"), showticklabels = FALSE),
+                                        yaxis = list(title = ylab, type = "log"))
+                          
+                        } else {
+                          plot_data$Group <- factor(plot_data$Group, levels = c("IC50 <= max tested concentration", "IC50 > max tested concentration", "Infinite IC50"))
+                          fig <- plot_ly(x = plot_data$Cell_Line,
+                                       y = plot_data$IC50,
+                                       type = "scatter",
+                                       mode = "markers",
+                                       color = plot_data$Group,
+                                       colors = colors)
+                          
+                          fig <- layout(fig,
+                                        title = "PRISM_Repurposing IC50s",
+                                        xaxis = list(title = paste0("PRISM_Repurposing Cell Lines (n = ", nrow(plot_data), ")"), showticklabels = FALSE),
+                                        yaxis = list(title = ylab, type = "log"))
+                        }
                       }
-                      fig
-                    }
-                  } else if(input$Compound_Explorer_to_Plot == "Tested Cell Line Ages"){
-                    ccls <- unique(PRISM_Repurposing_Results$Cell_Line)
-                    if(length(ccls) > 0){
-                      temp_dataset_ccl_data <- Simple_Cell_Line_Harm[Simple_Cell_Line_Harm$Harmonized_Cell_Line_ID %in% ccls,]
-                      completeness <- paste0("(data for ", nrow(temp_dataset_ccl_data[! is.na(temp_dataset_ccl_data$Numeric_Age_in_Years),]), " of ", nrow(temp_dataset_ccl_data), " cell lines)")
-                      temp_dataset_ccl_data <- temp_dataset_ccl_data[! is.na(temp_dataset_ccl_data$Numeric_Age_in_Years),]
+                      #Organizing plot_data for download
+                        plot_data <- plot_data[,c("Compound", "Cell_Line", "min_dose_uM", "max_dose_uM", "IC50")]
+                        plot_data$IC50[plot_data$Key %in% Inf_IC50_Keys] <- "Inf"
+                        colnames(plot_data) <- c("Compound_Name", "Cell_Line_Name", "Minimum_Tested_Compound_Concentration_For_This_Cell_Line_in_PRISM_Repurposing_uM", "Maximum_Tested_Compound_Concentration_For_This_Cell_Line_in_PRISM_Repurposing_uM", "Estimated_IC50_uM")
                       
-                      if(nrow(temp_dataset_ccl_data) > 1){
-                        p <- ggplot(temp_dataset_ccl_data, aes(x = Numeric_Age_in_Years, y = after_stat(scaled))) +
-                                    geom_density(color = "darkblue", fill = "lightblue") +
-                                    theme_light() +
-                                    labs(x = paste("Patient Age (in Years) when Cell Line was Derived ", completeness), y = "Scaled Density") +
-                                    ggtitle("PRISM_Repurposing Ages")
-                      } else if(nrow(temp_dataset_ccl_data) == 1){
-                        p <- ggplot(temp_dataset_ccl_data, aes(x = Numeric_Age_in_Years, y = Harmonized_Cell_Line_ID)) +
-                                    geom_bar(stat="identity") +
-                                    theme_light() +
-                                    labs(x = paste("Patient Age (in Years) when Cell Line was Derived ", completeness), y = "") +
-                                    ggtitle("PRISM_Repurposing Ages")
+                    } else if(input$Compound_Explorer_to_Plot == "Tested Cell Line Cancer Types & Genders"){
+                      ccls <- unique(PRISM_Repurposing_Results$Cell_Line)
+                      if(length(ccls) > 0){
+                        temp_dataset_ccl_data <- Simple_Cell_Line_Harm[Simple_Cell_Line_Harm$Harmonized_Cell_Line_ID %in% ccls,]
+                        temp_dataset_ccl_data$Simple_Cancer_Type[temp_dataset_ccl_data$Simple_Cancer_Type == "unknown"] <- "unknown cancer type"
+                        plot_data <- as.data.frame.table(table(temp_dataset_ccl_data$Simple_Cancer_Type))
+                        plot_data <- plot_data[order(plot_data$Freq, decreasing = TRUE),]
+                        plot_data <- rbind(plot_data[! plot_data$Var1 == "unknown cancer type",], plot_data[plot_data$Var1 == "unknown cancer type",])
+                        
+                        Gender_Unknown <- NA
+                        Gender_Female <- NA
+                        Gender_Male <- NA
+                        for(j in 1:nrow(plot_data)){
+                          Gender_Unknown[j] <- nrow(temp_dataset_ccl_data[temp_dataset_ccl_data$Simple_Cancer_Type %in% plot_data$Var1[j] & temp_dataset_ccl_data$Gender == "Sex unspecified",])
+                          Gender_Female[j] <- nrow(temp_dataset_ccl_data[temp_dataset_ccl_data$Simple_Cancer_Type %in% plot_data$Var1[j] & temp_dataset_ccl_data$Gender == "Female",])
+                          Gender_Male[j] <- nrow(temp_dataset_ccl_data[temp_dataset_ccl_data$Simple_Cancer_Type %in% plot_data$Var1[j] & temp_dataset_ccl_data$Gender == "Male",])
+                        }
+                        
+                        plot_data$Var1 <- factor(plot_data$Var1, levels = plot_data$Var1)
+                        
+                        fig <- plot_ly(x = plot_data$Var1, y = Gender_Unknown, type = "bar", name = "Unknown Gender", marker = list(color = "lightgray")) %>%
+                                add_trace(y = Gender_Male, name = "Male", marker = list(color = rgb(65,105,225, maxColorValue = 255))) %>%
+                                add_trace(y = Gender_Female, name = "Female", marker = list(color = rgb(186,85,211, maxColorValue = 255))) %>%
+                                layout(title = 'PRISM_Repurposing Cell Line Cancer Types/Genders', yaxis = list(title = "# of Cell Lines"), xaxis = list(tickangle = 45), barmode = "stack", margin = list(b = 150, l = 50))
+                        #Organizing plot_data for download
+                          temp_dataset_ccl_data$Compound <- PRISM_Repurposing_Results$Compound[1]
+                          plot_data <- temp_dataset_ccl_data[,c("Compound", "Harmonized_Cell_Line_ID", "Simple_Cancer_Type", "Gender")]
+                          colnames(plot_data) <- c("Compound", "Cell_Line", "Cancer_Type", "Gender")
                       } else {
-                        p <- ggplot(data.frame(x = c(0,100), y = c(0,1)), aes(x = x, y = y)) +
-                                    geom_blank() +
-                                    labs(x = paste("Patient Age (in Years) when Cell Line was Derived ", completeness), y = "Scaled Density") +
-                                    ggtitle("PRISM_Repurposing Cell Line Patient Age Distribution")
+                        temp_colnames <- c("Compound", "Cell_Line", "Cancer_Type", "Gender")
+                        plot_data <- as.data.frame(matrix(NA, nrow = 0, ncol = length(temp_colnames)))
+                        colnames(plot_data) <- temp_colnames
                       }
-                  
-                      fig <- ggplotly(p)
-                      fig
+    
+                    } else if(input$Compound_Explorer_to_Plot == "Tested Cell Line Ancestries"){
+                      ccls <- unique(PRISM_Repurposing_Results$Cell_Line)
+                      if(length(ccls) > 0){
+                        temp_dataset_ccl_data <- Simple_Cell_Line_Harm[Simple_Cell_Line_Harm$Harmonized_Cell_Line_ID %in% ccls,]
+                        completeness <- paste0("(data for ", nrow(temp_dataset_ccl_data[! is.na(temp_dataset_ccl_data$African_Ancestry),]), " of ", nrow(temp_dataset_ccl_data), " cell lines)")
+                        temp_dataset_ccl_data <- temp_dataset_ccl_data[! is.na(temp_dataset_ccl_data$African_Ancestry),]
+                        
+                        plot_data <- temp_dataset_ccl_data[,grepl("_Ancestry", colnames(temp_dataset_ccl_data))]*100
+                        rownames(plot_data) <- temp_dataset_ccl_data$Harmonized_Cell_Line_ID
+                        
+                        if(nrow(plot_data) > 2){
+                          plot_data <- plot_data[hclust(dist(plot_data))$order,]
+                        }
+                        colnames(plot_data) <- gsub("_Ancestry", "", colnames(plot_data))
+                        colnames(plot_data) <- gsub("_", " ", colnames(plot_data))
+                        x <- factor(rownames(plot_data), levels = rownames(plot_data))
+                        
+                        if(nrow(plot_data) > 0){
+                          plot_colors <- c("#6A3D9A", "#33A02C", "#FB9A99", "#E31A1C", "#FDBF6F", "#A6CEE3", "#1F78B4")
+                          fig <- plot_ly(x = x, y = plot_data[,1], name = colnames(plot_data)[1], type = "bar", marker = list(color = plot_colors[1])) %>%
+                            add_trace(y = plot_data[,2], name = colnames(plot_data)[2], marker = list(color = plot_colors[2])) %>%
+                            add_trace(y = plot_data[,3], name = colnames(plot_data)[3], marker = list(color = plot_colors[3])) %>%
+                            add_trace(y = plot_data[,4], name = colnames(plot_data)[4], marker = list(color = plot_colors[4])) %>%
+                            add_trace(y = plot_data[,5], name = colnames(plot_data)[5], marker = list(color = plot_colors[5])) %>%
+                            add_trace(y = plot_data[,6], name = colnames(plot_data)[6], marker = list(color = plot_colors[6])) %>%
+                            add_trace(y = plot_data[,7], name = colnames(plot_data)[7], marker = list(color = plot_colors[7])) %>%
+                            layout(title = 'PRISM_Repurposing Ethnicities', barmode = "stack", xaxis = list(title = paste("Tested Cell Lines", completeness), showticklabels = FALSE), yaxis = list(title = "% Ancestry Makeup"), bargap = 0, legend = list(traceorder = "normal"))
+                        } else {
+                          fig <- plot_ly(x = 1, y = 100, name = "No Values", type = "bar", marker = list(color = "white")) %>%
+                          layout(title = 'PRISM_Repurposing Cell Line Ethnicities', barmode = "stack", xaxis = list(title = paste("Tested Cell Lines", completeness), showticklabels = FALSE), yaxis = list(title = "% Ancestry Makeup"), bargap = 0, legend = list(traceorder = "normal"))
+                        }
+                        #Organizing plot_data for download
+                          plot_data$Cell_Line <- rownames(plot_data)
+                          plot_data$Compound <- PRISM_Repurposing_Results$Compound[1]
+                          plot_data <- plot_data[,c("Compound", "Cell_Line", "African", "Native American", "East Asian (North)", "East Asian (South)", "South Asian", "European (North)", "European (South)")]
+                          colnames(plot_data) <- c("Compound", "Cell_Line", "African_Ancestry_Percentage", "Native_American_Ancestry_Percentage", "East_Asian_(North)_Ancestry_Percentage", "East_Asian_(South)_Ancestry_Percentage", "South_Asian_Ancestry_Percentage", "European_(North)_Ancestry_Percentage", "European_(South)_Ancestry_Percentage")
+                      } else {
+                        temp_colnames <- c("Compound", "Cell_Line", "African_Ancestry_Percentage", "Native_American_Ancestry_Percentage", "East_Asian_(North)_Ancestry_Percentage", "East_Asian_(South)_Ancestry_Percentage", "South_Asian_Ancestry_Percentage", "European_(North)_Ancestry_Percentage", "European_(South)_Ancestry_Percentage")
+                        plot_data <- as.data.frame(matrix(NA, nrow = 0, ncol = length(temp_colnames)))
+                        colnames(plot_data) <- temp_colnames
+                      }
+                      
+                    } else if(input$Compound_Explorer_to_Plot == "Tested Cell Line Ages"){
+                      ccls <- unique(PRISM_Repurposing_Results$Cell_Line)
+                      if(length(ccls) > 0){
+                        temp_dataset_ccl_data <- Simple_Cell_Line_Harm[Simple_Cell_Line_Harm$Harmonized_Cell_Line_ID %in% ccls,]
+                        temp_to_download <- temp_dataset_ccl_data
+                        completeness <- paste0("(data for ", nrow(temp_dataset_ccl_data[! is.na(temp_dataset_ccl_data$Numeric_Age_in_Years),]), " of ", nrow(temp_dataset_ccl_data), " cell lines)")
+                        temp_dataset_ccl_data <- temp_dataset_ccl_data[! is.na(temp_dataset_ccl_data$Numeric_Age_in_Years),]
+                        
+                        if(nrow(temp_dataset_ccl_data) > 1){
+                          p <- ggplot(temp_dataset_ccl_data, aes(x = Numeric_Age_in_Years, y = after_stat(scaled))) +
+                                      geom_density(color = "darkblue", fill = "lightblue") +
+                                      theme_light() +
+                                      labs(x = paste("Patient Age (in Years) when Cell Line was Derived ", completeness), y = "Scaled Density") +
+                                      ggtitle("PRISM_Repurposing Ages")
+                        } else if(nrow(temp_dataset_ccl_data) == 1){
+                          p <- ggplot(temp_dataset_ccl_data, aes(x = Numeric_Age_in_Years, y = Harmonized_Cell_Line_ID)) +
+                                      geom_bar(stat="identity") +
+                                      theme_light() +
+                                      labs(x = paste("Patient Age (in Years) when Cell Line was Derived ", completeness), y = "") +
+                                      ggtitle("PRISM_Repurposing Ages")
+                        } else {
+                          p <- ggplot(data.frame(x = c(0,100), y = c(0,1)), aes(x = x, y = y)) +
+                                      geom_blank() +
+                                      labs(x = paste("Patient Age (in Years) when Cell Line was Derived ", completeness), y = "Scaled Density") +
+                                      ggtitle("PRISM_Repurposing Cell Line Patient Age Distribution")
+                        }
+                        
+                        fig <- ggplotly(p)
+                        
+                        #Organizing plot_data for download
+                          temp_to_download$Compound <- PRISM_Repurposing_Results$Compound[1]
+                          plot_data <- temp_to_download[,c("Compound", "Harmonized_Cell_Line_ID", "Age", "Numeric_Age_in_Years")]
+                          colnames(plot_data) <- c("Compound", "Cell_Line", "Age", "Numeric_Age_in_Years")
+                      } else {
+                        temp_colnames <- c("Compound", "Cell_Line", "Age", "Numeric_Age_in_Years")
+                        plot_data <- as.data.frame(matrix(NA, nrow = 0, ncol = length(temp_colnames)))
+                        colnames(plot_data) <- temp_colnames
+                      }
                     }
                   }
-                }
-            })
+                #Allowing users to download data
+                  output$Compound_Explorer_Download_PRISM_Repurposing_Data <- downloadHandler(
+                    filename = "PRISM_Repurposing_Plot_Data.xlsx",
+                    content = function(file){
+                      write.xlsx(plot_data, file, row.names = FALSE)
+                    }
+                  )
+                #Returning Figure
+                  fig
+              })
             
           }) #END: observe({
               

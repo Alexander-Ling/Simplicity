@@ -96,7 +96,7 @@
     }
 
   #Making Simplified versions of compound and cell line harmonizers for sorting purposes
-    Simple_Cell_Line_Harm <- unique(Cell_Line_Harm[,c("Harmonized_Cell_Line_ID", "Gender", "Numeric_Age_in_Years", "Diseases", "Simple_Cancer_Type", "African_Ancestry", "Native_American_Ancestry", "East_Asian_(North)_Ancestry", "East_Asian_(South)_Ancestry", "South_Asian_Ancestry", "European_(North)_Ancestry", "European_(South)_Ancestry")])
+    Simple_Cell_Line_Harm <- unique(Cell_Line_Harm[,c("Harmonized_Cell_Line_ID", "Gender", "Age","Numeric_Age_in_Years", "Diseases", "Simple_Cancer_Type", "African_Ancestry", "Native_American_Ancestry", "East_Asian_(North)_Ancestry", "East_Asian_(South)_Ancestry", "South_Asian_Ancestry", "European_(North)_Ancestry", "European_(South)_Ancestry")])
     Cell_Line_Diseases <- strsplit( Simple_Cell_Line_Harm$Diseases, ":\\|:")
       names(Cell_Line_Diseases) <-  Simple_Cell_Line_Harm$Harmonized_Cell_Line_ID
     

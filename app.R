@@ -169,7 +169,9 @@
                       selectInput(inputId = "Compound_Explorer_to_Plot", "Select what values to plot", choices = c("AUC values for most commonly used concentration range", "AUC values for concentration range available for all tested cell lines", "IC50 values", "Tested Cell Line Cancer Types & Genders", "Tested Cell Line Ancestries", "Tested Cell Line Ages"), selected = "AUC values for most commonly used concentration range", multiple = FALSE, selectize = FALSE) %>%
                         helper(type = "inline",
                           title = "Select which values to plot for the selected compound and cell lines",
-                          icon = "question-circle", colour = NULL,
+                          icon = "question-circle",
+                          style = "font-size: 20px",
+                          colour = NULL,
                           content = HTML("<ul>
                                           <li><b>AUC values for most commonly used concentration range:</b> Displays normalized area under the curve values calculated using concentration range most commonly tested for this compound in each dataset. Note that, since different concentration ranges for a comopund were sometimes tested in different cell lines, this concentration range may sometimes be broader than the range tested for some of the displayed cell lines. Such cell lines will be colored red.</li>
                                           <li><b>AUC values for concentration range available for all tested cell lines:</b> Displays normalized area under the curve values calculated using the broadest concentration range available for all cell lines tested with this comopund in each dataset. Note that, since different concentration ranges for a comopund were sometimes tested in different cell lines, this concentration range may sometimes be narrower than the range tested for some of the displayed cell lines.</li>
@@ -217,7 +219,9 @@
                       selectInput(inputId = "Cell_Line_Explorer_to_Plot", "Select what values to plot", choices = c("AUC percentiles for most commonly used concentration range", "AUC percentiles for concentration range available for all tested cell lines", "IC50 percentiles"), selected = "AUC percentiles for most commonly used concentration range", multiple = FALSE, selectize = FALSE) %>%
                         helper(type = "inline",
                           title = "Select which values to plot for the selected cell line and compounds",
-                          icon = "question-circle", colour = NULL,
+                          icon = "question-circle", 
+                          style = "font-size: 20px",
+                          colour = NULL,
                           content = HTML("<ul>
                                           <li><b>AUC percentiles for most commonly used concentration range:</b> Displays percentiles for this cell line's normalized area under the curve values when calculated using the most commonly tested concentration range for each compound in each dataset. The 100th percentile indicates that this cell line was the most sensitive (i.e. lowest AUC) cell line of those tested for a given compound, with the 0th percentile indicating this cell line was the least sensitive (i.e. highest AUC).</li>
                                           <li><b>AUC percentiles for concentration range available for all tested cell lines:</b> Displays percentiles for this cell line's normalized area under the curve values when calculated using the broadest concentration range available for all cell lines tested with a given compound in each dataset. The 100th percentile indicates that this cell line was the most sensitive (i.e. lowest AUC) cell line of those tested for a given compound, with the 0th percentile indicating this cell line was the least sensitive (i.e. highest AUC).</li>
@@ -256,7 +260,7 @@
                 column(width = 4,
                     uiOutput(outputId = "Plot_Cell_Line_Menu")
                 )
-              ),
+              )
             ),
           #Checkbox to indicate if average values should be plotted
             checkboxInput(inputId = "Plot_Averages", label = "Plot Averaged Values? (only uses experiments that passed QC)", width = "100%"),
@@ -381,11 +385,25 @@
 ######################################################## UI #           
           tabPanel(value = "Methods", title = "Usage License",
             list(
-              h4("This will specify the license for using Simplicity and provide a link to the license terms...
-                 once I bother to look it up. I believe it is GPL3 for the software itself. I don't know what
-                 the licenses will be for the reprocessed datasets. I still need to hear back from the CTRPv2 and PRISM_Repurposing teams.")
+              wellPanel(
+              p(HTML("<b>Usage of GDSC1 and/or GDSC2 Data:</b>")),
+              p(HTML("Users have a non-exclusive, non-transferable right to use data files for
+                      internal proprietary research and educational purposes, including target,
+                      biomarker and drug discovery. Excluded from this licence are use of the data
+                      (in whole or any significant part) for resale either alone or in combination
+                      with additional data/product offerings, or for provision of commercial
+                      services.")),
+              p(HTML("Users must also cite the appropriate references for the used datset(s) as specified in the \"About Simplicity/Cite This Resource\" tab."))
+              ),
+              wellPanel(
+              p(HTML("<b>Usage of CTRPv2 and PRISM-Repurposing Data:</b>")),
+              p(HTML("I'm still waiting to hear back from these teams. The PRISM-Repurposing data appears to have been relased under the CC Attribution 4.0 license, however, data was processed using R and several R packages. I need to look into whether this affects usage of that data."))
+              ),
+              wellPanel(
+              p(HTML("<b>Usage of Compound Harmonization, Cell Line Harmonization, and Csustained value tables:</b>")),
+              p(HTML("I need to look up the usage agreements of the various datasets used to compile these resources."))
+              )
             )      
-          )
         ),
 
 #############################################################                    
@@ -405,7 +423,7 @@
             ),
             wellPanel(
               p(HTML("<b>Csustained Values:</b>")),
-              p(HTML("<a href=\"https://osf.io/q5p8x/download\">Csustained_v1.0.xlsx</a>: An excel spreadsheet containing information about the clinically sustainable plasma concentrations (Csustained) for clinical compounds included in Simplicity. Please see the \"About Simplicity/Methods\" tab for details about how Csustained values are determined.")),
+              p(HTML("<a href=\"https://osf.io/q5p8x/download\">Csustained_v1.0.xlsx</a>: An excel spreadsheet containing information about the clinically sustainable plasma concentrations (Csustained) for clinical compounds included in Simplicity. Please see the \"About Simplicity/Methods\" tab for details about how Csustained values are determined."))
             ),
             wellPanel(
               p(HTML("<b>Dataset Summary Results:</b>")),
@@ -419,7 +437,7 @@
               p(HTML("<a href=\"https://osf.io/6ezmg/download\">CTRPv2_Results_v1.0.tsv.7z</a>: A 7-zip compressed, tab-separated value text file containing the raw data from CTRPv2 after compound and cell line name harmonization.")),
               p(HTML("<a href=\"https://osf.io/qmp7y/download\">GDSC1_Results_v1.0.tsv.7z</a>: A 7-zip compressed, tab-separated value text file containing the raw data from GDSC1 after compound and cell line name harmonization.")),
               p(HTML("<a href=\"https://osf.io/we7ry/download\">GDSC2_Results_v1.0.tsv.7z</a>: A 7-zip compressed, tab-separated value text file containing the raw data from GDSC2 after compound and cell line name harmonization.")),
-              p(HTML("<a href=\"https://osf.io/nbjdu/download\">PRISM_Repurposing_Results_v1.0.tsv.7z</a>: A 7-zip compressed, tab-separated value text file containing the raw data from PRISM_Repurposing after compound and cell line name harmonization.")),
+              p(HTML("<a href=\"https://osf.io/nbjdu/download\">PRISM_Repurposing_Results_v1.0.tsv.7z</a>: A 7-zip compressed, tab-separated value text file containing the raw data from PRISM_Repurposing after compound and cell line name harmonization."))
             ),
             wellPanel(
               p(HTML("<b>Dataset Full Curves:</b>")),
@@ -428,9 +446,7 @@
             
           )      
         )
-        
-        
-  ))
+  )))
   
 #############################################################  
 #################################################### server #          
@@ -2927,21 +2943,25 @@
                 output$Cell_Line_Explorer_Plots <- renderUI({
                       Cell_Line_Explorer_Plot_UI <- vector(mode = "list")
                       if("CTRPv2" %in% Cell_Line_Explorer_datasets_with_cell_line_data()){
-                        Cell_Line_Explorer_Plot_UI <- c(Cell_Line_Explorer_Plot_UI, plotlyOutput(outputId = "Cell_Line_Explorer_CTRPv2_Plot"), HTML("---"))
+                        Cell_Line_Explorer_Plot_UI <- c(Cell_Line_Explorer_Plot_UI, plotlyOutput(outputId = "Cell_Line_Explorer_CTRPv2_Plot"), 
+                                                        list(downloadButton(outputId = "Cell_Line_Explorer_Download_CTRPv2_Data", label = "Download CTRPv2 Plot Data")))
                       }
                       if("GDSC1" %in% Cell_Line_Explorer_datasets_with_cell_line_data()){
-                        Cell_Line_Explorer_Plot_UI <- c(Cell_Line_Explorer_Plot_UI, plotlyOutput(outputId = "Cell_Line_Explorer_GDSC1_Plot"), HTML("---"))
+                        Cell_Line_Explorer_Plot_UI <- c(Cell_Line_Explorer_Plot_UI, plotlyOutput(outputId = "Cell_Line_Explorer_GDSC1_Plot"), 
+                                                        list(downloadButton(outputId = "Cell_Line_Explorer_Download_GDSC1_Data", label = "Download GDSC1 Plot Data")))
                       }
                       if("GDSC2" %in% Cell_Line_Explorer_datasets_with_cell_line_data()){
-                        Cell_Line_Explorer_Plot_UI <- c(Cell_Line_Explorer_Plot_UI, plotlyOutput(outputId = "Cell_Line_Explorer_GDSC2_Plot"), HTML("---"))
+                        Cell_Line_Explorer_Plot_UI <- c(Cell_Line_Explorer_Plot_UI, plotlyOutput(outputId = "Cell_Line_Explorer_GDSC2_Plot"), 
+                                                        list(downloadButton(outputId = "Cell_Line_Explorer_Download_GDSC2_Data", label = "Download GDSC2 Plot Data")))
                       }
                       if("PRISM_Repurposing" %in% Cell_Line_Explorer_datasets_with_cell_line_data()){
-                        Cell_Line_Explorer_Plot_UI <- c(Cell_Line_Explorer_Plot_UI, plotlyOutput(outputId = "Cell_Line_Explorer_PRISM_Repurposing_Plot"))
+                        Cell_Line_Explorer_Plot_UI <- c(Cell_Line_Explorer_Plot_UI, plotlyOutput(outputId = "Cell_Line_Explorer_PRISM_Repurposing_Plot"), 
+                                                        list(downloadButton(outputId = "Cell_Line_Explorer_Download_PRISM_Repurposing_Data", label = "Download PRISM_Repurposing Plot Data")))
                       }
                     Cell_Line_Explorer_Plot_UI
                 })
 
-              #Generating plots
+              #Generating CTRPv2 plot
                 output$Cell_Line_Explorer_CTRPv2_Plot <- renderPlotly({
                   req(! length(input$Cell_Line_Explorer_Highlight_Compounds) == 0)
                     #Loading raw data for this cell_line and any datasets with data for this cell_line
@@ -3036,8 +3056,10 @@
                                         xaxis = list(title = paste0("CTRPv2 Compounds (n = ", nrow(plot_data), ")"), showticklabels = FALSE),
                                         yaxis = list(title = ylab))
                         }
-                        
-                        fig
+                        #Organizing plot_data for download
+                          plot_data <- plot_data[,c("Compound", "Cell_Line", "min_dose_uM", "max_dose_uM", "min_mode_ccl_CTRPv2_conc", "max_mode_ccl_CTRPv2_conc", "AUC_mode_ccl_CTRPv2_conc", "Percentile_AUC_Mode_CCL")]
+                          plot_data$Percentile_AUC_Mode_CCL <- plot_data$Percentile_AUC_Mode_CCL * 100
+                          colnames(plot_data) <- c("Compound_Name", "Cell_Line_Name", "Minimum_Tested_Compound_Concentration_For_This_Cell_Line_in_CTRPv2_uM", "Maximum_Tested_Compound_Concentration_For_This_Cell_Line_in_CTRPv2_uM", "Most_Commonly_Tested_Minimum_Compound_Concentration_In_CTRPv2_uM", "Most_Commonly_Tested_Maximum_Compound_Concentration_In_CTRPv2_uM", "Normalized_AUC_For_Most_Commonly_Tested_Compound_Concentration_Range_In_CTRPv2", "Cell_Line_Percentile_Within_Compound_Of_AUC_For_Most_Commonly_Tested_Compound_Concentration_Range_In_CTRPv2")
                         
                       } else if(input$Cell_Line_Explorer_to_Plot == "AUC percentiles for concentration range available for all tested cell lines"){
                         plot_data <- CTRPv2_Results[! is.na(CTRPv2_Results$Percentile_AUC_All_CCL),]
@@ -3107,9 +3129,11 @@
                                         xaxis = list(title = paste0("CTRPv2 Compounds (n = ", nrow(plot_data), ")"), showticklabels = FALSE),
                                         yaxis = list(title = ylab))
                         }
-                        
-                        fig
-                        
+                        #Organizing plot_data for download
+                          plot_data <- plot_data[,c("Compound", "Cell_Line", "min_dose_uM", "max_dose_uM", "min_all_ccl_CTRPv2_conc", "max_all_ccl_CTRPv2_conc", "AUC_all_ccl_CTRPv2_conc", "Percentile_AUC_All_CCL")]
+                          plot_data$Percentile_AUC_All_CCL <- plot_data$Percentile_AUC_All_CCL * 100
+                          colnames(plot_data) <- c("Compound_Name", "Cell_Line_Name", "Minimum_Tested_Compound_Concentration_For_This_Cell_Line_in_CTRPv2_uM", "Maximum_Tested_Compound_Concentration_For_This_Cell_Line_in_CTRPv2_uM", "Minimum_Tested_Compound_Concentration_That_Is_Available_For_All_Cell_Lines_In_CTRPv2_uM", "Maximum_Tested_Compound_Concentration_That_Is_Available_For_All_Cell_Lines_In_CTRPv2_uM", "Normalized_AUC_For_Tested_Compound_Concentration_Range_That_Is_Available_For_All_Cell_Lines_In_CTRPv2", "Cell_Line_Percentile_Within_Compound_Of_AUC_For_Tested_Compound_Concentration_Range_That_Is_Available_For_All_Cell_Lines_In_CTRPv2")
+                      
                       } else if(input$Cell_Line_Explorer_to_Plot == "IC50 percentiles"){
                         plot_data <- CTRPv2_Results[! is.na(CTRPv2_Results$Percentile_IC50),]
                         if(nrow(plot_data) > 0){
@@ -3192,14 +3216,28 @@
                                           xaxis = list(title = paste0("CTRPv2 Compounds (n = ", nrow(plot_data), ")"), showticklabels = FALSE),
                                           yaxis = list(title = ylab))
                           }
-                          
-                          fig
-                          
+                          #Organizing plot_data for download
+                            plot_data <- plot_data[,c("Compound", "Cell_Line", "min_dose_uM", "max_dose_uM", "IC50", "Percentile_IC50")]
+                            plot_data$IC50[plot_data$IC50 == Inf] <- "Inf"
+                            plot_data$Percentile_IC50 <- plot_data$Percentile_IC50*100
+                            colnames(plot_data) <- c("Compound_Name", "Cell_Line_Name", "Minimum_Tested_Compound_Concentration_For_This_Cell_Line_in_CTRPv2_uM", "Maximum_Tested_Compound_Concentration_For_This_Cell_Line_in_CTRPv2_uM", "Estimated_IC50_uM", "Cell_Line_Percentile_Within_Compound_Of_Estimated_IC50")
+                      
                         }
                       }
+                      #Allowing users to download plot data
+                        output$Cell_Line_Explorer_Download_CTRPv2_Data <- downloadHandler(
+                          filename = "CTRPv2_Plot_Data.xlsx",
+                          content = function(file){
+                            write.xlsx(plot_data, file, row.names = FALSE)
+                          }
+                        )
+                      #Returning Plot
+                        fig
+                      
                     }
-                  })
+                })
 
+              #Generating GDSC1 plot
                 output$Cell_Line_Explorer_GDSC1_Plot <- renderPlotly({
                   req(! length(input$Cell_Line_Explorer_Highlight_Compounds) == 0)
                     #Loading raw data for this cell_line and any datasets with data for this cell_line
@@ -3294,8 +3332,10 @@
                                         xaxis = list(title = paste0("GDSC1 Compounds (n = ", nrow(plot_data), ")"), showticklabels = FALSE),
                                         yaxis = list(title = ylab))
                         }
-                        
-                        fig
+                        #Organizing plot_data for download
+                          plot_data <- plot_data[,c("Compound", "Cell_Line", "min_dose_uM", "max_dose_uM", "min_mode_ccl_GDSC1_conc", "max_mode_ccl_GDSC1_conc", "AUC_mode_ccl_GDSC1_conc", "Percentile_AUC_Mode_CCL")]
+                          plot_data$Percentile_AUC_Mode_CCL <- plot_data$Percentile_AUC_Mode_CCL * 100
+                          colnames(plot_data) <- c("Compound_Name", "Cell_Line_Name", "Minimum_Tested_Compound_Concentration_For_This_Cell_Line_in_GDSC1_uM", "Maximum_Tested_Compound_Concentration_For_This_Cell_Line_in_GDSC1_uM", "Most_Commonly_Tested_Minimum_Compound_Concentration_In_GDSC1_uM", "Most_Commonly_Tested_Maximum_Compound_Concentration_In_GDSC1_uM", "Normalized_AUC_For_Most_Commonly_Tested_Compound_Concentration_Range_In_GDSC1", "Cell_Line_Percentile_Within_Compound_Of_AUC_For_Most_Commonly_Tested_Compound_Concentration_Range_In_GDSC1")
                         
                       } else if(input$Cell_Line_Explorer_to_Plot == "AUC percentiles for concentration range available for all tested cell lines"){
                         plot_data <- GDSC1_Results[! is.na(GDSC1_Results$Percentile_AUC_All_CCL),]
@@ -3365,9 +3405,11 @@
                                         xaxis = list(title = paste0("GDSC1 Compounds (n = ", nrow(plot_data), ")"), showticklabels = FALSE),
                                         yaxis = list(title = ylab))
                         }
-                        
-                        fig
-                        
+                        #Organizing plot_data for download
+                          plot_data <- plot_data[,c("Compound", "Cell_Line", "min_dose_uM", "max_dose_uM", "min_all_ccl_GDSC1_conc", "max_all_ccl_GDSC1_conc", "AUC_all_ccl_GDSC1_conc", "Percentile_AUC_All_CCL")]
+                          plot_data$Percentile_AUC_All_CCL <- plot_data$Percentile_AUC_All_CCL * 100
+                          colnames(plot_data) <- c("Compound_Name", "Cell_Line_Name", "Minimum_Tested_Compound_Concentration_For_This_Cell_Line_in_GDSC1_uM", "Maximum_Tested_Compound_Concentration_For_This_Cell_Line_in_GDSC1_uM", "Minimum_Tested_Compound_Concentration_That_Is_Available_For_All_Cell_Lines_In_GDSC1_uM", "Maximum_Tested_Compound_Concentration_That_Is_Available_For_All_Cell_Lines_In_GDSC1_uM", "Normalized_AUC_For_Tested_Compound_Concentration_Range_That_Is_Available_For_All_Cell_Lines_In_GDSC1", "Cell_Line_Percentile_Within_Compound_Of_AUC_For_Tested_Compound_Concentration_Range_That_Is_Available_For_All_Cell_Lines_In_GDSC1")
+                      
                       } else if(input$Cell_Line_Explorer_to_Plot == "IC50 percentiles"){
                         plot_data <- GDSC1_Results[! is.na(GDSC1_Results$Percentile_IC50),]
                         if(nrow(plot_data) > 0){
@@ -3450,14 +3492,28 @@
                                           xaxis = list(title = paste0("GDSC1 Compounds (n = ", nrow(plot_data), ")"), showticklabels = FALSE),
                                           yaxis = list(title = ylab))
                           }
-                          
-                          fig
-                          
+                          #Organizing plot_data for download
+                            plot_data <- plot_data[,c("Compound", "Cell_Line", "min_dose_uM", "max_dose_uM", "IC50", "Percentile_IC50")]
+                            plot_data$IC50[plot_data$IC50 == Inf] <- "Inf"
+                            plot_data$Percentile_IC50 <- plot_data$Percentile_IC50*100
+                            colnames(plot_data) <- c("Compound_Name", "Cell_Line_Name", "Minimum_Tested_Compound_Concentration_For_This_Cell_Line_in_GDSC1_uM", "Maximum_Tested_Compound_Concentration_For_This_Cell_Line_in_GDSC1_uM", "Estimated_IC50_uM", "Cell_Line_Percentile_Within_Compound_Of_Estimated_IC50")
+                      
                         }
                       }
+                      #Allowing users to download plot data
+                        output$Cell_Line_Explorer_Download_GDSC1_Data <- downloadHandler(
+                          filename = "GDSC1_Plot_Data.xlsx",
+                          content = function(file){
+                            write.xlsx(plot_data, file, row.names = FALSE)
+                          }
+                        )
+                      #Returning Plot
+                        fig
+                      
                     }
-                  })
+                })
                 
+              #Generating GDSC2 plot
                 output$Cell_Line_Explorer_GDSC2_Plot <- renderPlotly({
                   req(! length(input$Cell_Line_Explorer_Highlight_Compounds) == 0)
                     #Loading raw data for this cell_line and any datasets with data for this cell_line
@@ -3552,8 +3608,10 @@
                                         xaxis = list(title = paste0("GDSC2 Compounds (n = ", nrow(plot_data), ")"), showticklabels = FALSE),
                                         yaxis = list(title = ylab))
                         }
-                        
-                        fig
+                        #Organizing plot_data for download
+                          plot_data <- plot_data[,c("Compound", "Cell_Line", "min_dose_uM", "max_dose_uM", "min_mode_ccl_GDSC2_conc", "max_mode_ccl_GDSC2_conc", "AUC_mode_ccl_GDSC2_conc", "Percentile_AUC_Mode_CCL")]
+                          plot_data$Percentile_AUC_Mode_CCL <- plot_data$Percentile_AUC_Mode_CCL * 100
+                          colnames(plot_data) <- c("Compound_Name", "Cell_Line_Name", "Minimum_Tested_Compound_Concentration_For_This_Cell_Line_in_GDSC2_uM", "Maximum_Tested_Compound_Concentration_For_This_Cell_Line_in_GDSC2_uM", "Most_Commonly_Tested_Minimum_Compound_Concentration_In_GDSC2_uM", "Most_Commonly_Tested_Maximum_Compound_Concentration_In_GDSC2_uM", "Normalized_AUC_For_Most_Commonly_Tested_Compound_Concentration_Range_In_GDSC2", "Cell_Line_Percentile_Within_Compound_Of_AUC_For_Most_Commonly_Tested_Compound_Concentration_Range_In_GDSC2")
                         
                       } else if(input$Cell_Line_Explorer_to_Plot == "AUC percentiles for concentration range available for all tested cell lines"){
                         plot_data <- GDSC2_Results[! is.na(GDSC2_Results$Percentile_AUC_All_CCL),]
@@ -3623,9 +3681,11 @@
                                         xaxis = list(title = paste0("GDSC2 Compounds (n = ", nrow(plot_data), ")"), showticklabels = FALSE),
                                         yaxis = list(title = ylab))
                         }
-                        
-                        fig
-                        
+                        #Organizing plot_data for download
+                          plot_data <- plot_data[,c("Compound", "Cell_Line", "min_dose_uM", "max_dose_uM", "min_all_ccl_GDSC2_conc", "max_all_ccl_GDSC2_conc", "AUC_all_ccl_GDSC2_conc", "Percentile_AUC_All_CCL")]
+                          plot_data$Percentile_AUC_All_CCL <- plot_data$Percentile_AUC_All_CCL * 100
+                          colnames(plot_data) <- c("Compound_Name", "Cell_Line_Name", "Minimum_Tested_Compound_Concentration_For_This_Cell_Line_in_GDSC2_uM", "Maximum_Tested_Compound_Concentration_For_This_Cell_Line_in_GDSC2_uM", "Minimum_Tested_Compound_Concentration_That_Is_Available_For_All_Cell_Lines_In_GDSC2_uM", "Maximum_Tested_Compound_Concentration_That_Is_Available_For_All_Cell_Lines_In_GDSC2_uM", "Normalized_AUC_For_Tested_Compound_Concentration_Range_That_Is_Available_For_All_Cell_Lines_In_GDSC2", "Cell_Line_Percentile_Within_Compound_Of_AUC_For_Tested_Compound_Concentration_Range_That_Is_Available_For_All_Cell_Lines_In_GDSC2")
+                      
                       } else if(input$Cell_Line_Explorer_to_Plot == "IC50 percentiles"){
                         plot_data <- GDSC2_Results[! is.na(GDSC2_Results$Percentile_IC50),]
                         if(nrow(plot_data) > 0){
@@ -3708,14 +3768,28 @@
                                           xaxis = list(title = paste0("GDSC2 Compounds (n = ", nrow(plot_data), ")"), showticklabels = FALSE),
                                           yaxis = list(title = ylab))
                           }
-                          
-                          fig
-                          
+                          #Organizing plot_data for download
+                            plot_data <- plot_data[,c("Compound", "Cell_Line", "min_dose_uM", "max_dose_uM", "IC50", "Percentile_IC50")]
+                            plot_data$IC50[plot_data$IC50 == Inf] <- "Inf"
+                            plot_data$Percentile_IC50 <- plot_data$Percentile_IC50*100
+                            colnames(plot_data) <- c("Compound_Name", "Cell_Line_Name", "Minimum_Tested_Compound_Concentration_For_This_Cell_Line_in_GDSC2_uM", "Maximum_Tested_Compound_Concentration_For_This_Cell_Line_in_GDSC2_uM", "Estimated_IC50_uM", "Cell_Line_Percentile_Within_Compound_Of_Estimated_IC50")
+                      
                         }
                       }
+                      #Allowing users to download plot data
+                        output$Cell_Line_Explorer_Download_GDSC2_Data <- downloadHandler(
+                          filename = "GDSC2_Plot_Data.xlsx",
+                          content = function(file){
+                            write.xlsx(plot_data, file, row.names = FALSE)
+                          }
+                        )
+                      #Returning Plot
+                        fig
+                      
                     }
-                  })
+                })
                 
+              #Generating PRISM_Repurposing plot
                 output$Cell_Line_Explorer_PRISM_Repurposing_Plot <- renderPlotly({
                   req(! length(input$Cell_Line_Explorer_Highlight_Compounds) == 0)
                     #Loading raw data for this cell_line and any datasets with data for this cell_line
@@ -3810,8 +3884,10 @@
                                         xaxis = list(title = paste0("PRISM_Repurposing Compounds (n = ", nrow(plot_data), ")"), showticklabels = FALSE),
                                         yaxis = list(title = ylab))
                         }
-                        
-                        fig
+                        #Organizing plot_data for download
+                          plot_data <- plot_data[,c("Compound", "Cell_Line", "min_dose_uM", "max_dose_uM", "min_mode_ccl_PRISM_Repurposing_conc", "max_mode_ccl_PRISM_Repurposing_conc", "AUC_mode_ccl_PRISM_Repurposing_conc", "Percentile_AUC_Mode_CCL")]
+                          plot_data$Percentile_AUC_Mode_CCL <- plot_data$Percentile_AUC_Mode_CCL * 100
+                          colnames(plot_data) <- c("Compound_Name", "Cell_Line_Name", "Minimum_Tested_Compound_Concentration_For_This_Cell_Line_in_PRISM_Repurposing_uM", "Maximum_Tested_Compound_Concentration_For_This_Cell_Line_in_PRISM_Repurposing_uM", "Most_Commonly_Tested_Minimum_Compound_Concentration_In_PRISM_Repurposing_uM", "Most_Commonly_Tested_Maximum_Compound_Concentration_In_PRISM_Repurposing_uM", "Normalized_AUC_For_Most_Commonly_Tested_Compound_Concentration_Range_In_PRISM_Repurposing", "Cell_Line_Percentile_Within_Compound_Of_AUC_For_Most_Commonly_Tested_Compound_Concentration_Range_In_PRISM_Repurposing")
                         
                       } else if(input$Cell_Line_Explorer_to_Plot == "AUC percentiles for concentration range available for all tested cell lines"){
                         plot_data <- PRISM_Repurposing_Results[! is.na(PRISM_Repurposing_Results$Percentile_AUC_All_CCL),]
@@ -3881,9 +3957,11 @@
                                         xaxis = list(title = paste0("PRISM_Repurposing Compounds (n = ", nrow(plot_data), ")"), showticklabels = FALSE),
                                         yaxis = list(title = ylab))
                         }
-                        
-                        fig
-                        
+                        #Organizing plot_data for download
+                          plot_data <- plot_data[,c("Compound", "Cell_Line", "min_dose_uM", "max_dose_uM", "min_all_ccl_PRISM_Repurposing_conc", "max_all_ccl_PRISM_Repurposing_conc", "AUC_all_ccl_PRISM_Repurposing_conc", "Percentile_AUC_All_CCL")]
+                          plot_data$Percentile_AUC_All_CCL <- plot_data$Percentile_AUC_All_CCL * 100
+                          colnames(plot_data) <- c("Compound_Name", "Cell_Line_Name", "Minimum_Tested_Compound_Concentration_For_This_Cell_Line_in_PRISM_Repurposing_uM", "Maximum_Tested_Compound_Concentration_For_This_Cell_Line_in_PRISM_Repurposing_uM", "Minimum_Tested_Compound_Concentration_That_Is_Available_For_All_Cell_Lines_In_PRISM_Repurposing_uM", "Maximum_Tested_Compound_Concentration_That_Is_Available_For_All_Cell_Lines_In_PRISM_Repurposing_uM", "Normalized_AUC_For_Tested_Compound_Concentration_Range_That_Is_Available_For_All_Cell_Lines_In_PRISM_Repurposing", "Cell_Line_Percentile_Within_Compound_Of_AUC_For_Tested_Compound_Concentration_Range_That_Is_Available_For_All_Cell_Lines_In_PRISM_Repurposing")
+                      
                       } else if(input$Cell_Line_Explorer_to_Plot == "IC50 percentiles"){
                         plot_data <- PRISM_Repurposing_Results[! is.na(PRISM_Repurposing_Results$Percentile_IC50),]
                         if(nrow(plot_data) > 0){
@@ -3966,13 +4044,26 @@
                                           xaxis = list(title = paste0("PRISM_Repurposing Compounds (n = ", nrow(plot_data), ")"), showticklabels = FALSE),
                                           yaxis = list(title = ylab))
                           }
-                          
-                          fig
-                          
+                          #Organizing plot_data for download
+                            plot_data <- plot_data[,c("Compound", "Cell_Line", "min_dose_uM", "max_dose_uM", "IC50", "Percentile_IC50")]
+                            plot_data$IC50[plot_data$IC50 == Inf] <- "Inf"
+                            plot_data$Percentile_IC50 <- plot_data$Percentile_IC50*100
+                            colnames(plot_data) <- c("Compound_Name", "Cell_Line_Name", "Minimum_Tested_Compound_Concentration_For_This_Cell_Line_in_PRISM_Repurposing_uM", "Maximum_Tested_Compound_Concentration_For_This_Cell_Line_in_PRISM_Repurposing_uM", "Estimated_IC50_uM", "Cell_Line_Percentile_Within_Compound_Of_Estimated_IC50")
+                      
                         }
                       }
+                      #Allowing users to download plot data
+                        output$Cell_Line_Explorer_Download_PRISM_Repurposing_Data <- downloadHandler(
+                          filename = "PRISM_Repurposing_Plot_Data.xlsx",
+                          content = function(file){
+                            write.xlsx(plot_data, file, row.names = FALSE)
+                          }
+                        )
+                      #Returning Plot
+                        fig
+                      
                     }
-                  })
+                })
                 
               }) #END: Isolate
             }) #END: observeEvent(Cell_Line_Explorer_datasets_with_cell_line_data(), {

@@ -5281,8 +5281,9 @@
                               )
                       progress <- AsyncProgress$new(session, min = 0, max = nrow(temp_Instruction), message = "Initializing Calculation...")
                       future_data <- future(
-                        global = c("progress", "min_RAM_free_ratio_within_future", "temp_Instruction", "temp_Cell_Lines", "temp_dataset", "wd", "Compound_Filenames", "AUC", "ll.4.AUC"),
+                        global = c("progress", "min_RAM_free_ratio_within_future", "min_RAM_free_ratio_to_restart_future_loop", "n_restart_attempts", "restart_attempt_wait_time", "temp_Instruction", "temp_Cell_Lines", "temp_dataset", "wd", "Compound_Filenames", "AUC", "ll.4.AUC"),
                         packages = c("drc"),
+                        seed = TRUE,
                         expr = {
                           #Setting working directory
                             setwd(wd)
@@ -5297,14 +5298,16 @@
                                     temp_free_ram_ratio <- temp_ram$freeram/temp_ram$totalram
                                     if(temp_free_ram_ratio <= min_RAM_free_ratio_within_future){
                                       attempt <- 1
-                                      while(temp_free_ram_ratio <= min_RAM_free_ratio_within_future & attempt <= 10){
-                                        progress$set(value = i-1, message = paste0("WARNING: Server RAM low. Trying to continue...(Attempt ", attempt, " of 10)"))
-                                        Sys.sleep(10)
+                                      while(temp_free_ram_ratio <= min_RAM_free_ratio_to_restart_future_loop & attempt <= n_restart_attempts){
+                                        progress$set(value = i-1, message = paste0("WARNING: Server RAM low. Trying to continue...(Attempt ", attempt, " of ", n_restart_attempts,")"))
+                                        Sys.sleep(restart_attempt_wait_time)
                                         temp_ram <- memuse::Sys.meminfo()
                                         temp_free_ram_ratio <- temp_ram$freeram/temp_ram$totalram
                                         attempt <- attempt + 1
                                       }
-                                      if(temp_free_ram_ratio > min_RAM_free_ratio_within_future){
+                                      if(temp_free_ram_ratio > min_RAM_free_ratio_to_restart_future_loop){
+                                        progress$set(value = i-1, message = "Resuming calculation...")
+                                        Sys.sleep(sample(0:10))
                                         progress$set(value = i-1, message = paste0(i-1, " of ", nrow(temp_Instruction), " Rows Complete..."))
                                       } else {
                                         Aborted <- i-1
@@ -6164,8 +6167,9 @@
                               )
                       progress <- AsyncProgress$new(session, min = 0, max = length(temp_conc_list), message = "Initializing Calculation...")
                       future_data <- future(
-                        global = c("progress", "min_RAM_free_ratio_within_future", "temp_conc_list", "Compound_Filenames", "temp_Instruction", "temp_Cell_Lines", "temp_dataset", "temp_via_calc_uncertainty", "temp_via_format_IDACombo", "wd", "ll.4", "predict.handle.errors.drc", "estfun.drc", "bread.drc", "meat.drc", "sandwich", "predict.drc", "Simple_Cell_Line_Harm"),
+                        global = c("progress", "min_RAM_free_ratio_within_future", "min_RAM_free_ratio_to_restart_future_loop", "n_restart_attempts", "restart_attempt_wait_time", "temp_conc_list", "Compound_Filenames", "temp_Instruction", "temp_Cell_Lines", "temp_dataset", "temp_via_calc_uncertainty", "temp_via_format_IDACombo", "wd", "ll.4", "predict.handle.errors.drc", "estfun.drc", "bread.drc", "meat.drc", "sandwich", "predict.drc", "Simple_Cell_Line_Harm"),
                         packages = c("drc"),
+                        seed = TRUE,
                         expr = {
                           #Setting working directory
                             setwd(wd)
@@ -6182,14 +6186,16 @@
                                         temp_free_ram_ratio <- temp_ram$freeram/temp_ram$totalram
                                         if(temp_free_ram_ratio <= min_RAM_free_ratio_within_future){
                                           attempt <- 1
-                                          while(temp_free_ram_ratio <= min_RAM_free_ratio_within_future & attempt <= 10){
-                                            progress$set(value = i-1, message = paste0("WARNING: Server RAM low. Trying to continue...(Attempt ", attempt, " of 10)"))
-                                            Sys.sleep(10)
+                                          while(temp_free_ram_ratio <= min_RAM_free_ratio_to_restart_future_loop & attempt <= n_restart_attempts){
+                                            progress$set(value = i-1, message = paste0("WARNING: Server RAM low. Trying to continue...(Attempt ", attempt, " of ", n_restart_attempts, ")"))
+                                            Sys.sleep(restart_attempt_wait_time)
                                             temp_ram <- memuse::Sys.meminfo()
                                             temp_free_ram_ratio <- temp_ram$freeram/temp_ram$totalram
                                             attempt <- attempt + 1
                                           }
-                                          if(temp_free_ram_ratio > min_RAM_free_ratio_within_future){
+                                          if(temp_free_ram_ratio > min_RAM_free_ratio_to_restart_future_loop){
+                                            progress$set(value = i-1, message = "Resuming calculation...")
+                                            Sys.sleep(sample(0:10))
                                             progress$set(value = i-1, message = paste0(i-1, " of ", length(temp_conc_list), " Compounds Complete..."))
                                           } else {
                                             Aborted <- i-1
@@ -6293,14 +6299,16 @@
                                         temp_free_ram_ratio <- temp_ram$freeram/temp_ram$totalram
                                         if(temp_free_ram_ratio <= min_RAM_free_ratio_within_future){
                                           attempt <- 1
-                                          while(temp_free_ram_ratio <= min_RAM_free_ratio_within_future & attempt <= 10){
-                                            progress$set(value = i-1, message = paste0("WARNING: Server RAM low. Trying to continue...(Attempt ", attempt, " of 10)"))
-                                            Sys.sleep(10)
+                                          while(temp_free_ram_ratio <= min_RAM_free_ratio_to_restart_future_loop & attempt <= n_restart_attempts){
+                                            progress$set(value = i-1, message = paste0("WARNING: Server RAM low. Trying to continue...(Attempt ", attempt, " of ", n_restart_attempts, ")"))
+                                            Sys.sleep(restart_attempt_wait_time)
                                             temp_ram <- memuse::Sys.meminfo()
                                             temp_free_ram_ratio <- temp_ram$freeram/temp_ram$totalram
                                             attempt <- attempt + 1
                                           }
-                                          if(temp_free_ram_ratio > min_RAM_free_ratio_within_future){
+                                          if(temp_free_ram_ratio > min_RAM_free_ratio_to_restart_future_loop){
+                                            progress$set(value = i-1, message = "Resuming calculation...")
+                                            Sys.sleep(sample(0:10))
                                             progress$set(value = i-1, message = paste0(i-1, " of ", length(temp_conc_list), " Compounds Complete..."))
                                           } else {
                                             Aborted <- i-1

@@ -339,11 +339,8 @@
                 p(HTML("<b>Principal Investigator:</b>")),
                 p(HTML("R. Stephanie Huang (<i>rshuang@umn.edu</i>)")),
                 br(),
-                p(HTML("<b>Project Creator:</b>")),
-                p(HTML("Alexander Ling (<i>alling@umn.edu</i>)")),
-                br(),
-                p(HTML("<b>Project Maintainer:</b>")),
-                p(HTML("John/Jane Doe (<i></i>)"))
+                p(HTML("<b>App Author:</b>")),
+                p(HTML("Alexander Ling (<i>Alexander.L.Ling@gmail.com</i>)"))
               )
             )      
           ),
@@ -404,49 +401,50 @@
               p(HTML("I need to look up the usage agreements of the various datasets used to compile these resources."))
               )
             )      
-        ),
-
-#############################################################                    
-######################################################## UI # 
-        tabPanel(value = "Download Data", title = "Download Bulk Data",
-          list(
-            h3("Download the bulk data used by Simplicity."),
-            wellPanel(
-              p(HTML("This page contains links to download the bulk data used by Simplicity. Please don't forget to visit the \"About Simplicity/Cite This Resource\" tab
-              to find out how to cite Simplicity and the original creators of the data used by the app.")),
-              p(HTML("By downloading this data, you agree to abide by the usage guidelines posted in the \"About Simplicity/Usage License\" tab."))
-            ),
-            wellPanel(
-              p(HTML("<b>Harmonization Tables:</b>")),
-              p(HTML("<a href=\"https://osf.io/9q4zs/download\">Harmonized_CCL_Data_v1.0.xlsx</a>: An excel spreadsheet containing information about each of the cell lines used by each dataset, along with harmonized identifiers for each cell line and the names originally used by each dataset.")),
-              p(HTML("<a href=\"https://osf.io/w9h76/download\">Harmonized_Compound_Data_v1.0.xlsx</a>: An excel spreadsheet containing information about each of the compounds used by each dataset, along with harmonized identifiers for each compound and the names originally used by each dataset."))
-            ),
-            wellPanel(
-              p(HTML("<b>Csustained Values:</b>")),
-              p(HTML("<a href=\"https://osf.io/q5p8x/download\">Csustained_v1.0.xlsx</a>: An excel spreadsheet containing information about the clinically sustainable plasma concentrations (Csustained) for clinical compounds included in Simplicity. Please see the \"About Simplicity/Methods\" tab for details about how Csustained values are determined."))
-            ),
-            wellPanel(
-              p(HTML("<b>Dataset Summary Results:</b>")),
-              p(HTML("<a href=\"https://osf.io/wm5jq/download\">CTRPv2_Results_v1.0.tsv</a>: A tab-separated value text file containing curve parameters, tested concentrations, AUC values, and IC50 values for the compound-cell line pairs tested in CTRPv2.")),
-              p(HTML("<a href=\"https://osf.io/aub4p/download\">GDSC1_Results_v1.0.tsv</a>: A tab-separated value text file containing curve parameters, tested concentrations, AUC values, and IC50 values for the compound-cell line pairs tested in GDSC1.")),
-              p(HTML("<a href=\"https://osf.io/tzkd2/download\">GDSC2_Results_v1.0.tsv</a>: A tab-separated value text file containing curve parameters, tested concentrations, AUC values, and IC50 values for the compound-cell line pairs tested in GDSC2.")),
-              p(HTML("<a href=\"https://osf.io/awydb/download\">PRISM_Repurposing_Results_v1.0.tsv</a>: A tab-separated value text file containing curve parameters, tested concentrations, AUC values, and IC50 values for the compound-cell line pairs tested in PRISM_Repurposing."))
-            ),
-            wellPanel(
-              p(HTML("<b>Dataset Raw Data:</b>")),
-              p(HTML("<a href=\"https://osf.io/6ezmg/download\">CTRPv2_Results_v1.0.tsv.7z</a>: A 7-zip compressed, tab-separated value text file containing the raw data from CTRPv2 after compound and cell line name harmonization.")),
-              p(HTML("<a href=\"https://osf.io/qmp7y/download\">GDSC1_Results_v1.0.tsv.7z</a>: A 7-zip compressed, tab-separated value text file containing the raw data from GDSC1 after compound and cell line name harmonization.")),
-              p(HTML("<a href=\"https://osf.io/we7ry/download\">GDSC2_Results_v1.0.tsv.7z</a>: A 7-zip compressed, tab-separated value text file containing the raw data from GDSC2 after compound and cell line name harmonization.")),
-              p(HTML("<a href=\"https://osf.io/nbjdu/download\">PRISM_Repurposing_Results_v1.0.tsv.7z</a>: A 7-zip compressed, tab-separated value text file containing the raw data from PRISM_Repurposing after compound and cell line name harmonization."))
-            ),
-            wellPanel(
-              p(HTML("<b>Dataset Full Curves:</b>")),
-              p(HTML("The drc fit objects with full statistical information for each of the fitted curves in Simplicity can be downloaded from the <a href=\"https://osf.io/a9w5r/\">OSF repository for this project</a>."))
-            )
-            
-          )      
         )
-  )))
+        
+  ),
+#############################################################          
+######################################################## UI #
+        tabPanel(value = "Download Data", title = "Download Bulk Data",
+                  list(
+                    h3("Download the bulk data used by Simplicity."),
+                    wellPanel(
+                      p(HTML("This page contains links to download the bulk data used by Simplicity. Please don't forget to visit the \"About Simplicity/Cite This Resource\" tab
+                      to find out how to cite Simplicity and the original creators of the data used by the app.")),
+                      p(HTML("By downloading this data, you agree to abide by the usage guidelines posted in the \"About Simplicity/Usage License\" tab."))
+                    ),
+                    wellPanel(
+                      p(HTML("<b>Harmonization Tables:</b>")),
+                      p(HTML("<a href=\"https://osf.io/9q4zs/download\">Harmonized_CCL_Data_v1.0.xlsx</a>: An excel spreadsheet containing information about each of the cell lines used by each dataset, along with harmonized identifiers for each cell line and the names originally used by each dataset.")),
+                      p(HTML("<a href=\"https://osf.io/w9h76/download\">Harmonized_Compound_Data_v1.0.xlsx</a>: An excel spreadsheet containing information about each of the compounds used by each dataset, along with harmonized identifiers for each compound and the names originally used by each dataset."))
+                    ),
+                    wellPanel(
+                      p(HTML("<b>Csustained Values:</b>")),
+                      p(HTML("<a href=\"https://osf.io/q5p8x/download\">Csustained_v1.0.xlsx</a>: An excel spreadsheet containing information about the clinically sustainable plasma concentrations (Csustained) for clinical compounds included in Simplicity. Please see the \"About Simplicity/Methods\" tab for details about how Csustained values are determined."))
+                    ),
+                    wellPanel(
+                      p(HTML("<b>Dataset Summary Results:</b>")),
+                      p(HTML("<a href=\"https://osf.io/wm5jq/download\">CTRPv2_Results_v1.0.tsv</a>: A tab-separated value text file containing curve parameters, tested concentrations, AUC values, and IC50 values for the compound-cell line pairs tested in CTRPv2.")),
+                      p(HTML("<a href=\"https://osf.io/aub4p/download\">GDSC1_Results_v1.0.tsv</a>: A tab-separated value text file containing curve parameters, tested concentrations, AUC values, and IC50 values for the compound-cell line pairs tested in GDSC1.")),
+                      p(HTML("<a href=\"https://osf.io/tzkd2/download\">GDSC2_Results_v1.0.tsv</a>: A tab-separated value text file containing curve parameters, tested concentrations, AUC values, and IC50 values for the compound-cell line pairs tested in GDSC2.")),
+                      p(HTML("<a href=\"https://osf.io/awydb/download\">PRISM_Repurposing_Results_v1.0.tsv</a>: A tab-separated value text file containing curve parameters, tested concentrations, AUC values, and IC50 values for the compound-cell line pairs tested in PRISM_Repurposing."))
+                    ),
+                    wellPanel(
+                      p(HTML("<b>Dataset Raw Data:</b>")),
+                      p(HTML("<a href=\"https://osf.io/6ezmg/download\">CTRPv2_Results_v1.0.tsv.7z</a>: A 7-zip compressed, tab-separated value text file containing the raw data from CTRPv2 after compound and cell line name harmonization.")),
+                      p(HTML("<a href=\"https://osf.io/qmp7y/download\">GDSC1_Results_v1.0.tsv.7z</a>: A 7-zip compressed, tab-separated value text file containing the raw data from GDSC1 after compound and cell line name harmonization.")),
+                      p(HTML("<a href=\"https://osf.io/we7ry/download\">GDSC2_Results_v1.0.tsv.7z</a>: A 7-zip compressed, tab-separated value text file containing the raw data from GDSC2 after compound and cell line name harmonization.")),
+                      p(HTML("<a href=\"https://osf.io/nbjdu/download\">PRISM_Repurposing_Results_v1.0.tsv.7z</a>: A 7-zip compressed, tab-separated value text file containing the raw data from PRISM_Repurposing after compound and cell line name harmonization."))
+                    ),
+                    wellPanel(
+                      p(HTML("<b>Dataset Full Curves:</b>")),
+                      p(HTML("The drc fit objects with full statistical information for each of the fitted curves in Simplicity can be downloaded from the <a href=\"https://osf.io/a9w5r/\">OSF repository for this project</a>."))
+                    )
+                    
+                  )      
+                )
+))
   
 #############################################################  
 #################################################### server #          
@@ -5307,7 +5305,7 @@
                                       }
                                       if(temp_free_ram_ratio > min_RAM_free_ratio_to_restart_future_loop){
                                         progress$set(value = i-1, message = "Resuming calculation...")
-                                        Sys.sleep(sample(0:10))
+                                        Sys.sleep(sample(0:20))
                                         progress$set(value = i-1, message = paste0(i-1, " of ", nrow(temp_Instruction), " Rows Complete..."))
                                       } else {
                                         Aborted <- i-1
@@ -6195,7 +6193,7 @@
                                           }
                                           if(temp_free_ram_ratio > min_RAM_free_ratio_to_restart_future_loop){
                                             progress$set(value = i-1, message = "Resuming calculation...")
-                                            Sys.sleep(sample(0:10))
+                                            Sys.sleep(sample(0:20))
                                             progress$set(value = i-1, message = paste0(i-1, " of ", length(temp_conc_list), " Compounds Complete..."))
                                           } else {
                                             Aborted <- i-1
@@ -6308,7 +6306,7 @@
                                           }
                                           if(temp_free_ram_ratio > min_RAM_free_ratio_to_restart_future_loop){
                                             progress$set(value = i-1, message = "Resuming calculation...")
-                                            Sys.sleep(sample(0:10))
+                                            Sys.sleep(sample(0:20))
                                             progress$set(value = i-1, message = paste0(i-1, " of ", length(temp_conc_list), " Compounds Complete..."))
                                           } else {
                                             Aborted <- i-1

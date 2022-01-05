@@ -403,6 +403,8 @@
   }
   
 #Pre-rendering plots for welcome page to make the app feel more responsive
+  temp.font <- list(family = "Arial", size = 20)
+  
   welcome_cancer_type_plots <- list(NULL)
   for(i in 1:length(datasets)){
     temp_dataset_ccl_data <- Simple_Cell_Line_Harm[Simple_Cell_Line_Harm$Harmonized_Cell_Line_ID %in% Dataset_ccls_successful[[datasets[i]]],]
@@ -425,7 +427,7 @@
     welcome_cancer_type_plots[[i]] <- plot_ly(x = plot_data$Var1, y = Gender_Unknown, type = "bar", name = "Unknown Gender", marker = list(color = "lightgray")) %>%
                                       add_trace(y = Gender_Male, name = "Male", marker = list(color = rgb(65,105,225, maxColorValue = 255))) %>%
                                       add_trace(y = Gender_Female, name = "Female", marker = list(color = rgb(186,85,211, maxColorValue = 255))) %>%
-                                      layout(title = "<b>Gender and Cancer Type Representation</b>",yaxis = list(title = "# of Cell Lines"), xaxis = list(tickangle = 45), barmode = "stack", margin = list(b = 150, l = 50))
+                                      layout(title = list(y = "auto", yanchor = "top", text = "<b>Gender and Cancer Type Representation</b>", font = temp.font), yaxis = list(title = "# of Cell Lines"), xaxis = list(tickangle = 45), barmode = "stack", margin = list(autoexpand = TRUE, b = 180, l = 50, t = 60))
     
   }
   names(welcome_cancer_type_plots) <- datasets
@@ -441,7 +443,7 @@
                 theme_light() +
                 labs(x = paste("Patient Age (in Years) when Cell Line was Derived ", completeness), y = "Scaled Density") 
 
-    welcome_age_plots[[i]] <- ggplotly(p) %>% layout(title = "<b>Age Representation</b>", margin = list(b = 80))
+    welcome_age_plots[[i]] <- ggplotly(p) %>% layout(title = list(y = "auto", yanchor = "top", text = "<b>Age Representation</b>", font = temp.font), margin = list(autoexpand = TRUE, b = 100, t = 60))
   }
   names(welcome_age_plots) <- datasets
 
@@ -496,7 +498,7 @@
       add_trace(y = plot_data[,5], name = colnames(plot_data)[5], marker = list(color = plot_colors[5])) %>%
       add_trace(y = plot_data[,6], name = colnames(plot_data)[6], marker = list(color = plot_colors[6])) %>%
       add_trace(y = plot_data[,7], name = colnames(plot_data)[7], marker = list(color = plot_colors[7])) %>%
-      layout(margin = list(b = 80), title = "<b>Ancestry Representation</b>", barmode = "stack", xaxis = list(title = paste("Tested Cell Lines", completeness), showticklabels = FALSE), yaxis = list(title = "% Ancestry Makeup"), bargap = 0, legend = list(traceorder = "normal"))
+      layout(margin = list(autoexpand = TRUE, b = 100, t = 60), title = list(y = "auto", yanchor = "top", text = "<b>Ancestry Representation</b>", font = temp.font), barmode = "stack", xaxis = list(title = paste("Tested Cell Lines", completeness), showticklabels = FALSE), yaxis = list(title = "% Ancestry Makeup"), bargap = 0, legend = list(traceorder = "normal"))
     
     # welcome_ancestry_plots[[i]] <- ggplotly(p)
     welcome_ancestry_plots[[i]] <- fig
@@ -514,8 +516,8 @@
     
     fig <- plot_ly(x = plot_data$Var1, y = plot_data$Freq, type = "bar")
     welcome_clinical_phase_plots[[i]] <- layout(fig,
-                                        margin = list(b = 80),
-                                        title = "<b>Clinical Phase Representation</b>",
+                                        margin = list(autoexpand = TRUE, b = 100, t = 60),
+                                        title = list(y = "auto", yanchor = "top", text = "<b>Clinical Phase Representation</b>", font = temp.font),
                                         xaxis = list(title = paste("Clinical Phase")),
                                         yaxis = list(title = paste("# of Compounds")))
   }
@@ -559,7 +561,7 @@
     
     n_Compounds_Per_Cell_Line_Plots[[i]] <- plot_ly(data = full_plot_data, x = ~Var1, y = ~Freq.x, type = "bar", name = "Attempted") %>%
                                             add_trace(y = ~Freq.y, name = "Passed QC") %>%
-                                            layout(margin = list(b = 80), title = "<b>Compounds Tested Per Cell Line</b>", xaxis = list(title = paste("# of Compounds Tested per Cell Line")), yaxis = list(title = paste("Cell Line Count")), barmode = 'group')
+                                            layout(margin = list(autoexpand = TRUE, b = 100, t = 60), title = list(y = "auto", yanchor = "top", text = "<b>Compounds Tested Per Cell Line</b>", font = temp.font), xaxis = list(title = paste("# of Compounds Tested per Cell Line")), yaxis = list(title = paste("Cell Line Count")), barmode = 'group')
 
   }
   names(n_Compounds_Per_Cell_Line_Plots) <- datasets
@@ -601,7 +603,7 @@
     
     n_Cell_Lines_Per_Compound_Plots[[i]] <- plot_ly(data = full_plot_data, x = ~Var1, y = ~Freq.x, type = "bar", name = "Attempted") %>%
                                             add_trace(y = ~Freq.y, name = "Passed QC") %>%
-                                            layout(margin = list(b = 80), title = "<b>Cell Lines Tested Per Compound</b>", xaxis = list(title = paste("# of Cell Lines Tested per Compound")), yaxis = list(title = paste("Compound Count")), barmode = 'group')
+                                            layout(margin = list(autoexpand = TRUE, b = 100, t = 60), title = list(y = "auto", yanchor = "top", text = "<b>Cell Lines Tested Per Compound</b>", font = temp.font), xaxis = list(title = paste("# of Cell Lines Tested per Compound")), yaxis = list(title = paste("Compound Count")), barmode = 'group')
   }
   names(n_Cell_Lines_Per_Compound_Plots) <- datasets
   
@@ -613,7 +615,7 @@
                 geom_density(color = "darkblue", fill = "lightblue") +
                 theme_light() +
                 labs(x = paste0("Residual Standard Error for Dose-Response Curves (n = ", nrow(RSE_plot_data), ")"), y = "Scaled Density")
-    Dataset_Residual_Standard_Error_Plots[[i]] <- ggplotly(p) %>% layout(margin = list(b = 80), title = "<b>Residual Standard Errors in Dataset</b>")
+    Dataset_Residual_Standard_Error_Plots[[i]] <- ggplotly(p) %>% layout(margin = list(autoexpand = TRUE, b = 100, t = 60), title = list(y = "auto", yanchor = "top", text = "<b>Residual Standard Errors in Dataset</b>", font = temp.font))
   }
   names(Dataset_Residual_Standard_Error_Plots) <- datasets
   

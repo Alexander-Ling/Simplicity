@@ -91,7 +91,7 @@
                             helper(type = "inline",
                               title = "Tested cell line ancestries",
                               icon = "question-circle", colour = NULL,
-                              content = c("This stacked barplot shows the ancestry makeup of each of the tested cell lines in the selected dataset. Each bar summarizes the ancestry of a single cell line, with ancestry for each cell line being represented by the percentage of that cell line's ancestry which belongs to each of the 7 labeled ancestry groups. All ancestry groups for each cell line must sum to 100%. For example, if a cell line has 50% South Asian ancestry and 50% Native American Ancestry, it would be represented by a bar which is half purple (South Asian) and half orange (Native American). A detailed description of how cell line information was obtained is included in the \"About Simplicity/Methods\" tab. Full cell line annotation information can be downloaded in the \"Download Bulk Data\" tab."),
+                              content = c("This stacked barplot shows the ancestry makeup of each of the tested cell lines in the selected dataset. Each bar summarizes the ancestry of a single cell line, with ancestry for each cell line being represented by the percentage of that cell line's ancestry which belongs to each of the 7 labeled ancestry groups. All ancestry groups for each cell line must sum to 100%. For example, if a cell line has 50% South Asian ancestry and 50% Native American Ancestry, it would be represented by a bar which is half orange (South Asian) and half green (Native American). A detailed description of how cell line information was obtained is included in the \"About Simplicity/Methods\" tab. Full cell line annotation information can be downloaded in the \"Download Bulk Data\" tab."),
                               size = "m",
                               buttonLabel = "Okay", easyClose = TRUE, fade = FALSE
                             ),
@@ -316,14 +316,9 @@
 ######################################################## UI #           
           tabPanel(value = "Methods", title = "Methods",
             list(
-              h4("Once the methods section for the paper is written, it will be formatted nicely and put here. The main things that need to be covered are as follows:"),
+              h4("Full method descriptions for Simplicity can be found in our manuscript:"),
               wellPanel(
-                h5("1. How was raw data obtained for each dataset?"),
-                h5("2. How was raw data pre-processed for each dataset (especially PRISM-Repurposing)?"),
-                h5("3. How was curve fitting performed?"),
-                h5("4. How were cell lines and compounds annotated/harmonized?"),
-                h5("5. How are normalized AUC and Viability values calculated?"),
-                h5("6. What makes the code tick (packages, environment, etc.) and where can the source code be accessed?")
+                h5("A link to the manuscript will be provided here once the preprint is submitted.")
               )
             )      
           ),
@@ -394,11 +389,9 @@
               ),
               wellPanel(
               p(HTML("<b>Usage of CTRPv2 and PRISM-Repurposing Data:</b>")),
-              p(HTML("I'm still waiting to hear back from these teams. The PRISM-Repurposing data appears to have been relased under the CC Attribution 4.0 license, however, data was processed using R and several R packages. I need to look into whether this affects usage of that data."))
-              ),
-              wellPanel(
-              p(HTML("<b>Usage of Compound Harmonization, Cell Line Harmonization, and Csustained value tables:</b>")),
-              p(HTML("I need to look up the usage agreements of the various datasets used to compile these resources."))
+              p(HTML("Users must respect the original licences under which these resources were released as well as cite the appropriate references for the used dataset(s) as specified in in the \"About Simplicity/Cite This Resource\" tab.")),
+              p(HTML("CTRPv2 website: <a href=\"https://portals.broadinstitute.org/ctrp/\">https://portals.broadinstitute.org/ctrp/</a>.")),
+              p(HTML("PRISM-Repurposing website: <a href=\"https://depmap.org/repurposing/\">https://depmap.org/repurposing/</a>."))
               )
             )      
         )

@@ -36,7 +36,7 @@
           #Welcome text for app
             h3("Welcome to the Simplicity web app!"),
             p(HTML("This app was created to provide simple, non-programmatic access to explore and perform calculations with data from high-throughput cancer drug screens performed in cancer cell lines. Each of the included datasets (CTRPv2, GDSC1, GDSC2, and PRISM-Repurposing) have screened hundreds of compounds in hundreds of cell lines.")),
-            p(HTML("You can watch <u>this video</u> for a quick tutorial on using Simplicity. Otherwise, please feel free to get started by selecting the appropriate tab at the top for the task you wish to complete. The basic functions of each tab are as follows:")),
+            p(HTML("You can watch <a href=\"https://youtu.be/oNuwRDs_5DQ\">this video</a> for a quick tutorial on using Simplicity. Otherwise, please feel free to get started by selecting the appropriate tab at the top for the task you wish to complete. The basic functions of each tab are as follows:")),
             wellPanel(
               HTML("<b><u>Data Explorer</u></b>
                       <ul>

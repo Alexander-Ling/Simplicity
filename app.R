@@ -5873,7 +5873,7 @@
                                   helper(type = "inline",
                                     title = "Formatting for IDACombo shiny app",
                                     icon = "question-circle", colour = NULL,
-                                    content = HTML("Selecting this option will format the output file so that it can be directly used as a custom input dataset for the IDACombo shiny app, an app developed by our group to use monotherapy drug screening data to predict drug combination efficacy. The IDACombo app can be found at <a href=\"https://huanglab.shinyapps.io/idacombo-shiny-app/\">https://huanglab.shinyapps.io/idacombo-shiny-app/</a>"),
+                                    content = HTML("Selecting this option will format the output file so that it can be directly used as a custom input dataset for the IDACombo shiny app, an app developed by our group to use monotherapy drug screening data to predict drug combination efficacy. The IDACombo app can be found at <a href=\"https://oncotherapyinformatics.org/idacombo/\">https://oncotherapyinformatics.org/idacombo/</a>"),
                                     size = "m",
                                     buttonLabel = "Okay", easyClose = TRUE, fade = FALSE
                                   ),

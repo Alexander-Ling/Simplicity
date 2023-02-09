@@ -5270,20 +5270,22 @@
                                 color = "#112446",
                                 text = "Calculating AUCs..."
                               )
-                      progress <- AsyncProgress$new(session, min = 0, max = nrow(temp_Instruction), message = "Initializing Calculation...")
+                      progress <- AsyncProgress$new(session, min = 0, max = nrow(temp_Instruction), message = "Initializing Calculation...", millis = 1000)
                       future_data <- future(
                         global = c("progress", "min_RAM_free_ratio_within_future", "min_RAM_free_ratio_to_restart_future_loop", "n_restart_attempts", "restart_attempt_wait_time", "temp_Instruction", "temp_Cell_Lines", "temp_dataset", "wd", "Compound_Filenames", "AUC", "ll.4.AUC"),
                         packages = c("drc"),
                         seed = TRUE,
+                        lazy = FALSE,
+                        gc = TRUE,
                         expr = {
                           #Setting working directory
                             setwd(wd)
                           #Calculating AUCs
                             temp_Result <- try({
                               #Loading fitted curves and calculating AUC Values
-                                Calculated_AUCs <- vector(mode = "list", length = 0)
+                                Calculated_AUCs <- NULL
                                 Aborted <- FALSE
-                                for(i in 1:nrow(temp_Instruction)){
+                                Calculated_AUCs <- foreach(i = 1:nrow(temp_Instruction)) %do% {
                                   #Checking if sufficient RAM exists to continue calculation
                                     temp_ram <- memuse::Sys.meminfo()
                                     temp_free_ram_ratio <- temp_ram$freeram/temp_ram$totalram
@@ -5329,7 +5331,8 @@
                                                                 stringsAsFactors = FALSE
                                                                 )
                                     #Storing result
-                                      Calculated_AUCs[[i]] <- temp_Return
+                                      progress$set(value = i, message = paste0(i, " of ", nrow(temp_Instruction), " Rows Complete..."))
+                                      return(temp_Return)
                                       rm(temp_Return, temp_AUCs, temp_results)
                                       gc()
                                   } else {
@@ -5344,10 +5347,10 @@
                                                                 stringsAsFactors = FALSE
                                                                 )
                                     #Storing empty data frame
-                                      Calculated_AUCs[[i]] <- temp_Return
+                                      progress$set(value = i, message = paste0(i, " of ", nrow(temp_Instruction), " Rows Complete..."))
+                                      return(temp_Return)
                                   }
-                                  progress$set(value = i, message = paste0(i, " of ", nrow(temp_Instruction), " Rows Complete..."))
-                                }
+                                } #END: Calculated_AUCs <- foreach(i = 1:nrow(temp_Instruction)) %do% {
                               #Organizing calculated AUC values
                                 if(length(Calculated_AUCs) > 0){
                                   Returnable_AUCs <- as.data.frame(do.call(rbind, Calculated_AUCs))
@@ -6156,11 +6159,13 @@
                                 color = "#112446",
                                 text = "Calculating Viabilities..."
                               )
-                      progress <- AsyncProgress$new(session, min = 0, max = length(temp_conc_list), message = "Initializing Calculation...")
+                      progress <- AsyncProgress$new(session, min = 0, max = length(temp_conc_list), message = "Initializing Calculation...", millis = 1000)
                       future_data <- future(
                         global = c("progress", "min_RAM_free_ratio_within_future", "min_RAM_free_ratio_to_restart_future_loop", "n_restart_attempts", "restart_attempt_wait_time", "temp_conc_list", "Compound_Filenames", "temp_Instruction", "temp_Cell_Lines", "temp_dataset", "temp_via_calc_uncertainty", "temp_via_format_IDACombo", "wd", "ll.4", "predict.handle.errors.drc", "estfun.drc", "bread.drc", "meat.drc", "sandwich", "predict.drc", "Simple_Cell_Line_Harm"),
                         packages = c("drc"),
                         seed = TRUE,
+                        lazy = FALSE,
+                        gc = TRUE,
                         expr = {
                           #Setting working directory
                             setwd(wd)
@@ -6171,7 +6176,7 @@
                                 #Loading fitted curves and calculating Viability values
                                   Calculated_Viabilities <- vector(mode = "list", length = 0)
                                   Aborted <- FALSE
-                                    for(i in 1:length(temp_conc_list)){
+                                  Calculated_Viabilities <- foreach(i = 1:length(temp_conc_list)) %do% {
                                       #Checking if sufficient RAM exists to continue calculation
                                         temp_ram <- memuse::Sys.meminfo()
                                         temp_free_ram_ratio <- temp_ram$freeram/temp_ram$totalram
@@ -6219,7 +6224,8 @@
                                                                     stringsAsFactors = FALSE
                                                                     )
                                         #Storing result
-                                          Calculated_Viabilities[[i]] <- temp_Return
+                                          progress$set(value = i, message = paste0(i, " of ", length(temp_conc_list), " Compounds Complete..."))
+                                          return(temp_Return)
                                           rm(temp_Return, temp_Viabilities, temp_Concentrations, temp_results)
                                           gc()
                                       } else {
@@ -6233,9 +6239,9 @@
                                                                     stringsAsFactors = FALSE
                                                                     )
                                         #Storing empty data frame
-                                          Calculated_Viabilities[[i]] <- temp_Return
+                                          progress$set(value = i, message = paste0(i, " of ", length(temp_conc_list), " Compounds Complete..."))
+                                          return(temp_Return)
                                       }
-                                      progress$set(value = i, message = paste0(i, " of ", length(temp_conc_list), " Compounds Complete..."))
                                     }
                                 #Organizing calculated Viability values
                                   if(length(Calculated_Viabilities) > 0){
@@ -6284,7 +6290,7 @@
                                 #Loading fitted curves and calculating Viability values
                                   Calculated_Viabilities <- vector(mode = "list", length = 0)
                                   Aborted <- FALSE
-                                    for(i in 1:length(temp_conc_list)){
+                                  Calculated_Viabilities <- foreach(i = 1:length(temp_conc_list)) %do% {
                                       #Checking if sufficient RAM exists to continue calculation
                                         temp_ram <- memuse::Sys.meminfo()
                                         temp_free_ram_ratio <- temp_ram$freeram/temp_ram$totalram
@@ -6346,7 +6352,8 @@
                                             }
                                           }
                                         #Storing result
-                                          Calculated_Viabilities[[i]] <- temp_Return
+                                          progress$set(value = i, message = paste0(i, " of ", length(temp_conc_list), " Compounds Complete..."))
+                                          return(temp_Return)
                                           rm(temp_Return, temp_Viabilities, temp_Concentrations, temp_results)
                                           gc()
                                       } else {
@@ -6361,9 +6368,9 @@
                                                                     stringsAsFactors = FALSE
                                                                     )
                                         #Storing empty data frame
-                                          Calculated_Viabilities[[i]] <- temp_Return
+                                          progress$set(value = i, message = paste0(i, " of ", length(temp_conc_list), " Compounds Complete..."))
+                                          return(temp_Return)
                                       }
-                                      progress$set(value = i, message = paste0(i, " of ", length(temp_conc_list), " Compounds Complete..."))
                                     }
                                 #Organizing calculated Viability values
                                     if(length(Calculated_Viabilities) > 0){

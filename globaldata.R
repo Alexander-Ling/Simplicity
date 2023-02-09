@@ -12,7 +12,8 @@
   require(ipc)
   require(promises)
   require(future)
-    plan(multisession, workers = 2)
+  require(doFuture)
+    plan(multicore, workers = 7)
   #Also uses "memuse", "DT", and "tools" packages, called using ::
 
 #Defining control constants

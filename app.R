@@ -5284,8 +5284,13 @@
                             temp_Result <- try({
                               #Loading fitted curves and calculating AUC Values
                                 Calculated_AUCs <- NULL
-                                Aborted <- FALSE
+                                Abort_Filename <- tempfile()
                                 Calculated_AUCs <- foreach(i = 1:nrow(temp_Instruction)) %do% {
+                                  #Checking if this run is aborted
+                                    Aborted <- file.exists(Abort_Filename)
+                                    if(Aborted == TRUE){
+                                      stop("Insufficient RAM to complete calculation. Please try again later. We appologize for the inconvenience.")
+                                    }
                                   #Checking if sufficient RAM exists to continue calculation
                                     temp_ram <- memuse::Sys.meminfo()
                                     temp_free_ram_ratio <- temp_ram$freeram/temp_ram$totalram
@@ -5303,9 +5308,10 @@
                                         Sys.sleep(sample(0:20))
                                         progress$set(value = i-1, message = paste0(i-1, " of ", nrow(temp_Instruction), " Rows Complete..."))
                                       } else {
-                                        Aborted <- i-1
+                                        write("", Abort_Filename)
+                                        Aborted_at <- i-1
                                         progress$set(value = i-1, message = "Aborting calculation...")
-                                        break
+                                        stop("Insufficient RAM to complete calculation. Please try again later. We appologize for the inconvenience.")
                                       }
                                     }
                                   #Initializing progress bar message for first compound
@@ -5351,6 +5357,10 @@
                                       return(temp_Return)
                                   }
                                 } #END: Calculated_AUCs <- foreach(i = 1:nrow(temp_Instruction)) %do% {
+                              #Cleaning up abort file if it exists
+                                if(file.exists(Abort_Filename)){
+                                  file.remove(Abort_Filename)
+                                }
                               #Organizing calculated AUC values
                                 if(length(Calculated_AUCs) > 0){
                                   Returnable_AUCs <- as.data.frame(do.call(rbind, Calculated_AUCs))
@@ -5367,7 +5377,7 @@
                                 }
                               #Throwing warning if aborted
                                 if(Aborted != FALSE){
-                                    Warning <- paste0("WARNING: Calculation aborted after ", Aborted, " of ", nrow(temp_Instruction)," rows complete. Please reload the web page and try again. Contact us if this problem persists.")
+                                    Warning <- paste0("WARNING: Calculation aborted after ", Aborted_at, " of ", nrow(temp_Instruction)," rows complete. Please reload the web page and try again. Contact us if this problem persists.")
                                   } else {
                                     Warning <- FALSE
                                   }
@@ -6175,8 +6185,13 @@
                               #Performing calculations when standard errors are not needed
                                 #Loading fitted curves and calculating Viability values
                                   Calculated_Viabilities <- vector(mode = "list", length = 0)
-                                  Aborted <- FALSE
+                                  Abort_Filename <- tempfile()
                                   Calculated_Viabilities <- foreach(i = 1:length(temp_conc_list)) %do% {
+                                      #Checking if this run is aborted
+                                        Aborted <- file.exists(Abort_Filename)
+                                        if(Aborted == TRUE){
+                                          stop("Insufficient RAM to complete calculation. Please try again later. We appologize for the inconvenience.")
+                                        }
                                       #Checking if sufficient RAM exists to continue calculation
                                         temp_ram <- memuse::Sys.meminfo()
                                         temp_free_ram_ratio <- temp_ram$freeram/temp_ram$totalram
@@ -6194,9 +6209,10 @@
                                             Sys.sleep(sample(0:20))
                                             progress$set(value = i-1, message = paste0(i-1, " of ", length(temp_conc_list), " Compounds Complete..."))
                                           } else {
-                                            Aborted <- i-1
+                                            write("", Abort_Filename)
+                                            Aborted_at <- i-1
                                             progress$set(value = i-1, message = "Aborting calculation...")
-                                            break
+                                            stop("Insufficient RAM to complete calculation. Please try again later. We appologize for the inconvenience.")
                                           }
                                         }
                                       #Initializing progress bar message for first compound
@@ -6242,7 +6258,11 @@
                                           progress$set(value = i, message = paste0(i, " of ", length(temp_conc_list), " Compounds Complete..."))
                                           return(temp_Return)
                                       }
-                                    }
+                                    } #END: Calculated_Viabilities <- foreach(i = 1:length(temp_conc_list)) %do% {
+                                #Cleaning up abort file if it exists
+                                  if(file.exists(Abort_Filename)){
+                                    file.remove(Abort_Filename)
+                                  }
                                 #Organizing calculated Viability values
                                   if(length(Calculated_Viabilities) > 0){
                                     Returnable_Viabilities <- as.data.frame(do.call(rbind, Calculated_Viabilities))
@@ -6271,7 +6291,7 @@
                                 #Finishing computation
                                   progress$close()
                                   if(Aborted != FALSE){
-                                    Warning <- paste0("WARNING: Calculation aborted after ", Aborted, " of ", length(temp_conc_list)," compounds complete. WARNING: Calculation failed. Please reload the web page and try again. Contact us if this problem persists.")
+                                    Warning <- paste0("WARNING: Calculation aborted after ", Aborted_at, " of ", length(temp_conc_list)," compounds complete. WARNING: Calculation failed. Please reload the web page and try again. Contact us if this problem persists.")
                                   } else {
                                     Warning <- FALSE
                                   }
@@ -6289,8 +6309,13 @@
                               #Performing calculations when standard errors are needed
                                 #Loading fitted curves and calculating Viability values
                                   Calculated_Viabilities <- vector(mode = "list", length = 0)
-                                  Aborted <- FALSE
+                                  Abort_Filename <- tempfile()
                                   Calculated_Viabilities <- foreach(i = 1:length(temp_conc_list)) %do% {
+                                      #Checking if this run is aborted
+                                        Aborted <- file.exists(Abort_Filename)
+                                        if(Aborted == TRUE){
+                                          stop("Insufficient RAM to complete calculation. Please try again later. We appologize for the inconvenience.")
+                                        }
                                       #Checking if sufficient RAM exists to continue calculation
                                         temp_ram <- memuse::Sys.meminfo()
                                         temp_free_ram_ratio <- temp_ram$freeram/temp_ram$totalram
@@ -6308,9 +6333,10 @@
                                             Sys.sleep(sample(0:20))
                                             progress$set(value = i-1, message = paste0(i-1, " of ", length(temp_conc_list), " Compounds Complete..."))
                                           } else {
-                                            Aborted <- i-1
+                                            write("", Abort_Filename)
+                                            Aborted_at <- i-1
                                             progress$set(value = i-1, message = "Aborting calculation...")
-                                            break
+                                            stop("Insufficient RAM to complete calculation. Please try again later. We appologize for the inconvenience.")
                                           }
                                         }
                                       #Initializing count for progress bar
@@ -6371,7 +6397,11 @@
                                           progress$set(value = i, message = paste0(i, " of ", length(temp_conc_list), " Compounds Complete..."))
                                           return(temp_Return)
                                       }
-                                    }
+                                    } #END: Calculated_Viabilities <- foreach(i = 1:length(temp_conc_list)) %do% {
+                                #Cleaning up abort file if it exists
+                                  if(file.exists(Abort_Filename)){
+                                    file.remove(Abort_Filename)
+                                  }
                                 #Organizing calculated Viability values
                                     if(length(Calculated_Viabilities) > 0){
                                       Returnable_Viabilities <- as.data.frame(do.call(rbind, Calculated_Viabilities))
@@ -6401,7 +6431,7 @@
                                   #Finishing computation
                                     progress$close()
                                     if(Aborted != FALSE){
-                                      Warning <- paste0("WARNING: Calculation aborted after ", Aborted, " of ", length(temp_conc_list)," compounds complete. WARNING: Calculation failed. Please reload the web page and try again. Contact us if this problem persists.")
+                                      Warning <- paste0("WARNING: Calculation aborted after ", Aborted_at, " of ", length(temp_conc_list)," compounds complete. WARNING: Calculation failed. Please reload the web page and try again. Contact us if this problem persists.")
                                     } else {
                                       Warning <- FALSE
                                     }

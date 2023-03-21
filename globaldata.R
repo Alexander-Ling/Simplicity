@@ -20,7 +20,7 @@
   check_RAM_frequency <- 10 #RAM usage is checked every this many seconds
   min_RAM_free_ratio_to_start_future <- 0.4 #The minimum ratio of free ram / total ram that must be available to start a new future (i.e. RAM and CPU intensive) calculation
   min_RAM_free_ratio_within_future <- 0.2 #The minimum ratio of free ram / total ram that must be available for a future calculation to continue through it's loop
-  min_RAM_free_ratio_to_restart_future_loop <- 0.35 #The minimum ratio of free ram / total ram that must be available for a future calculation to restart an interrupted for loop
+  min_RAM_free_ratio_to_restart_future_loop <- 0.2 #The minimum ratio of free ram / total ram that must be available for a future calculation to restart an interrupted for loop
   n_restart_attempts <- 5 #The number of times to attempt to restart an interrupted for loop before aborting the calculation
   restart_attempt_wait_time <- 10 #The number of seconds to wait between restart attempts in an interrupted future for loop
   

@@ -5411,6 +5411,7 @@
                     #Creating Download Button
                       output$AUC_Download_UI <- renderUI({
                         if(is.data.frame(data$AUCs) & data$Warning == FALSE){
+                          list(
                           downloadButton(outputId = "AUC_Download_AUC_Values", label = "Download Calculated AUC Values") %>%
                                   helper(type = "inline",
                                     title = "Download AUC Values",
@@ -5427,7 +5428,9 @@
                                                   </ol>"),
                                     size = "m",
                                     buttonLabel = "Okay", easyClose = TRUE, fade = FALSE
-                                  )
+                                  ),
+                          p(tags$i("Note that downloaded file should be in .tsv format. Problems can sometimes occur when downloading very large files, such that pressing the download button will spuriously download an .html file of the webpage. Please simply try pressing the download button again until a .tsv file is successfully downloaded. It is sometimes necessary to download the .html file before the .tsv file can be successfully downloaded."))
+                          )
                         } else if(is.data.frame(data$AUCs) & data$Warning != FALSE){
                           list(
                             p(tags$b(data$Warning), style = "color:red"),
@@ -5447,7 +5450,8 @@
                                                     </ol>"),
                                       size = "m",
                                       buttonLabel = "Okay", easyClose = TRUE, fade = FALSE
-                                    )
+                                    ),
+                          p(tags$i("Note that downloaded file should be in .tsv format. Problems can sometimes occur when downloading very large files, such that pressing the download button will spuriously download an .html file of the webpage. Please simply try pressing the download button again until a .tsv file is successfully downloaded. It is sometimes necessary to download the .html file before the .tsv file can be successfully downloaded."))
                           )
                         } else if(! is.data.frame(data$AUCs) & data$Warning != FALSE){
                           p(tags$b(data$Warning), style = "color:red")
@@ -6460,6 +6464,7 @@
                     #Creating Download Button
                       output$Viability_Download_UI <- renderUI({
                         if(is.data.frame(data$Viabilities) & data$Warning == FALSE){
+                          list(
                           downloadButton(outputId = "Viability_Download_Viability_Values", label = "Download Calculated Viability Values") %>%
                                   helper(type = "inline",
                                     title = "Download Viabilities",
@@ -6478,7 +6483,9 @@
                                                    Note that, if the \"Format ouput for use with IDACombo shiny app?\" option was selected prior to calculating the viabilites, the Compound, Cell_Line, Viability, Viability_SE, and Concentration_uM columns will be named Drug, Cell_Line, Efficacy, Efficacy_SE, and Drug_Dose respectively, and a Cell_Line_Subgroup column will be added containing the general cancer type corresponding with each row's cell line."),
                                     size = "m",
                                     buttonLabel = "Okay", easyClose = TRUE, fade = FALSE
-                                  )
+                                  ),
+                          p(tags$i("Note that downloaded file should be in .tsv format. Problems can sometimes occur when downloading very large files, such that pressing the download button will spuriously download an .html file of the webpage. Please simply try pressing the download button again until a .tsv file is successfully downloaded. It is sometimes necessary to download the .html file before the .tsv file can be successfully downloaded."))
+                          )
                         } else if(is.data.frame(data$Viabilities) & data$Warning != FALSE){
                           list(
                           p(tags$b(data$Warning), style = "color:red"),
@@ -6500,7 +6507,8 @@
                                                    Note that, if the \"Format ouput for use with IDACombo shiny app?\" option was selected prior to calculating the viabilites, the Compound, Cell_Line, Viability, Viability_SE, and Concentration_uM columns will be named Drug, Cell_Line, Efficacy, Efficacy_SE, and Drug_Dose respectively, and a Cell_Line_Subgroup column will be added containing the general cancer type corresponding with each row's cell line."),
                                     size = "m",
                                     buttonLabel = "Okay", easyClose = TRUE, fade = FALSE
-                                  )
+                                  ),
+                          p(tags$i("Note that downloaded file should be in .tsv format. Problems can sometimes occur when downloading very large files, such that pressing the download button will spuriously download an .html file of the webpage. Please simply try pressing the download button again until a .tsv file is successfully downloaded. It is sometimes necessary to download the .html file before the .tsv file can be successfully downloaded."))
                           )
                         } else if(! is.data.frame(data$Viabilities) & data$Warning != FALSE){
                           p(tags$b(data$Warning), style = "color:red")

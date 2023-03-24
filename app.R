@@ -299,7 +299,8 @@
                   p(HTML("<b>Step 2 (optional):</b> Generate a template instruction file which can be downloaded and modified to specify the compounds and concentrations to be used for viability calculations.")),
                   p(HTML("<b>Step 3:</b> Upload an instruction file specifying the compounds and concentration ranges to be used for Viability calculations.")),
                   p(HTML("<b>Step 4:</b> Select the cell lines for which viability values are to be calculated for the compounds/concentrations specified in the instruction file.")),
-                  p(HTML("<b>Step 5:</b> Press \"Calculate Viability Values\" button to generate and download calculated viability values."))
+                  p(HTML("<b>Step 5:</b> Press \"Calculate Viability Values\" button to generate and download calculated viability values.")),
+                  p(HTML("<i>Note that pre-calculated viability values and standard errors are available for download at select concentrations for all compounds/cell lines. These can be accessed in the \"Download Bulk Data\" tab.</i>"))
                 ),
                 # h4("Step 1: Select dataset"),
                 pickerInput(inputId = "Viability_Dataset", label = "Step 1: Which dataset would you like to use to calculate viability values?", choices = Dataset_Summaries$Dataset, selected = NULL, multiple = TRUE, width = "50%", options = list(`none-Selected-Text` = "Select dataset", `max-options` = 1)),
@@ -422,6 +423,14 @@
                       p(HTML("<a href=\"https://osf.io/aub4p/download\">GDSC1_Results_v1.0.tsv</a>: A tab-separated value text file containing curve parameters, tested concentrations, AUC values, and IC50 values for the compound-cell line pairs tested in GDSC1.")),
                       p(HTML("<a href=\"https://osf.io/tzkd2/download\">GDSC2_Results_v1.0.tsv</a>: A tab-separated value text file containing curve parameters, tested concentrations, AUC values, and IC50 values for the compound-cell line pairs tested in GDSC2.")),
                       p(HTML("<a href=\"https://osf.io/awydb/download\">PRISM_Repurposing_Results_v1.0.tsv</a>: A tab-separated value text file containing curve parameters, tested concentrations, AUC values, and IC50 values for the compound-cell line pairs tested in PRISM_Repurposing."))
+                    ),
+                    wellPanel(
+                      p(HTML("<b>Pre-Calculated Viability Values:</b>")),
+                      p(HTML("Zipped .tsv files with pre-calculated viability values and standard error estimates for all compounds/cell lines in each dataset. Viabilities are calculated at 11 concentrations from 0 to the most commonly used maximum concentration tested for each compound. An additional 11 concentrations are provided from 0 to Csustained if Csustained is available for a compound and Csustained is not greater than the most commonly used maximum tested concentration for that compound in that dataset.")),
+                      p(HTML("<a href=\"https://osf.io/qx95s/download\">CTRPv2_Calculated_Viabilities.zip</a>")),
+                      p(HTML("<a href=\"https://osf.io/zs85m/download\">GDSC1_Calculated_Viabilities.zip</a>")),
+                      p(HTML("<a href=\"https://osf.io/zwf8s/download\">GDSC2_Calculated_Viabilities.zip</a>")),
+                      p(HTML("<a href=\"https://osf.io/dvnxa/download\">PRISM_Repurposing_Calculated_Viabilities.zip</a>"))
                     ),
                     wellPanel(
                       p(HTML("<b>Dataset Raw Data:</b>")),
@@ -5429,7 +5438,7 @@
                                     size = "m",
                                     buttonLabel = "Okay", easyClose = TRUE, fade = FALSE
                                   ),
-                          p(tags$i("Note that downloaded file should be in .tsv format. Problems can sometimes occur when downloading very large files, such that pressing the download button will spuriously download an .html file of the webpage. Please simply try pressing the download button again until a .tsv file is successfully downloaded. It is sometimes necessary to download the .html file before the .tsv file can be successfully downloaded."))
+                          p(tags$i("Note that downloaded file should be in .tsv format. Problems can sometimes occur when downloading very large files, such that pressing the download button will spuriously download an .html file of the webpage. In such situations, you may need to wait until the \"Calculate Viability Values\" button stops flashing grey before the download will complete successfully."))
                           )
                         } else if(is.data.frame(data$AUCs) & data$Warning != FALSE){
                           list(
@@ -5451,7 +5460,7 @@
                                       size = "m",
                                       buttonLabel = "Okay", easyClose = TRUE, fade = FALSE
                                     ),
-                          p(tags$i("Note that downloaded file should be in .tsv format. Problems can sometimes occur when downloading very large files, such that pressing the download button will spuriously download an .html file of the webpage. Please simply try pressing the download button again until a .tsv file is successfully downloaded. It is sometimes necessary to download the .html file before the .tsv file can be successfully downloaded."))
+                          p(tags$i("Note that downloaded file should be in .tsv format. Problems can sometimes occur when downloading very large files, such that pressing the download button will spuriously download an .html file of the webpage. In such situations, you may need to wait until the \"Calculate AUC Values\" button stops flashing grey before the download will complete successfully."))
                           )
                         } else if(! is.data.frame(data$AUCs) & data$Warning != FALSE){
                           p(tags$b(data$Warning), style = "color:red")
@@ -5914,7 +5923,7 @@
                          p(HTML("<b>Due to high server usage, no further viability calculations can be initiated at this time. Please try again later. We apologize for the inconvenience.</b>"), style = "color:red") 
                         )
                       } else {
-                        actionButton(inputId = "Viability_Calc", label = "Calculate_Viability_Values")
+                        actionButton(inputId = "Viability_Calc", label = "Calculate Viability Values")
                       }
                     })
                   
